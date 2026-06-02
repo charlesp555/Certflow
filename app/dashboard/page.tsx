@@ -1,102 +1,237 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
-  ChevronDown, User, Bell, AlertTriangle, Users,
+  Bell, User, ChevronDown, AlertTriangle,
+  ArrowRight, Users, CheckCircle2, Clock,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ── Design tokens ─────────────────────────────────────────────────────────────
 
-type Submission = {
-  vendor: string
-  vendorId: string
-  uploaded: string
-  status: 'compliant' | 'issues'
-  issues: number
-  expiration: string
+const T = {
+  bg: '#0a0a0f',
+  surface: '#0f0f17',
+  card: '#13131f',
+  border: '#1a1a2e',
+  orange: '#D97706',
+  green: '#22c55e',
+  blue: '#3b82f6',
+  primary: '#f8f8f8',
+  secondary: '#8b8fa8',
+  muted: '#4b5063',
 }
 
-type ActionItem = {
-  text: string
-}
+// ── Data ──────────────────────────────────────────────────────────────────────
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
-
-const SUBMISSIONS: Submission[] = [
-  { vendor: 'ABC Plumbing LLC',       vendorId: '1', uploaded: 'May 20, 2025', status: 'issues',    issues: 2, expiration: 'May 22, 2026' },
-  { vendor: 'Summit Electric Co.',    vendorId: '2', uploaded: 'May 19, 2025', status: 'compliant', issues: 0, expiration: 'Feb 15, 2027' },
-  { vendor: 'Bluewater HVAC',         vendorId: '3', uploaded: 'May 18, 2025', status: 'compliant', issues: 0, expiration: 'Jan 10, 2027' },
-  { vendor: 'Pinnacle Roofing Inc.',  vendorId: '4', uploaded: 'May 16, 2025', status: 'issues',    issues: 1, expiration: 'Jun 01, 2026' },
+const SUBMISSIONS = [
+  { vendor: 'ABC Plumbing LLC',      vendorId: '1', uploaded: 'May 20, 2025', status: 'issues'    as const, issues: 2, expiration: 'May 22, 2026' },
+  { vendor: 'Summit Electric Co.',   vendorId: '2', uploaded: 'May 19, 2025', status: 'compliant' as const, issues: 0, expiration: 'Feb 15, 2027' },
+  { vendor: 'Bluewater HVAC',        vendorId: '3', uploaded: 'May 18, 2025', status: 'compliant' as const, issues: 0, expiration: 'Jan 10, 2027' },
+  { vendor: 'Pinnacle Roofing Inc.', vendorId: '4', uploaded: 'May 16, 2025', status: 'issues'    as const, issues: 1, expiration: 'Jun 01, 2026' },
 ]
 
-const ACTION_ITEMS: ActionItem[] = [
+const ACTION_ITEMS = [
   { text: '3 vendors missing additional insured' },
   { text: '2 COIs expire within 30 days' },
   { text: '1 vendor has low general liability limits' },
   { text: '4 vendors need follow-up' },
 ]
 
-// ─── Donut Chart (inline SVG) ─────────────────────────────────────────────────
+// ── Count-up hook ─────────────────────────────────────────────────────────────
 
-function DonutChart() {
+function useCountUp(target: number, duration = 1100): number {
+  const [val, setVal] = useState(0)
+  useEffect(() => {
+    let raf: number
+    const t0 = performance.now()
+    const tick = (now: number) => {
+      const p = Math.min((now - t0) / duration, 1)
+      const eased = 1 - Math.pow(1 - p, 3)
+      setVal(Math.round(target * eased))
+      if (p < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [target, duration])
+  return val
+}
+
+// ── MetricCard ────────────────────────────────────────────────────────────────
+
+function MetricCard({
+  label, target, tag, tagColor, icon: Icon, isIssues = false,
+}: {
+  label: string
+  target: number
+  tag: string
+  tagColor: 'green' | 'orange'
+  icon: React.ElementType
+  isIssues?: boolean
+}) {
+  const val = useCountUp(target)
+  const [hov, setHov] = useState(false)
+  const accent = tagColor === 'green' ? T.green : T.orange
+  const tagBg  = tagColor === 'green' ? 'rgba(34,197,94,0.10)' : 'rgba(217,119,6,0.10)'
+  const tagBorder = tagColor === 'green' ? 'rgba(34,197,94,0.20)' : 'rgba(217,119,6,0.20)'
+
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        flex: 1, minWidth: 0,
+        background: T.card,
+        border: `1px solid ${T.border}`,
+        borderTop: `2px solid ${hov ? T.orange : 'transparent'}`,
+        borderRadius: 12,
+        padding: '20px 22px',
+        position: 'relative',
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-top-color 0.2s ease',
+        transform: hov ? 'translateY(-2px)' : 'translateY(0)',
+        boxShadow: hov ? '0 12px 40px rgba(0,0,0,0.55)' : '0 2px 8px rgba(0,0,0,0.2)',
+      }}
+    >
+      <div style={{
+        position: 'absolute', top: 18, right: 18,
+        width: 30, height: 30, borderRadius: 8,
+        background: 'rgba(217,119,6,0.07)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <Icon size={14} color={T.orange} strokeWidth={2} style={{ opacity: 0.6 }} />
+      </div>
+
+      <div style={{ fontSize: 12, color: T.secondary, fontWeight: 500, marginBottom: 10 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 33, fontWeight: 800, color: T.primary, lineHeight: 1, marginBottom: 12, letterSpacing: '-1px' }}>
+        {val}
+      </div>
+      <div
+        className={isIssues ? 'issues-badge' : ''}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          background: tagBg, color: accent,
+          border: `1px solid ${tagBorder}`,
+          borderRadius: 20, padding: '3px 10px',
+          fontSize: 11, fontWeight: 600,
+        }}
+      >
+        {tag}
+      </div>
+    </div>
+  )
+}
+
+// ── AnimatedDonut ─────────────────────────────────────────────────────────────
+
+function AnimatedDonut() {
+  const [progress, setProgress] = useState(0)
+
+  useEffect(() => {
+    let raf: number
+    const duration = 1050
+    const t0 = performance.now()
+    const tick = (now: number) => {
+      const p = Math.min((now - t0) / duration, 1)
+      const eased = 1 - Math.pow(1 - p, 3)
+      setProgress(eased)
+      if (p < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [])
+
   const R = 70
   const cx = 100
   const cy = 100
-  const circumference = 2 * Math.PI * R
+  const C = 2 * Math.PI * R
 
   const segments = [
-    { pct: 0.69, color: '#22c55e', label: 'Compliant',  count: 29 },
-    { pct: 0.21, color: '#D97706', label: 'Issues',     count: 9  },
-    { pct: 0.10, color: '#3b82f6', label: 'Expiring',   count: 4  },
+    { pct: 0.69, color: T.green, label: 'Compliant',    count: 29 },
+    { pct: 0.21, color: T.orange, label: 'Issues Found', count: 9 },
+    { pct: 0.10, color: T.blue,  label: 'Expiring Soon', count: 4 },
   ]
 
-  let offset = 0
-  const arcs = segments.map((seg) => {
-    const dash = seg.pct * circumference
-    const gap = circumference - dash
-    const rotation = offset * 360
-    offset += seg.pct
-    return { ...seg, dash, gap, rotation }
+  // Continuous clockwise draw from 12 o'clock
+  let cum = 0
+  const arcs = segments.map(seg => {
+    const start = cum
+    const end = cum + seg.pct
+    let drawn = 0
+    if (progress >= end) {
+      drawn = seg.pct * C
+    } else if (progress > start) {
+      drawn = (progress - start) * C
+    }
+    cum += seg.pct
+    return {
+      ...seg,
+      dash: drawn,
+      gap: C - drawn,
+      rotation: start * 360 - 90,
+    }
   })
 
+  const centerPct = Math.round(69 * progress)
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
-      <div style={{ position: 'relative', width: 200, height: 200 }}>
-        <svg width="200" height="200" viewBox="0 0 200 200">
+    <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
+      {/* Donut */}
+      <div style={{ position: 'relative', width: 200, height: 200, flexShrink: 0 }}>
+        <svg width="200" height="200" viewBox="0 0 200 200" style={{ overflow: 'visible' }}>
+          {/* Track */}
+          <circle cx={cx} cy={cy} r={R} fill="none" stroke="#1a1a2e" strokeWidth={24} />
+          {/* Segments */}
           {arcs.map((arc, i) => (
             <circle
               key={i}
               cx={cx} cy={cy} r={R}
               fill="none"
               stroke={arc.color}
-              strokeWidth="28"
+              strokeWidth={24}
               strokeDasharray={`${arc.dash} ${arc.gap}`}
-              strokeDashoffset={0}
-              style={{ transform: `rotate(${arc.rotation * 1 - 90}deg)`, transformOrigin: '100px 100px' }}
+              strokeLinecap="butt"
+              style={{
+                transform: `rotate(${arc.rotation}deg)`,
+                transformOrigin: `${cx}px ${cy}px`,
+              }}
             />
           ))}
-          <circle cx={cx} cy={cy} r={R - 18} fill="#111118" />
         </svg>
-        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#f0ede8', lineHeight: 1.1 }}>69%</div>
-          <div style={{ fontSize: 12, color: '#8a8599', marginTop: 2 }}>Compliant</div>
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          textAlign: 'center', pointerEvents: 'none',
+        }}>
+          <div style={{ fontSize: 26, fontWeight: 800, color: T.primary, lineHeight: 1.1, letterSpacing: '-1px' }}>
+            {centerPct}%
+          </div>
+          <div style={{ fontSize: 12, color: T.secondary, marginTop: 4 }}>Compliant</div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-        {[
-          { color: '#22c55e', label: 'Compliant', count: 29 },
-          { color: '#D97706', label: 'Issues',    count: 9  },
-          { color: '#3b82f6', label: 'Expiring',  count: 4  },
-          { color: '#4b5563', label: 'Pending',   count: 0  },
-        ].map(({ color, label, count }) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, flexShrink: 0 }} />
-              <span style={{ fontSize: 13, color: '#8a8599' }}>{label}</span>
+      {/* Legend */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {segments.map(seg => (
+          <div key={seg.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 9, height: 9, borderRadius: '50%', background: seg.color, flexShrink: 0 }} />
+              <span style={{ fontSize: 13, color: T.secondary }}>{seg.label}</span>
             </div>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#f0ede8' }}>{count}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: T.primary }}>{seg.count}</span>
+              <span style={{
+                fontSize: 11, color: T.muted,
+                background: 'rgba(255,255,255,0.04)',
+                border: `1px solid ${T.border}`,
+                borderRadius: 4, padding: '1px 7px',
+              }}>
+                {Math.round(seg.pct * 100)}%
+              </span>
+            </div>
           </div>
         ))}
       </div>
@@ -104,115 +239,206 @@ function DonutChart() {
   )
 }
 
-// ─── Status Badge ─────────────────────────────────────────────────────────────
+// ── ActionItem ────────────────────────────────────────────────────────────────
 
-function StatusBadge({ status }: { status: 'compliant' | 'issues' }) {
-  if (status === 'compliant') {
-    return (
-      <span style={{ background: '#052e16', color: '#22c55e', border: '1px solid #166534', borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
-        Compliant
+function ActionItem({ text, index, mounted }: { text: string; index: number; mounted: boolean }) {
+  const [hov, setHov] = useState(false)
+
+  return (
+    <Link
+      href="/vendors"
+      className={mounted ? 'action-animate' : 'pre-animate'}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 11,
+        padding: '11px 13px',
+        background: hov ? 'rgba(217,119,6,0.10)' : 'rgba(217,119,6,0.05)',
+        border: `1px solid ${hov ? 'rgba(217,119,6,0.25)' : 'rgba(217,119,6,0.12)'}`,
+        borderRadius: 9, textDecoration: 'none',
+        animationDelay: mounted ? `${index * 80 + 150}ms` : undefined,
+        transition: 'background 0.15s, border-color 0.15s',
+      }}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+    >
+      <AlertTriangle size={15} color={T.orange} style={{ flexShrink: 0 }} />
+      <span style={{ fontSize: 13, color: T.primary, lineHeight: 1.5, fontWeight: 500, flex: 1 }}>
+        {text}
       </span>
-    )
-  }
-  return (
-    <span style={{ background: '#1c0a00', color: '#D97706', border: '1px solid #92400e', borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
-      Issues Found
-    </span>
+      <ArrowRight
+        size={13} color={T.secondary}
+        style={{ flexShrink: 0, opacity: hov ? 1 : 0, transition: 'opacity 0.15s' }}
+      />
+    </Link>
   )
 }
 
-// ─── Metric Card ──────────────────────────────────────────────────────────────
-
-function MetricCard({ label, value, tag, tagColor }: { label: string; value: string | number; tag: string; tagColor: 'green' | 'orange' }) {
-  const color = tagColor === 'green' ? '#22c55e' : '#D97706'
-  const bg    = tagColor === 'green' ? 'rgba(34,197,94,0.10)' : 'rgba(217,119,6,0.10)'
-  return (
-    <div style={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 12, padding: '20px 24px', flex: 1, minWidth: 0 }}>
-      <div style={{ fontSize: 12, color: '#8a8599', marginBottom: 10, fontWeight: 500 }}>{label}</div>
-      <div style={{ fontSize: 30, fontWeight: 800, color: '#f0ede8', lineHeight: 1, marginBottom: 10 }}>{value}</div>
-      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: bg, color, borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>
-        {tag}
-      </div>
-    </div>
-  )
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ── Dashboard page ────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a0f', fontFamily: 'Inter, -apple-system, sans-serif' }}>
+    <div style={{
+      display: 'flex', minHeight: '100vh',
+      background: T.bg,
+      fontFamily: 'Inter, -apple-system, sans-serif',
+      color: T.primary,
+    }}>
+      <style>{`
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(14px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideInRight {
+          from { opacity: 0; transform: translateX(18px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes issueGlow {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(217,119,6,0); }
+          50%       { box-shadow: 0 0 10px 3px rgba(217,119,6,0.20); }
+        }
+        @keyframes bellDot {
+          0%, 100% { transform: scale(1);    opacity: 1; }
+          50%       { transform: scale(0.72); opacity: 0.45; }
+        }
+        .pre-animate     { opacity: 0; }
+        .row-animate     { animation: fadeSlideUp 0.38s ease both; }
+        .action-animate  { animation: slideInRight 0.38s ease both; }
+        .issues-badge    { animation: issueGlow 3.2s ease-in-out infinite; }
+        .bell-dot        { animation: bellDot 2.8s ease-in-out infinite; }
+      `}</style>
+
       <Sidebar />
 
       <main style={{ marginLeft: 240, flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        {/* Top bar */}
-        <header style={{
-          padding: '0 32px', height: 64,
-          borderBottom: '1px solid #1e1e2e',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: '#0a0a0f', position: 'sticky', top: 0, zIndex: 40,
-        }}>
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: '#f0ede8', margin: 0 }}>Dashboard</h1>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <button style={{ position: 'relative', background: 'transparent', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, color: '#8a8599', transition: 'color 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.color = '#f0ede8' }}
-              onMouseLeave={e => { e.currentTarget.style.color = '#8a8599' }}
+        {/* ── Header ── */}
+        <header style={{
+          position: 'sticky', top: 0, zIndex: 40,
+          background: T.bg,
+          borderBottom: `1px solid ${T.border}`,
+          height: 64, padding: '0 28px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <div>
+            <h1 style={{ fontSize: 16, fontWeight: 700, color: T.primary, margin: 0, lineHeight: 1.2 }}>Dashboard</h1>
+            <p style={{ fontSize: 12, color: T.secondary, margin: 0 }}>Welcome back, James</p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Bell */}
+            <button style={{
+              position: 'relative', background: 'none',
+              border: `1px solid ${T.border}`, borderRadius: 8,
+              width: 38, height: 38, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: T.secondary,
+              transition: 'border-color 0.15s, color 0.15s, background 0.15s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = T.orange; e.currentTarget.style.color = T.primary; e.currentTarget.style.background = 'rgba(217,119,6,0.06)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.secondary; e.currentTarget.style.background = 'none' }}
             >
-              <Bell size={20} />
-              <span style={{ position: 'absolute', top: 5, right: 5, width: 8, height: 8, background: '#D97706', borderRadius: '50%', border: '2px solid #0a0a0f' }} />
+              <Bell size={17} />
+              <span
+                className="bell-dot"
+                style={{
+                  position: 'absolute', top: 9, right: 9,
+                  width: 7, height: 7, borderRadius: '50%',
+                  background: T.orange,
+                  border: `2px solid ${T.bg}`,
+                }}
+              />
             </button>
 
-            <button style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'transparent', border: '1px solid #1e1e2e', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.16)'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = '#1e1e2e'; e.currentTarget.style.background = 'transparent' }}
+            {/* User */}
+            <button style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: 'none', border: `1px solid ${T.border}`,
+              borderRadius: 8, padding: '6px 12px', cursor: 'pointer',
+              transition: 'border-color 0.15s, background 0.15s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#2a2a3e'; e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = 'none' }}
             >
-              <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(217,119,6,0.20)', border: '1px solid rgba(217,119,6,0.30)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <User size={13} color="#D97706" />
+              <div style={{
+                width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
+                background: 'rgba(217,119,6,0.13)', border: '1px solid rgba(217,119,6,0.25)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <User size={13} color={T.orange} />
               </div>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#f0ede8' }}>James Carter</span>
-              <ChevronDown size={14} color="#8a8599" />
+              <span style={{ fontSize: 13, fontWeight: 600, color: T.primary }}>James Carter</span>
+              <ChevronDown size={13} color={T.secondary} />
             </button>
           </div>
         </header>
 
-        {/* Page content */}
-        <div style={{ padding: 32, flex: 1 }}>
+        {/* ── Content ── */}
+        <div style={{ padding: 24, flex: 1 }}>
 
           {/* Metric cards */}
-          <div style={{ display: 'flex', gap: 16, marginBottom: 28 }}>
-            <MetricCard label="Total Vendors"  value={42} tag="+12% vs last month" tagColor="green"  />
-            <MetricCard label="Compliant"      value={29} tag="69%"                tagColor="green"  />
-            <MetricCard label="Issues Found"   value={9}  tag="21%"                tagColor="orange" />
-            <MetricCard label="Expiring Soon"  value={4}  tag="10%"                tagColor="orange" />
+          <div style={{ display: 'flex', gap: 14, marginBottom: 22 }}>
+            <MetricCard label="Total Vendors" target={42} tag="+12% vs last month" tagColor="green"  icon={Users}         />
+            <MetricCard label="Compliant"     target={29} tag="69%"                tagColor="green"  icon={CheckCircle2}  />
+            <MetricCard label="Issues Found"  target={9}  tag="21%"                tagColor="orange" icon={AlertTriangle} isIssues />
+            <MetricCard label="Expiring Soon" target={4}  tag="10%"                tagColor="orange" icon={Clock}         />
           </div>
 
           {/* Two-column layout */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 310px', gap: 18, alignItems: 'start' }}>
 
             {/* Left column */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
               {/* Compliance Overview */}
-              <div style={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 12, padding: 24 }}>
+              <div style={{
+                background: T.card, border: `1px solid ${T.border}`,
+                borderRadius: 12, padding: 24,
+                transition: 'border-color 0.2s, box-shadow 0.2s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#2a2a3e'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.4)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.boxShadow = 'none' }}
+              >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-                  <h2 style={{ fontSize: 15, fontWeight: 700, color: '#f0ede8', margin: 0 }}>Compliance Overview</h2>
-                  <button style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid #1e1e2e', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontSize: 12, color: '#8a8599', transition: 'all 0.15s' }}>
-                    This Month <ChevronDown size={12} />
+                  <h2 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: 0 }}>Compliance Overview</h2>
+                  <button style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}`,
+                    borderRadius: 6, padding: '5px 10px',
+                    fontSize: 12, color: T.secondary, cursor: 'pointer',
+                    transition: 'border-color 0.15s',
+                  }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = '#2a2a3e')}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = T.border)}
+                  >
+                    This Month <ChevronDown size={11} />
                   </button>
                 </div>
-                <DonutChart />
+                <AnimatedDonut />
               </div>
 
               {/* Recent Submissions */}
-              <div style={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 12, padding: 24 }}>
+              <div style={{
+                background: T.card, border: `1px solid ${T.border}`,
+                borderRadius: 12, padding: 24,
+                transition: 'border-color 0.2s, box-shadow 0.2s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#2a2a3e'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.4)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.boxShadow = 'none' }}
+              >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                  <h2 style={{ fontSize: 15, fontWeight: 700, color: '#f0ede8', margin: 0 }}>Recent Submissions</h2>
-                  <Link href="/report" style={{ fontSize: 13, color: '#D97706', textDecoration: 'none', fontWeight: 500 }}
-                    onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline' }}
-                    onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none' }}
+                  <h2 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: 0 }}>Recent Submissions</h2>
+                  <Link
+                    href="/reports"
+                    style={{ fontSize: 13, color: T.orange, textDecoration: 'none', fontWeight: 500, transition: 'opacity 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.opacity = '0.75')}
+                    onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
                   >
-                    View all
+                    View all →
                   </Link>
                 </div>
 
@@ -221,7 +447,13 @@ export default function Dashboard() {
                     <thead>
                       <tr>
                         {['Vendor', 'COI Uploaded', 'Status', 'Issues', 'Expiration Date'].map(col => (
-                          <th key={col} style={{ textAlign: 'left', padding: '0 12px 12px', fontSize: 11, color: '#8a8599', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #1e1e2e', whiteSpace: 'nowrap' }}>
+                          <th key={col} style={{
+                            textAlign: 'left', padding: '0 12px 12px',
+                            fontSize: 10, color: T.muted, fontWeight: 600,
+                            textTransform: 'uppercase', letterSpacing: '0.07em',
+                            borderBottom: `1px solid ${T.border}`,
+                            whiteSpace: 'nowrap',
+                          }}>
                             {col}
                           </th>
                         ))}
@@ -229,22 +461,61 @@ export default function Dashboard() {
                     </thead>
                     <tbody>
                       {SUBMISSIONS.map((row, i) => (
-                        <tr key={i} style={{ transition: 'background 0.12s', cursor: 'pointer' }}
-                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.025)' }}
-                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                        <tr
+                          key={i}
+                          className={mounted ? 'row-animate' : 'pre-animate'}
+                          style={{
+                            cursor: 'pointer',
+                            animationDelay: mounted ? `${i * 80}ms` : undefined,
+                            transition: 'background 0.15s',
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = '#1a1a2e')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                         >
-                          <td style={{ padding: '14px 12px', fontSize: 14, fontWeight: 600, borderBottom: '1px solid #1e1e2e', whiteSpace: 'nowrap' }}>
-                            <Link href={`/vendors/${row.vendorId}`} style={{ color: '#f0ede8', textDecoration: 'none' }}
-                              onMouseEnter={e => (e.currentTarget.style.color = '#D97706')}
-                              onMouseLeave={e => (e.currentTarget.style.color = '#f0ede8')}
+                          <td style={{ padding: '13px 12px', borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                            <Link
+                              href={`/vendors/${row.vendorId}`}
+                              style={{ fontSize: 13, fontWeight: 600, color: T.primary, textDecoration: 'none', transition: 'color 0.15s' }}
+                              onMouseEnter={e => (e.currentTarget.style.color = T.orange)}
+                              onMouseLeave={e => (e.currentTarget.style.color = T.primary)}
                             >
                               {row.vendor}
                             </Link>
                           </td>
-                          <td style={{ padding: '14px 12px', fontSize: 13, color: '#8a8599', borderBottom: '1px solid #1e1e2e', whiteSpace: 'nowrap' }}>{row.uploaded}</td>
-                          <td style={{ padding: '14px 12px', borderBottom: '1px solid #1e1e2e' }}><StatusBadge status={row.status} /></td>
-                          <td style={{ padding: '14px 12px', fontSize: 13, fontWeight: 600, color: row.issues > 0 ? '#D97706' : '#8a8599', borderBottom: '1px solid #1e1e2e', textAlign: 'center' }}>{row.issues}</td>
-                          <td style={{ padding: '14px 12px', fontSize: 13, color: '#8a8599', borderBottom: '1px solid #1e1e2e', whiteSpace: 'nowrap' }}>{row.expiration}</td>
+                          <td style={{ padding: '13px 12px', fontSize: 12, color: T.secondary, borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                            {row.uploaded}
+                          </td>
+                          <td style={{ padding: '13px 12px', borderBottom: `1px solid ${T.border}` }}>
+                            {row.status === 'compliant' ? (
+                              <span style={{
+                                background: 'rgba(34,197,94,0.09)', color: T.green,
+                                border: '1px solid rgba(34,197,94,0.22)',
+                                borderRadius: 6, padding: '3px 10px',
+                                fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
+                              }}>
+                                Compliant
+                              </span>
+                            ) : (
+                              <span style={{
+                                background: 'rgba(217,119,6,0.09)', color: T.orange,
+                                border: '1px solid rgba(217,119,6,0.22)',
+                                borderRadius: 6, padding: '3px 10px',
+                                fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
+                              }}>
+                                Issues Found
+                              </span>
+                            )}
+                          </td>
+                          <td style={{
+                            padding: '13px 12px', fontSize: 13, fontWeight: 700,
+                            color: row.issues > 0 ? T.orange : T.muted,
+                            borderBottom: `1px solid ${T.border}`, textAlign: 'center',
+                          }}>
+                            {row.issues}
+                          </td>
+                          <td style={{ padding: '13px 12px', fontSize: 12, color: T.secondary, borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                            {row.expiration}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -253,51 +524,57 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Right column */}
-            <div>
-              <div style={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 12, padding: 24 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                  <h2 style={{ fontSize: 15, fontWeight: 700, color: '#f0ede8', margin: 0 }}>Action Items</h2>
-                  <Link href="/vendors" style={{ fontSize: 13, color: '#D97706', textDecoration: 'none', fontWeight: 500 }}
-                    onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline' }}
-                    onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none' }}
-                  >
-                    View all
-                  </Link>
-                </div>
+            {/* Right — Action Items */}
+            <div style={{
+              background: T.card, border: `1px solid ${T.border}`,
+              borderRadius: 12, padding: 22,
+              transition: 'border-color 0.2s, box-shadow 0.2s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#2a2a3e'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.4)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.boxShadow = 'none' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+                <h2 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: 0 }}>Action Items</h2>
+                <Link
+                  href="/vendors"
+                  style={{ fontSize: 13, color: T.orange, textDecoration: 'none', fontWeight: 500, transition: 'opacity 0.15s' }}
+                  onMouseEnter={e => (e.currentTarget.style.opacity = '0.75')}
+                  onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                >
+                  View all →
+                </Link>
+              </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {ACTION_ITEMS.map((item, i) => (
-                    <Link
-                      key={i}
-                      href="/vendors"
-                      style={{
-                        display: 'flex', alignItems: 'flex-start', gap: 12,
-                        background: 'rgba(217,119,6,0.06)', border: '1px solid rgba(217,119,6,0.15)',
-                        borderRadius: 10, padding: '12px 14px',
-                        cursor: 'pointer', textDecoration: 'none',
-                        transition: 'background 0.15s, border-color 0.15s',
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.12)'; e.currentTarget.style.borderColor = 'rgba(217,119,6,0.30)' }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.06)'; e.currentTarget.style.borderColor = 'rgba(217,119,6,0.15)' }}
-                    >
-                      <AlertTriangle size={16} color="#D97706" style={{ flexShrink: 0, marginTop: 1 }} />
-                      <span style={{ fontSize: 13, color: '#f0ede8', lineHeight: 1.5, fontWeight: 500 }}>{item.text}</span>
-                    </Link>
-                  ))}
-                </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {ACTION_ITEMS.map((item, i) => (
+                  <ActionItem key={i} text={item.text} index={i} mounted={mounted} />
+                ))}
+              </div>
 
-                <div style={{ marginTop: 20, padding: '12px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid #1e1e2e', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Users size={14} color="#8a8599" />
-                    <span style={{ fontSize: 12, color: '#8a8599' }}>Total open items</span>
-                  </div>
-                  <span style={{ background: 'rgba(217,119,6,0.15)', color: '#D97706', fontSize: 12, fontWeight: 700, borderRadius: 20, padding: '2px 10px' }}>
-                    {ACTION_ITEMS.length}
-                  </span>
+              {/* Summary */}
+              <div style={{
+                marginTop: 16,
+                padding: '11px 13px',
+                background: 'rgba(255,255,255,0.025)',
+                border: `1px solid ${T.border}`,
+                borderRadius: 8,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Users size={13} color={T.secondary} />
+                  <span style={{ fontSize: 12, color: T.secondary }}>Total open items</span>
                 </div>
+                <span style={{
+                  background: 'rgba(217,119,6,0.12)', color: T.orange,
+                  fontSize: 12, fontWeight: 700,
+                  borderRadius: 20, padding: '2px 10px',
+                  border: '1px solid rgba(217,119,6,0.20)',
+                }}>
+                  {ACTION_ITEMS.length}
+                </span>
               </div>
             </div>
+
           </div>
         </div>
       </main>
