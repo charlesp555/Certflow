@@ -119,10 +119,13 @@ async function saveToSupabase(
 
     const expirationDate = (coiData.expirationDate as string | null) || null
 
-    const { data: existing } = await supabaseAdmin
+    const query = supabaseAdmin
       .from('vendors')
       .select('id')
       .eq('name', resolvedVendorName)
+
+    // Scope lookup to this user's vendors when authenticated
+    const { data: existing } = await (userId ? query.eq('clerk_user_id', userId) : query)
       .maybeSingle()
 
     if (existing?.id) {
@@ -135,7 +138,7 @@ async function saveToSupabase(
       const { data: newVendor } = await supabaseAdmin
         .from('vendors')
         .insert({
-          user_id: userId,
+          clerk_user_id: userId,
           name: resolvedVendorName,
           status: vendorStatus,
           expiration_date: expirationDate,
@@ -147,7 +150,7 @@ async function saveToSupabase(
   }
 
   await supabaseAdmin.from('submissions').insert({
-    user_id: userId,
+    clerk_user_id: userId,
     vendor_id: resolvedVendorId,
     status,
     issues_count: issuesCount,
