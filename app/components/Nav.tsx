@@ -2,9 +2,11 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { Shield } from 'lucide-react'
+import { SignInButton, SignUpButton, UserButton, useAuth } from '@clerk/nextjs'
 
 export default function Nav() {
   const [open, setOpen] = useState(false)
+  const { isSignedIn } = useAuth()
 
   return (
     <nav style={{
@@ -31,15 +33,25 @@ export default function Nav() {
         <div className="hidden md:flex items-center" style={{ gap: 28 }}>
           <Link href="/dashboard" className="nav-link">Product</Link>
           <Link href="/pricing" className="nav-link">Pricing</Link>
-          <Link href="/login" className="nav-link">Log In</Link>
-          <Link
-            href="/upload"
-            style={{ background: 'var(--amber)', color: '#ffffff', fontSize: 13, fontWeight: 600, padding: '8px 18px', borderRadius: 8, textDecoration: 'none', transition: 'background 0.15s' }}
-            onMouseEnter={e => (e.currentTarget.style.background = '#b45309')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'var(--amber)')}
-          >
-            Get Started
-          </Link>
+          {!isSignedIn && (
+            <>
+              <SignInButton mode="redirect">
+                <button className="nav-link" style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 500, color: 'var(--text)' }}>
+                  Log In
+                </button>
+              </SignInButton>
+              <SignUpButton mode="redirect">
+                <button
+                  style={{ background: 'var(--amber)', color: '#ffffff', fontSize: 13, fontWeight: 600, padding: '8px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background 0.15s' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#b45309')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'var(--amber)')}
+                >
+                  Get Started
+                </button>
+              </SignUpButton>
+            </>
+          )}
+          {isSignedIn && <UserButton afterSignOutUrl="/" />}
         </div>
 
         {/* Mobile hamburger */}
@@ -71,7 +83,6 @@ export default function Nav() {
           {[
             { href: '/dashboard', label: 'Product' },
             { href: '/pricing',   label: 'Pricing' },
-            { href: '/login',     label: 'Log In' },
           ].map(item => (
             <Link
               key={item.href}
@@ -90,24 +101,28 @@ export default function Nav() {
               {item.label}
             </Link>
           ))}
-          <Link
-            href="/upload"
-            onClick={() => setOpen(false)}
-            style={{
-              display: 'block',
-              background: 'var(--amber)',
-              color: '#ffffff',
-              fontSize: 15,
-              fontWeight: 600,
-              padding: '14px 20px',
-              borderRadius: 10,
-              textDecoration: 'none',
-              textAlign: 'center',
-              marginTop: 16,
-            }}
-          >
-            Get Started →
-          </Link>
+          {!isSignedIn && (
+            <>
+              <SignInButton mode="redirect">
+                <button onClick={() => setOpen(false)} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', color: 'var(--text)', fontSize: 16, fontWeight: 500, padding: '13px 0', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
+                  Log In
+                </button>
+              </SignInButton>
+              <SignUpButton mode="redirect">
+                <button
+                  onClick={() => setOpen(false)}
+                  style={{ display: 'block', width: '100%', background: 'var(--amber)', color: '#ffffff', fontSize: 15, fontWeight: 600, padding: '14px 20px', borderRadius: 10, border: 'none', cursor: 'pointer', textAlign: 'center', marginTop: 16 }}
+                >
+                  Get Started →
+                </button>
+              </SignUpButton>
+            </>
+          )}
+          {isSignedIn && (
+            <div style={{ padding: '13px 0', borderTop: '1px solid var(--border)' }}>
+              <UserButton afterSignOutUrl="/" />
+            </div>
+          )}
         </div>
       )}
     </nav>
