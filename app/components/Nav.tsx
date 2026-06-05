@@ -51,7 +51,7 @@ export default function Nav() {
               </SignUpButton>
             </>
           )}
-          {isSignedIn && <UserButton afterSignOutUrl="/" />}
+          {isSignedIn && <UserButton />}
         </div>
 
         {/* Mobile hamburger */}
@@ -120,7 +120,7 @@ export default function Nav() {
           )}
           {isSignedIn && (
             <div style={{ padding: '13px 0', borderTop: '1px solid var(--border)' }}>
-              <UserButton afterSignOutUrl="/" />
+              <UserButton />
             </div>
           )}
         </div>

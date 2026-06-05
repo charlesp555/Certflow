@@ -379,6 +379,8 @@ export default function Upload() {
     try {
       const formData = new FormData()
       formData.append('file', file)
+      const resolvedVendorName = vendorMode === 'existing' ? selectedVendor : newVendorName
+      if (resolvedVendorName) formData.append('vendor_name', resolvedVendorName)
       const res = await fetch('/api/extract-coi', { method: 'POST', body: formData })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Something went wrong')

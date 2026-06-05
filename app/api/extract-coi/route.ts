@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export const runtime = 'nodejs'
 
@@ -6,6 +8,8 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File
+    const vendorNameFromForm = (formData.get('vendor_name') as string | null) || null
+    const vendorIdFromForm = (formData.get('vendor_id') as string | null) || null
 
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
@@ -53,7 +57,7 @@ export async function POST(request: NextRequest) {
     })
 
     const responseText = await response.text()
-    
+
     if (!response.ok) {
       console.error('Anthropic API error:', responseText)
       return NextResponse.json({ error: `API error: ${response.status} - ${responseText}` }, { status: 500 })
@@ -64,6 +68,13 @@ export async function POST(request: NextRequest) {
     const cleanJson = content.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     const coiData = JSON.parse(cleanJson)
 
+    // Save to Supabase — failure is non-fatal; analysis is always returned
+    try {
+      await saveToSupabase(coiData, vendorNameFromForm, vendorIdFromForm)
+    } catch (dbErr) {
+      console.error('Supabase save error:', dbErr)
+    }
+
     return NextResponse.json({ success: true, data: coiData })
   } catch (error) {
     console.error('COI extraction error:', error)
@@ -72,4 +83,75 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+async function saveToSupabase(
+  coiData: Record<string, unknown>,
+  vendorName: string | null,
+  vendorId: string | null
+) {
+  const { userId } = await auth()
+
+  const flags = Array.isArray(coiData.flags) ? (coiData.flags as string[]) : []
+  const overallStatus = (coiData.overallStatus as string | undefined) ?? ''
+  const status = overallStatus === 'COMPLIANT' && flags.length === 0 ? 'Compliant' : 'Issues Found'
+  const issuesCount = flags.length
+
+  // Risk score: 100 = fully compliant, lower = more risk
+  let riskScore = 100
+  if (coiData.isExpired || overallStatus === 'EXPIRED') riskScore -= 40
+  else if (overallStatus === 'EXPIRING') riskScore -= 15
+  if (!coiData.additionalInsured) riskScore -= 10
+  if (!coiData.waiverOfSubrogation) riskScore -= 10
+  riskScore -= Math.min(issuesCount * 8, 40)
+  riskScore = Math.max(riskScore, 0)
+
+  // Prefer form-supplied vendor name, fall back to AI-extracted insured name
+  const resolvedVendorName = vendorName || (coiData.insuredName as string | null) || null
+  let resolvedVendorId = vendorId
+
+  if (resolvedVendorName && !resolvedVendorId) {
+    const vendorStatus =
+      overallStatus === 'EXPIRED' ? 'expired'
+      : overallStatus === 'EXPIRING' ? 'expiring'
+      : overallStatus === 'COMPLIANT' ? 'active'
+      : 'non_compliant'
+
+    const expirationDate = (coiData.expirationDate as string | null) || null
+
+    const { data: existing } = await supabaseAdmin
+      .from('vendors')
+      .select('id')
+      .eq('name', resolvedVendorName)
+      .maybeSingle()
+
+    if (existing?.id) {
+      resolvedVendorId = existing.id
+      await supabaseAdmin
+        .from('vendors')
+        .update({ status: vendorStatus, expiration_date: expirationDate })
+        .eq('id', existing.id)
+    } else {
+      const { data: newVendor } = await supabaseAdmin
+        .from('vendors')
+        .insert({
+          user_id: userId,
+          name: resolvedVendorName,
+          status: vendorStatus,
+          expiration_date: expirationDate,
+        })
+        .select('id')
+        .single()
+      resolvedVendorId = newVendor?.id ?? null
+    }
+  }
+
+  await supabaseAdmin.from('submissions').insert({
+    user_id: userId,
+    vendor_id: resolvedVendorId,
+    status,
+    issues_count: issuesCount,
+    risk_score: riskScore,
+    analysis_result: coiData,
+  })
 }
