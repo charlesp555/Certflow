@@ -131,10 +131,11 @@ function AddVendorModal({
       clerk_user_id: clerkUserId,
       name: form.name.trim(),
       type: form.type,
-      status: dbStatusFromDisplay(form.status),
+      status: 'Pending Review',
+      created_at: new Date().toISOString(),
     })
     setSaving(false)
-    if (dbErr) { setError(dbErr.message); return }
+    if (dbErr) { setError('Failed to add vendor. Please try again.'); return }
     onSave()
     onClose()
   }
