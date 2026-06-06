@@ -1,9 +1,15 @@
-import { SignUp } from "@clerk/nextjs";
+import { SignUp } from '@clerk/nextjs'
 
 export default function SignUpPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <SignUp />
+    <div style={{
+      minHeight: '100vh',
+      background: '#0a0a0f',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      <SignUp afterSignUpUrl="/dashboard" />
     </div>
-  );
+  )
 }
