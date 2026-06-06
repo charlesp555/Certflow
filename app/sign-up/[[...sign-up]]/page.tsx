@@ -9,7 +9,7 @@ export default function SignUpPage() {
       alignItems: 'center',
       justifyContent: 'center',
     }}>
-      <SignUp afterSignUpUrl="/dashboard" />
+      <SignUp forceRedirectUrl="/dashboard" />
     </div>
   )
 }
