@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Bell, User, Check, Upload as UploadIcon, ChevronDown } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
+import { UserButton } from '@clerk/nextjs'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -429,13 +430,7 @@ export default function Upload() {
                 <Bell size={20} />
                 <span style={{ position: 'absolute', top: 5, right: 5, width: 8, height: 8, background: '#D97706', borderRadius: '50%', border: '2px solid #0a0a0f' }} />
               </button>
-              <button style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'transparent', border: '1px solid #1e1e2e', borderRadius: 8, padding: '6px 12px', cursor: 'pointer' }}>
-                <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(217,119,6,0.20)', border: '1px solid rgba(217,119,6,0.30)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <User size={13} color="#D97706" />
-                </div>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#f0ede8' }}>James Carter</span>
-                <ChevronDown size={14} color="#8a8599" />
-              </button>
+              <UserButton afterSignOutUrl="/" />
             </div>
           </header>
           <div style={{ flex: 1, padding: '40px 32px', overflowY: 'auto' }}>
@@ -550,13 +545,7 @@ export default function Upload() {
               <Bell size={20} />
               <span style={{ position: 'absolute', top: 5, right: 5, width: 8, height: 8, background: '#D97706', borderRadius: '50%', border: '2px solid #0a0a0f' }} />
             </button>
-            <button style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'transparent', border: '1px solid #1e1e2e', borderRadius: 8, padding: '6px 12px', cursor: 'pointer' }}>
-              <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(217,119,6,0.20)', border: '1px solid rgba(217,119,6,0.30)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <User size={13} color="#D97706" />
-              </div>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#f0ede8' }}>James Carter</span>
-              <ChevronDown size={14} color="#8a8599" />
-            </button>
+            <UserButton afterSignOutUrl="/" />
           </div>
         </header>
         <div style={{ flex: 1, padding: '40px 32px', overflowY: 'auto' }}>

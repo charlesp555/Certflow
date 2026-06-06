@@ -8,6 +8,7 @@ import {
   CheckCircle2, XCircle, MessageSquare, Shield,
 } from 'lucide-react'
 import Sidebar from '../../components/Sidebar'
+import { UserButton } from '@clerk/nextjs'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
@@ -659,25 +660,7 @@ export default function VendorProfile() {
               }} />
             </button>
 
-            <button style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              background: 'none', border: `1px solid ${T.border}`,
-              borderRadius: 8, padding: '6px 12px', cursor: 'pointer',
-              transition: 'border-color 0.15s, background 0.15s',
-            }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderAccent; e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = 'none' }}
-            >
-              <div style={{
-                width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
-                background: 'rgba(217,119,6,0.13)', border: '1px solid rgba(217,119,6,0.25)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <User size={13} color={T.orange} />
-              </div>
-              <span style={{ fontSize: 13, fontWeight: 600, color: T.primary }}>James Carter</span>
-              <ChevronDown size={13} color={T.secondary} />
-            </button>
+            <UserButton afterSignOutUrl="/" />
           </div>
         </header>
 

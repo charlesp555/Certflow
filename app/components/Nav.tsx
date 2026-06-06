@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { Shield } from 'lucide-react'
-import { SignInButton, SignUpButton, UserButton, useAuth } from '@clerk/nextjs'
+import { UserButton, useAuth } from '@clerk/nextjs'
 
 export default function Nav() {
   const [open, setOpen] = useState(false)
@@ -35,20 +35,10 @@ export default function Nav() {
           <Link href="/pricing" className="nav-link">Pricing</Link>
           {!isSignedIn && (
             <>
-              <SignInButton mode="redirect">
-                <button className="nav-link" style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 500, color: 'var(--text)' }}>
-                  Log In
-                </button>
-              </SignInButton>
-              <SignUpButton mode="redirect">
-                <button
-                  style={{ background: 'var(--amber)', color: '#ffffff', fontSize: 13, fontWeight: 600, padding: '8px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background 0.15s' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#b45309')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'var(--amber)')}
-                >
-                  Get Started
-                </button>
-              </SignUpButton>
+              <Link href="/sign-in" className="nav-link">Log In</Link>
+              <Link href="/sign-up" style={{ background: 'var(--amber)', color: '#ffffff', fontSize: 13, fontWeight: 600, padding: '8px 18px', borderRadius: 8, textDecoration: 'none', transition: 'background 0.15s' }}>
+                Get Started
+              </Link>
             </>
           )}
           {isSignedIn && <UserButton />}
@@ -103,19 +93,12 @@ export default function Nav() {
           ))}
           {!isSignedIn && (
             <>
-              <SignInButton mode="redirect">
-                <button onClick={() => setOpen(false)} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', color: 'var(--text)', fontSize: 16, fontWeight: 500, padding: '13px 0', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
-                  Log In
-                </button>
-              </SignInButton>
-              <SignUpButton mode="redirect">
-                <button
-                  onClick={() => setOpen(false)}
-                  style={{ display: 'block', width: '100%', background: 'var(--amber)', color: '#ffffff', fontSize: 15, fontWeight: 600, padding: '14px 20px', borderRadius: 10, border: 'none', cursor: 'pointer', textAlign: 'center', marginTop: 16 }}
-                >
-                  Get Started →
-                </button>
-              </SignUpButton>
+              <Link href="/sign-in" onClick={() => setOpen(false)} style={{ display: 'block', color: 'var(--text)', fontSize: 16, fontWeight: 500, padding: '13px 0', borderBottom: '1px solid var(--border)', textDecoration: 'none' }}>
+                Log In
+              </Link>
+              <Link href="/sign-up" onClick={() => setOpen(false)} style={{ display: 'block', width: '100%', background: 'var(--amber)', color: '#ffffff', fontSize: 15, fontWeight: 600, padding: '14px 20px', borderRadius: 10, textAlign: 'center', marginTop: 16, textDecoration: 'none' }}>
+                Get Started →
+              </Link>
             </>
           )}
           {isSignedIn && (

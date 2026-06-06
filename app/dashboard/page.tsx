@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useUser } from '@clerk/nextjs'
+import { useUser, UserButton } from '@clerk/nextjs'
 import { supabase } from '@/lib/supabase'
 import {
   Bell, User, ChevronDown, AlertTriangle,
@@ -360,25 +360,7 @@ export default function Dashboard() {
               }} />
             </button>
 
-            <button style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              background: 'none', border: `1px solid ${T.border}`,
-              borderRadius: 8, padding: '6px 12px', cursor: 'pointer',
-              transition: 'border-color 0.15s, background 0.15s',
-            }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#2a2a3e'; e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = 'none' }}
-            >
-              <div style={{
-                width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
-                background: 'rgba(217,119,6,0.13)', border: '1px solid rgba(217,119,6,0.25)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <User size={13} color={T.orange} />
-              </div>
-              <span style={{ fontSize: 13, fontWeight: 600, color: T.primary }}>{userName}</span>
-              <ChevronDown size={13} color={T.secondary} />
-            </button>
+            <UserButton afterSignOutUrl="/" />
           </div>
         </header>
 

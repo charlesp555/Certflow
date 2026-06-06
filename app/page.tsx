@@ -161,8 +161,8 @@ export default function Home() {
 
           {/* Right — desktop */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }} className="desktop-nav">
-            <Link href="/login" className="btn-ghost">Log In</Link>
-            <Link href="/signup" className="btn-orange-sm">Get Started Free</Link>
+            <Link href="/sign-in" className="btn-ghost">Log In</Link>
+            <Link href="/sign-up" className="btn-orange-sm">Get Started Free</Link>
           </div>
 
           {/* Hamburger */}
@@ -207,8 +207,8 @@ export default function Home() {
               </a>
             ))}
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-              <Link href="/login" className="btn-ghost" style={{ flex: 1, justifyContent: 'center' }}>Log In</Link>
-              <Link href="/signup" className="btn-orange" style={{ flex: 1, justifyContent: 'center', fontSize: 14 }}>Get Started Free</Link>
+              <Link href="/sign-in" className="btn-ghost" style={{ flex: 1, justifyContent: 'center' }}>Log In</Link>
+              <Link href="/sign-up" className="btn-orange" style={{ flex: 1, justifyContent: 'center', fontSize: 14 }}>Get Started Free</Link>
             </div>
           </div>
         )}
@@ -278,7 +278,7 @@ export default function Home() {
 
             {/* CTAs */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap', marginBottom: 40 }}>
-              <Link href="/signup" className="btn-orange" style={{ fontSize: 16, padding: '14px 30px' }}>
+              <Link href="/sign-up" className="btn-orange" style={{ fontSize: 16, padding: '14px 30px' }}>
                 Start Verifying Free
               </Link>
               <Link href="/upload" className="demo-link">
@@ -822,7 +822,7 @@ export default function Home() {
           <p style={{ fontSize: 16, color: T.textSecondary, lineHeight: 1.7, marginBottom: 36, maxWidth: 440, margin: '0 auto 36px' }}>
             Join property managers who verify vendor insurance the smart way.
           </p>
-          <Link href="/signup" className="btn-orange" style={{ fontSize: 16, padding: '16px 36px' }}>
+          <Link href="/sign-up" className="btn-orange" style={{ fontSize: 16, padding: '16px 36px' }}>
             Get Started Free — No Credit Card Required
           </Link>
           <p style={{ fontSize: 13, color: T.textMuted, marginTop: 16 }}>
