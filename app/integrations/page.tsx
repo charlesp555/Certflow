@@ -224,7 +224,7 @@ export default function IntegrationsPage() {
               }} />
             </button>
 
-            <UserButton afterSignOutUrl="/" />
+            <UserButton />
           </div>
         </header>
 

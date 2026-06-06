@@ -230,7 +230,7 @@ export default function SubmissionsPage() {
               }} />
             </button>
 
-            <UserButton afterSignOutUrl="/" />
+            <UserButton />
           </div>
         </header>
 

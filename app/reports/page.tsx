@@ -321,7 +321,7 @@ export default function ReportsPage() {
               }} />
             </button>
 
-            <UserButton afterSignOutUrl="/" />
+            <UserButton />
           </div>
         </header>
 

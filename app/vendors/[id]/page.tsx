@@ -660,7 +660,7 @@ export default function VendorProfile() {
               }} />
             </button>
 
-            <UserButton afterSignOutUrl="/" />
+            <UserButton />
           </div>
         </header>
 

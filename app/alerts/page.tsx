@@ -291,7 +291,7 @@ export default function AlertsPage() {
               }} />
             </button>
 
-            <UserButton afterSignOutUrl="/" />
+            <UserButton />
           </div>
         </header>
 

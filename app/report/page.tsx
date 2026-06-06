@@ -83,7 +83,7 @@ export default function ReportPage() {
               <Bell size={20} />
               <span style={{ position: 'absolute', top: 5, right: 5, width: 8, height: 8, background: '#D97706', borderRadius: '50%', border: '2px solid #0a0a0f' }} />
             </button>
-            <UserButton afterSignOutUrl="/" />
+            <UserButton />
           </div>
         </header>
 

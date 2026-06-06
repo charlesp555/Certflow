@@ -750,7 +750,7 @@ export default function SettingsPage() {
               }} />
             </button>
 
-            <UserButton afterSignOutUrl="/" />
+            <UserButton />
           </div>
         </header>
 

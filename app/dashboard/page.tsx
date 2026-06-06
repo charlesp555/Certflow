@@ -360,7 +360,7 @@ export default function Dashboard() {
               }} />
             </button>
 
-            <UserButton afterSignOutUrl="/" />
+            <UserButton />
           </div>
         </header>
 
