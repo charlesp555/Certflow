@@ -447,7 +447,7 @@ export default function VendorsPage() {
                           <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', gap: 8 }}>
                               <Link
-                                href="/upload"
+                                href={`/upload?vendorId=${vendor.id}&vendorName=${encodeURIComponent(vendor.name)}`}
                                 style={{
                                   display: 'inline-flex', alignItems: 'center', gap: 5,
                                   background: 'rgba(217,119,6,0.10)', color: '#D97706',

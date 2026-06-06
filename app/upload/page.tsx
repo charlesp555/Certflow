@@ -1,6 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { Bell, User, Check, Upload as UploadIcon, ChevronDown } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import { UserButton } from '@clerk/nextjs'
@@ -348,8 +349,12 @@ function StepIndicator({ current, completed }: { current: number; completed: boo
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 
-export default function Upload() {
-  const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(1)
+function UploadInner() {
+  const searchParams = useSearchParams()
+  const urlVendorId = searchParams.get('vendorId')
+  const urlVendorName = searchParams.get('vendorName') ?? ''
+
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(urlVendorId ? 2 : 1)
   const [vendorMode, setVendorMode] = useState<'existing' | 'new'>('existing')
   const [selectedVendor, setSelectedVendor] = useState(VENDOR_NAMES[0])
   const [newVendorName, setNewVendorName] = useState('')
@@ -380,8 +385,9 @@ export default function Upload() {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      const resolvedVendorName = vendorMode === 'existing' ? selectedVendor : newVendorName
+      const resolvedVendorName = urlVendorId ? urlVendorName : (vendorMode === 'existing' ? selectedVendor : newVendorName)
       if (resolvedVendorName) formData.append('vendor_name', resolvedVendorName)
+      if (urlVendorId) formData.append('vendor_id', urlVendorId)
       const res = await fetch('/api/extract-coi', { method: 'POST', body: formData })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Something went wrong')
@@ -623,7 +629,13 @@ export default function Upload() {
         {/* ── Step 2: Upload Document ── */}
         {wizardStep === 2 && (
           <div>
-            <h2 style={{ fontSize: 22, fontWeight: 700, color: '#f0ede8', margin: '0 0 24px' }}>Upload Document</h2>
+            <h2 style={{ fontSize: 22, fontWeight: 700, color: '#f0ede8', margin: '0 0 8px' }}>Upload Document</h2>
+            {urlVendorName && (
+              <p style={{ fontSize: 14, color: '#8a8599', marginBottom: 24, lineHeight: 1.6 }}>
+                Uploading COI for <span style={{ color: '#D97706', fontWeight: 600 }}>{urlVendorName}</span>
+              </p>
+            )}
+            {!urlVendorName && <div style={{ marginBottom: 24 }} />}
 
             <div
               onDragOver={e => { e.preventDefault(); setDragging(true) }}
@@ -793,5 +805,13 @@ export default function Upload() {
         </div>
       </main>
     </div>
+  )
+}
+
+export default function UploadPage() {
+  return (
+    <Suspense>
+      <UploadInner />
+    </Suspense>
   )
 }

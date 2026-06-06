@@ -106,19 +106,25 @@ async function saveToSupabase(
   riskScore -= Math.min(issuesCount * 8, 40)
   riskScore = Math.max(riskScore, 0)
 
+  const vendorStatus =
+    overallStatus === 'EXPIRED' ? 'expired'
+    : overallStatus === 'EXPIRING' ? 'expiring'
+    : overallStatus === 'COMPLIANT' ? 'active'
+    : 'non_compliant'
+
+  const expirationDate = (coiData.expirationDate as string | null) || null
+
   // Prefer form-supplied vendor name, fall back to AI-extracted insured name
   const resolvedVendorName = vendorName || (coiData.insuredName as string | null) || null
   let resolvedVendorId = vendorId
 
-  if (resolvedVendorName && !resolvedVendorId) {
-    const vendorStatus =
-      overallStatus === 'EXPIRED' ? 'expired'
-      : overallStatus === 'EXPIRING' ? 'expiring'
-      : overallStatus === 'COMPLIANT' ? 'active'
-      : 'non_compliant'
-
-    const expirationDate = (coiData.expirationDate as string | null) || null
-
+  if (resolvedVendorId) {
+    // Update existing vendor's status and expiration date from this COI
+    await supabaseAdmin
+      .from('vendors')
+      .update({ status: vendorStatus, expiration_date: expirationDate })
+      .eq('id', resolvedVendorId)
+  } else if (resolvedVendorName) {
     const query = supabaseAdmin
       .from('vendors')
       .select('id')
