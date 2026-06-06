@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useUser } from '@clerk/nextjs'
 import {
   LayoutDashboard, Building2, FileText, TrendingUp,
   Bell, ClipboardList, FolderOpen, Puzzle, Settings, Shield, User,
@@ -34,6 +35,9 @@ function isActive(href: string, pathname: string) {
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const { user } = useUser()
+  const userName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.emailAddresses[0]?.emailAddress || 'User'
+  const userEmail = user?.emailAddresses[0]?.emailAddress || ''
 
   return (
     <aside style={{
@@ -110,10 +114,10 @@ export default function Sidebar() {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: T.primary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            James Carter
+            {userName}
           </div>
           <div style={{ fontSize: 11, color: T.secondary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            Operations Manager
+            {userEmail}
           </div>
         </div>
         <Link href="/settings" style={{
