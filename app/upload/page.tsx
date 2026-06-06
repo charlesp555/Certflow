@@ -1,5 +1,5 @@
 'use client'
-import { useState, Suspense } from 'react'
+import { useState, useRef, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Bell, User, Check, Upload as UploadIcon, ChevronDown } from 'lucide-react'
@@ -372,10 +372,12 @@ function UploadInner() {
     requireWaiverOfSubrogation: true,
   })
 
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const allFlags = activeEntry ? [...activeEntry.result.flags, ...activeEntry.requirementFlags] : []
 
   const handleFile = (f: File) => {
-    if (f.type !== 'application/pdf') { setError('Please upload a PDF file.'); return }
+    const allowed = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
+    if (!allowed.includes(f.type)) { setError('Please upload a PDF, JPG, or PNG file.'); return }
     setFile(f); setError('')
   }
 
@@ -641,7 +643,7 @@ function UploadInner() {
               onDragOver={e => { e.preventDefault(); setDragging(true) }}
               onDragLeave={() => setDragging(false)}
               onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}
-              onClick={() => !loading && document.getElementById('file-input')?.click()}
+              onClick={() => !loading && fileInputRef.current?.click()}
               style={{
                 border: `2px dashed ${dragging ? '#D97706' : file ? 'rgba(5,150,105,0.45)' : '#D97706'}`,
                 borderRadius: 16, padding: '64px 24px',
@@ -650,7 +652,7 @@ function UploadInner() {
                 transition: 'all 0.2s', marginBottom: 14,
               }}
             >
-              <input id="file-input" type="file" accept=".pdf" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+              <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
               {file ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
                   <div style={{ fontSize: 40 }}>📄</div>
@@ -662,7 +664,7 @@ function UploadInner() {
                   <UploadIcon size={36} color="#D97706" />
                   <div style={{ fontSize: 18, fontWeight: 700, color: '#f0ede8' }}>Drag and drop your COI here</div>
                   <div style={{ fontSize: 14, color: '#8a8599' }}>or</div>
-                  <button style={{ background: '#D97706', color: '#fff', fontSize: 13, fontWeight: 600, padding: '9px 20px', borderRadius: 8, border: 'none', cursor: 'pointer' }} onClick={e => e.stopPropagation()}>
+                  <button style={{ background: '#D97706', color: '#fff', fontSize: 13, fontWeight: 600, padding: '9px 20px', borderRadius: 8, border: 'none', cursor: 'pointer' }} onClick={e => { e.stopPropagation(); fileInputRef.current?.click() }}>
                     Browse Files
                   </button>
                   <div style={{ fontSize: 12, color: '#8a8599', marginTop: 6 }}>PDF, JPG, PNG — Max 25MB</div>
