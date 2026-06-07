@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
-  Bell, User, ChevronDown, Search, Upload,
+  Bell, ChevronDown, Search, Upload,
   Download, Eye, FileText,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
-import { UserButton } from '@clerk/nextjs'
+import { UserButton, useUser } from '@clerk/nextjs'
+import { supabase } from '@/lib/supabase'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
@@ -43,23 +44,64 @@ type Submission = {
   score: number | null
 }
 
-// ── Data ──────────────────────────────────────────────────────────────────────
+type AnalysisResult = {
+  effectiveDate?: string | null
+  expirationDate?: string | null
+  overallStatus?: string | null
+  flags?: string[]
+}
 
-const SUBMISSIONS: Submission[] = [
-  { id: '1', vendor: 'ABC Plumbing LLC',      vendorId: '1', uploaded: 'May 20, 2025', policyPeriod: 'May 22, 2025 – May 22, 2026', status: 'Issues Found',   issues: 2, score: 71  },
-  { id: '2', vendor: 'Summit Electric Co.',   vendorId: '2', uploaded: 'May 19, 2025', policyPeriod: 'Feb 15, 2025 – Feb 15, 2026', status: 'Compliant',      issues: 0, score: 98  },
-  { id: '3', vendor: 'Bluewater HVAC',        vendorId: '3', uploaded: 'May 18, 2025', policyPeriod: 'Jan 10, 2025 – Jan 10, 2027', status: 'Compliant',      issues: 0, score: 95  },
-  { id: '4', vendor: 'Pinnacle Roofing Inc.', vendorId: '4', uploaded: 'May 16, 2025', policyPeriod: 'Jun 01, 2025 – Jun 01, 2026', status: 'Issues Found',   issues: 1, score: 82  },
-  { id: '5', vendor: 'Bright Services',       vendorId: '5', uploaded: 'May 15, 2025', policyPeriod: 'Jun 05, 2024 – Jun 05, 2025', status: 'Expiring Soon',  issues: 0, score: 88  },
-  { id: '6', vendor: 'ProBuild Contractors',  vendorId: '6', uploaded: 'May 14, 2025', policyPeriod: 'Mar 12, 2025 – Mar 12, 2027', status: 'Compliant',      issues: 0, score: 96  },
-  { id: '7', vendor: 'Elite Flooring',        vendorId: '7', uploaded: 'May 12, 2025', policyPeriod: 'Pending',                     status: 'Pending Review', issues: 0, score: null },
-  { id: '8', vendor: 'Metro Electric Co.',    vendorId: '8', uploaded: 'May 10, 2025', policyPeriod: 'Aug 30, 2025 – Aug 30, 2026', status: 'Compliant',      issues: 0, score: 93  },
-]
+type DbRow = {
+  id: string
+  vendor_id: string | null
+  status: string | null
+  issues_count: number | null
+  risk_score: number | null
+  analysis_result: AnalysisResult | null
+  created_at: string | null
+  vendors: { id: string; name: string } | null
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function mapDbToSubmission(row: DbRow): Submission {
+  const ar = row.analysis_result
+  const ov = ar?.overallStatus ?? null
+
+  let status: Status
+  if (!ar) {
+    status = 'Pending Review'
+  } else if (ov === 'EXPIRING') {
+    status = 'Expiring Soon'
+  } else if (row.status === 'Compliant') {
+    status = 'Compliant'
+  } else {
+    status = 'Issues Found'
+  }
+
+  let policyPeriod = 'Pending'
+  if (ar?.effectiveDate && ar?.expirationDate) {
+    policyPeriod = `${ar.effectiveDate} – ${ar.expirationDate}`
+  } else if (ar?.expirationDate) {
+    policyPeriod = ar.expirationDate
+  }
+
+  return {
+    id: row.id,
+    vendor: row.vendors?.name ?? 'Unknown Vendor',
+    vendorId: row.vendors?.id ?? row.vendor_id ?? '',
+    uploaded: row.created_at
+      ? new Date(row.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : '—',
+    policyPeriod,
+    status,
+    issues: row.issues_count ?? 0,
+    score: row.risk_score ?? null,
+  }
+}
 
 const STATUS_OPTIONS: (Status | 'All')[] = ['All', 'Compliant', 'Issues Found', 'Expiring Soon', 'Pending Review']
 const DATE_OPTIONS = ['This Month', 'Last 3 Months', 'This Year', 'All Time']
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function statusStyle(status: Status): { bg: string; color: string; border: string } {
   switch (status) {
@@ -127,28 +169,50 @@ function FilterSelect({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SubmissionsPage() {
+  const { user, isLoaded } = useUser()
   const [search, setSearch]       = useState('')
   const [statusFilter, setStatus] = useState<Status | 'All'>('All')
   const [dateFilter, setDate]     = useState('All Time')
   const [mounted, setMounted]     = useState(false)
+  const [submissions, setSubmissions] = useState<Submission[]>([])
+  const [loading, setLoading]     = useState(true)
 
   useEffect(() => { setMounted(true) }, [])
 
-  const filtered = SUBMISSIONS.filter(s => {
+  useEffect(() => {
+    if (!isLoaded || !user) return
+    const userId = user.id
+    async function fetchSubmissions() {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('submissions')
+        .select('id, vendor_id, status, issues_count, risk_score, analysis_result, created_at, vendors(id, name)')
+        .eq('clerk_user_id', userId)
+        .order('created_at', { ascending: false })
+
+      if (!error && data) {
+        setSubmissions((data as unknown as DbRow[]).map(mapDbToSubmission))
+      }
+      setLoading(false)
+    }
+    fetchSubmissions()
+  }, [isLoaded, user])
+
+  const filtered = submissions.filter(s => {
     if (search && !s.vendor.toLowerCase().includes(search.toLowerCase())) return false
     if (statusFilter !== 'All' && s.status !== statusFilter) return false
     return true
   })
 
   // Summary counts (based on full dataset, not filtered)
-  const total     = SUBMISSIONS.length
-  const compliant = SUBMISSIONS.filter(s => s.status === 'Compliant').length
-  const issues    = SUBMISSIONS.filter(s => s.status === 'Issues Found').length
-  const pending   = SUBMISSIONS.filter(s => s.status === 'Pending Review').length
+  const total     = submissions.length
+  const compliant = submissions.filter(s => s.status === 'Compliant').length
+  const issues    = submissions.filter(s => s.status === 'Issues Found').length
+  const pending   = submissions.filter(s => s.status === 'Pending Review').length
 
   function handleExport() {
     const header = 'Vendor,Uploaded,Policy Period,Status,Issues,Score'
-    const rows = SUBMISSIONS.map(s =>
+    const rows = submissions.map(s =>
       `"${s.vendor}","${s.uploaded}","${s.policyPeriod}","${s.status}",${s.issues},${s.score ?? ''}`
     )
     const csv = [header, ...rows].join('\n')
@@ -288,10 +352,10 @@ export default function SubmissionsPage() {
             display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap',
           }}>
             {[
-              { label: 'Total',        value: total,     pct: null,                          color: T.secondary },
-              { label: 'Compliant',    value: compliant, pct: Math.round(compliant/total*100), color: T.green    },
-              { label: 'Issues Found', value: issues,    pct: Math.round(issues/total*100),    color: T.orange   },
-              { label: 'Pending',      value: pending,   pct: Math.round(pending/total*100),   color: T.blue     },
+              { label: 'Total',        value: total,     pct: null,                                              color: T.secondary },
+              { label: 'Compliant',    value: compliant, pct: total > 0 ? Math.round(compliant/total*100) : 0,  color: T.green    },
+              { label: 'Issues Found', value: issues,    pct: total > 0 ? Math.round(issues/total*100)    : 0,  color: T.orange   },
+              { label: 'Pending',      value: pending,   pct: total > 0 ? Math.round(pending/total*100)   : 0,  color: T.blue     },
             ].map(stat => (
               <div key={stat.label} style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8,
@@ -362,7 +426,7 @@ export default function SubmissionsPage() {
                             <FileText size={12} color={T.orange} style={{ opacity: 0.7 }} />
                           </div>
                           <Link
-                            href={`/vendors/${row.vendorId}`}
+                            href={row.vendorId ? `/vendors/${row.vendorId}` : '#'}
                             onClick={e => e.stopPropagation()}
                             style={{
                               fontSize: 13, fontWeight: 600, color: T.primary,
@@ -448,7 +512,29 @@ export default function SubmissionsPage() {
               </table>
             </div>
 
-            {filtered.length === 0 && (
+            {/* Empty states */}
+            {!loading && submissions.length === 0 && (
+              <div style={{ padding: '60px 24px', textAlign: 'center' }}>
+                <FileText size={36} color={T.border} style={{ marginBottom: 14 }} />
+                <p style={{ fontSize: 15, fontWeight: 600, color: T.primary, margin: '0 0 8px' }}>
+                  No submissions yet.
+                </p>
+                <p style={{ fontSize: 13, color: T.secondary, margin: '0 0 20px' }}>
+                  Upload your first COI to get started.
+                </p>
+                <Link href="/upload" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 7,
+                  background: T.orange, color: '#fff', textDecoration: 'none',
+                  borderRadius: 8, padding: '10px 20px',
+                  fontSize: 13, fontWeight: 600,
+                  boxShadow: '0 2px 12px rgba(217,119,6,0.25)',
+                }}>
+                  <Upload size={14} /> Upload COI
+                </Link>
+              </div>
+            )}
+
+            {!loading && submissions.length > 0 && filtered.length === 0 && (
               <div style={{ padding: '52px 24px', textAlign: 'center' }}>
                 <FileText size={32} color={T.border} style={{ marginBottom: 12 }} />
                 <p style={{ fontSize: 14, fontWeight: 600, color: T.primary, margin: '0 0 6px' }}>
@@ -460,13 +546,19 @@ export default function SubmissionsPage() {
               </div>
             )}
 
+            {loading && (
+              <div style={{ padding: '52px 24px', textAlign: 'center' }}>
+                <p style={{ fontSize: 13, color: T.secondary, margin: 0 }}>Loading submissions…</p>
+              </div>
+            )}
+
             {/* Table footer */}
             <div style={{
               padding: '11px 16px', borderTop: `1px solid ${T.border}`,
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
               <span style={{ fontSize: 12, color: T.muted }}>
-                Showing {filtered.length} of {SUBMISSIONS.length} submissions
+                Showing {filtered.length} of {submissions.length} submissions
               </span>
               <Link href="/upload" style={{
                 display: 'inline-flex', alignItems: 'center', gap: 5,
