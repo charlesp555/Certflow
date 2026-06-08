@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import {
   Bell, User, ChevronDown, Search, Upload,
-  Eye, X, Building2,
+  Eye, X, Building2, Lock,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import { useUser } from '@clerk/nextjs'
@@ -46,15 +46,6 @@ function mapStatus(dbStatus: string | null): VendorStatus {
   }
 }
 
-function dbStatusFromDisplay(display: string): string {
-  switch (display) {
-    case 'Compliant':      return 'active'
-    case 'Expiring Soon':  return 'expiring'
-    case 'Issues Found':   return 'non_compliant'
-    default:               return 'pending'
-  }
-}
-
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return '—'
   try {
@@ -88,6 +79,8 @@ const EXPIRATION_OPTIONS = ['All', 'This Month', 'Next 30 Days', 'Next 90 Days']
 const MODAL_TYPES = ['Plumbing', 'Electrical', 'HVAC', 'Roofing', 'Janitorial', 'General Contractor', 'Flooring']
 const MODAL_STATUSES = ['Pending Review', 'Compliant', 'Issues Found', 'Expiring Soon']
 
+const FREE_VENDOR_LIMIT = 3
+
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: VendorStatus }) {
@@ -105,6 +98,71 @@ function StatusBadge({ status }: { status: VendorStatus }) {
     }}>
       {status}
     </span>
+  )
+}
+
+// ─── Paywall Modal ────────────────────────────────────────────────────────────
+
+function PaywallModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 100,
+      background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+    }} onClick={onClose}>
+      <div style={{
+        background: '#111118', border: '1px solid #1e1e2e', borderRadius: 16,
+        padding: 40, width: '100%', maxWidth: 440,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        textAlign: 'center',
+      }} onClick={e => e.stopPropagation()}>
+        <div style={{
+          width: 52, height: 52, borderRadius: '50%',
+          background: 'rgba(217,119,6,0.12)', border: '1px solid rgba(217,119,6,0.25)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          margin: '0 auto 20px',
+        }}>
+          <Lock size={22} color="#D97706" />
+        </div>
+
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: '#f0ede8', margin: '0 0 10px' }}>
+          You&apos;ve reached the free limit
+        </h2>
+        <p style={{ fontSize: 14, color: '#8a8599', margin: '0 0 28px', lineHeight: 1.6 }}>
+          Upgrade to Pro to add unlimited vendors
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <Link
+            href="/pricing"
+            style={{
+              display: 'block', textAlign: 'center',
+              background: '#D97706', color: '#fff',
+              fontSize: 14, fontWeight: 700,
+              padding: '12px 24px', borderRadius: 8, textDecoration: 'none',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#b45309')}
+            onMouseLeave={e => (e.currentTarget.style.background = '#D97706')}
+          >
+            Upgrade to Pro
+          </Link>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'transparent', border: '1px solid #1e1e2e',
+              color: '#8a8599', fontSize: 14, fontWeight: 500,
+              padding: '12px 24px', borderRadius: 8, cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#2e2e3e'; e.currentTarget.style.color = '#f0ede8' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = '#1e1e2e'; e.currentTarget.style.color = '#8a8599' }}
+          >
+            Maybe later
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -278,7 +336,9 @@ export default function VendorsPage() {
   const { user, isLoaded } = useUser()
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [loading, setLoading] = useState(true)
+  const [userPlan, setUserPlan] = useState<string>('free')
   const [showModal, setShowModal] = useState(false)
+  const [showPaywall, setShowPaywall] = useState(false)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('All')
   const [filterType, setFilterType] = useState('All')
@@ -287,12 +347,25 @@ export default function VendorsPage() {
   const fetchVendors = useCallback(async () => {
     if (!user?.id) return
     setLoading(true)
-    const { data, error } = await supabase
-      .from('vendors')
-      .select('id, name, type, status, expiration_date, created_at, submissions(issues_count, created_at)')
-      .eq('clerk_user_id', user.id)
-      .order('created_at', { ascending: false })
-    if (!error && data) setVendors((data as VendorRow[]).map(rowToVendor))
+    const [vendorsResult, planResult] = await Promise.all([
+      supabase
+        .from('vendors')
+        .select('id, name, type, status, expiration_date, created_at, submissions(issues_count, created_at)')
+        .eq('clerk_user_id', user.id)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('users')
+        .select('plan')
+        .eq('clerk_user_id', user.id)
+        .maybeSingle(),
+    ])
+
+    if (!vendorsResult.error && vendorsResult.data) {
+      setVendors((vendorsResult.data as VendorRow[]).map(rowToVendor))
+    }
+    if (!planResult.error && planResult.data?.plan) {
+      setUserPlan(planResult.data.plan)
+    }
     setLoading(false)
   }, [user?.id])
 
@@ -300,6 +373,14 @@ export default function VendorsPage() {
     if (isLoaded && user) fetchVendors()
     else if (isLoaded) setLoading(false)
   }, [isLoaded, user, fetchVendors])
+
+  const handleAddVendorClick = () => {
+    if (userPlan === 'free' && vendors.length >= FREE_VENDOR_LIMIT) {
+      setShowPaywall(true)
+    } else {
+      setShowModal(true)
+    }
+  }
 
   const filtered = vendors.filter(v => {
     if (search && !v.name.toLowerCase().includes(search.toLowerCase())) return false
@@ -313,6 +394,10 @@ export default function VendorsPage() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a0f', fontFamily: 'Inter, -apple-system, sans-serif' }}>
       <Sidebar />
+
+      {showPaywall && (
+        <PaywallModal onClose={() => setShowPaywall(false)} />
+      )}
 
       {showModal && user && (
         <AddVendorModal
@@ -334,7 +419,7 @@ export default function VendorsPage() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <button
-              onClick={() => setShowModal(true)}
+              onClick={handleAddVendorClick}
               style={{
                 background: '#D97706', color: '#fff', fontSize: 14, fontWeight: 600,
                 padding: '8px 18px', borderRadius: 8, border: 'none', cursor: 'pointer',
@@ -493,7 +578,7 @@ export default function VendorsPage() {
                       Add your first vendor to get started.
                     </div>
                     <button
-                      onClick={() => setShowModal(true)}
+                      onClick={handleAddVendorClick}
                       style={{
                         background: '#D97706', color: '#fff', fontSize: 14, fontWeight: 600,
                         padding: '10px 24px', borderRadius: 8, border: 'none', cursor: 'pointer',
