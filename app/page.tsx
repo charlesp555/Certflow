@@ -2,24 +2,24 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import {
-  Shield, Menu, X, Check, AlertTriangle, CheckCircle2,
-  ArrowRight, Upload, Zap, FileText,
+  Shield, Menu, X, Check, Users, AlertTriangle, Clock,
+  CheckCircle2, ArrowRight, Upload, Zap, FileText,
 } from 'lucide-react'
 
 const T = {
-  bg: '#0a0a0f',
-  surface: '#0f0f17',
-  card: '#13131f',
-  borderSubtle: '#1a1a2e',
-  borderAccent: '#2a2a3e',
-  orange: '#D97706',
-  orangeHover: '#B45309',
-  orangeGlow: 'rgba(217,119,6,0.15)',
-  green: '#16a34a',
-  red: '#dc2626',
-  textPrimary: '#f8f8f8',
+  bg:            '#0a0a0f',
+  surface:       '#0f0f17',
+  card:          '#13131f',
+  borderSubtle:  '#1a1a2e',
+  borderAccent:  '#2a2a3e',
+  orange:        '#D97706',
+  orangeHover:   '#B45309',
+  orangeGlow:    'rgba(217,119,6,0.15)',
+  green:         '#22c55e',
+  red:           '#dc2626',
+  textPrimary:   '#f8f8f8',
   textSecondary: '#8b8fa8',
-  textMuted: '#4b5063',
+  textMuted:     '#4b5063',
 }
 
 export default function Home() {
@@ -34,10 +34,6 @@ export default function Home() {
         a { cursor: pointer; text-decoration: none; }
         button { cursor: pointer; }
 
-        @keyframes pulse-glow {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0); }
-          50% { box-shadow: 0 0 16px 4px rgba(220,38,38,0.18); }
-        }
         @keyframes slide-up {
           from { opacity: 0; transform: translateY(20px); }
           to   { opacity: 1; transform: translateY(0); }
@@ -50,48 +46,76 @@ export default function Home() {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.4; }
         }
+        @keyframes float-card {
+          0%, 100% { transform: translateY(0px); }
+          50%       { transform: translateY(-6px); }
+        }
+        @keyframes orange-btn-glow {
+          0%, 100% { box-shadow: 0 4px 20px rgba(217,119,6,0.28); }
+          50%       { box-shadow: 0 4px 32px rgba(217,119,6,0.55), 0 0 0 6px rgba(217,119,6,0.12); }
+        }
+        @keyframes particle-drift {
+          0%   { transform: translate(0,0) scale(1); opacity: 0.6; }
+          50%  { transform: translate(-12px,-18px) scale(1.2); opacity: 0.3; }
+          100% { transform: translate(0,0) scale(1); opacity: 0.6; }
+        }
 
         .hero-left  { animation: fade-in 0.5s ease forwards; }
         .hero-right { animation: slide-up 0.6s 0.15s ease both; }
-        .alert-card { animation: pulse-glow 3s ease-in-out infinite; }
-        .success-card { animation: slide-up 0.7s 0.9s ease both; opacity: 0; }
 
+        /* ── Nav link with orange underline slide-in ── */
         .nav-link {
           font-size: 14px; font-weight: 500;
           color: ${T.textSecondary}; text-decoration: none;
-          transition: color 0.15s;
+          position: relative; padding-bottom: 3px;
+          transition: color 0.2s ease;
+        }
+        .nav-link::after {
+          content: '';
+          position: absolute; bottom: 0; left: 0;
+          width: 100%; height: 1.5px;
+          background: ${T.orange};
+          transform: scaleX(0); transform-origin: left;
+          transition: transform 0.2s ease;
         }
         .nav-link:hover { color: ${T.textPrimary}; }
+        .nav-link:hover::after { transform: scaleX(1); }
 
+        /* ── Buttons ── */
         .btn-orange {
           display: inline-flex; align-items: center; gap: 6px;
           background: ${T.orange}; color: #fff; font-weight: 600;
           font-size: 15px; padding: 13px 26px; border-radius: 10px;
           border: none; text-decoration: none;
           box-shadow: 0 4px 20px rgba(217,119,6,0.28);
-          transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+          transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
         }
         .btn-orange:hover {
           background: ${T.orangeHover};
-          box-shadow: 0 6px 28px rgba(217,119,6,0.38);
-          transform: translateY(-1px);
+          box-shadow: 0 6px 32px rgba(217,119,6,0.50), 0 0 0 5px rgba(217,119,6,0.12);
+          transform: translateY(-2px);
         }
+
         .btn-orange-sm {
           display: inline-flex; align-items: center; gap: 5px;
           background: ${T.orange}; color: #fff; font-weight: 600;
           font-size: 13px; padding: 9px 18px; border-radius: 8px;
           border: none; text-decoration: none;
           box-shadow: 0 2px 12px rgba(217,119,6,0.25);
-          transition: background 0.15s;
+          transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
         }
-        .btn-orange-sm:hover { background: ${T.orangeHover}; }
+        .btn-orange-sm:hover {
+          background: ${T.orangeHover};
+          box-shadow: 0 4px 20px rgba(217,119,6,0.40);
+          transform: translateY(-1px);
+        }
 
         .btn-ghost {
           display: inline-flex; align-items: center; gap: 6px;
           background: transparent; color: ${T.textSecondary}; font-weight: 500;
           font-size: 14px; padding: 8px 18px; border-radius: 8px;
           border: 1px solid ${T.borderAccent}; text-decoration: none;
-          transition: border-color 0.15s, color 0.15s;
+          transition: border-color 0.2s, color 0.2s;
         }
         .btn-ghost:hover { border-color: ${T.orange}; color: ${T.textPrimary}; }
 
@@ -100,42 +124,57 @@ export default function Home() {
           background: transparent; color: ${T.textSecondary}; font-weight: 600;
           font-size: 15px; padding: 13px 26px; border-radius: 10px;
           border: 1px solid ${T.borderAccent}; text-decoration: none;
-          transition: border-color 0.15s, color 0.15s;
+          transition: border-color 0.2s, color 0.2s;
         }
         .btn-ghost-lg:hover { border-color: ${T.orange}; color: ${T.textPrimary}; }
 
-        .card-hover { transition: border-color 0.2s, transform 0.2s; }
-        .card-hover:hover { border-color: rgba(217,119,6,0.3) !important; transform: translateY(-2px); }
-
+        /* ── Demo link — arrow slides right ── */
         .demo-link {
           font-size: 15px; font-weight: 600; color: ${T.orange};
           text-decoration: none; display: inline-flex; align-items: center; gap: 4px;
-          border-bottom: 1px solid transparent; transition: border-color 0.15s;
+          border-bottom: 1px solid transparent; transition: border-color 0.2s, gap 0.2s;
         }
-        .demo-link:hover { border-bottom-color: ${T.orange}; }
+        .demo-link:hover { border-bottom-color: ${T.orange}; gap: 8px; }
+        .demo-link .demo-arrow { transition: transform 0.2s ease; }
+        .demo-link:hover .demo-arrow { transform: translateX(4px); }
 
+        /* ── How it works cards ── */
+        .card-hover { transition: border-color 0.2s, transform 0.2s; }
+        .card-hover:hover { border-color: rgba(217,119,6,0.3) !important; transform: translateY(-2px); }
+
+        /* ── Pricing buttons ── */
+        .pricing-btn {
+          display: block; text-align: center; padding: 12px;
+          border-radius: 9px; font-size: 14px; font-weight: 600;
+          text-decoration: none;
+          transition: background 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s;
+        }
+        .pricing-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,0.35); }
+
+        /* ── Responsive ── */
         @media (max-width: 1023px) {
           .hero-grid { flex-direction: column !important; }
           .hero-right-wrap { display: none !important; }
           .steps-connector { display: none !important; }
+          .desktop-nav { display: none !important; }
+          .mobile-menu-btn { display: flex !important; }
         }
         @media (max-width: 767px) {
           .problem-grid { flex-direction: column !important; }
           .pricing-grid { flex-direction: column !important; }
-          .testimonial-grid { flex-direction: column !important; }
           .trust-pills { flex-wrap: wrap !important; gap: 10px !important; }
           .footer-inner { flex-direction: column !important; gap: 24px !important; }
           .footer-links { flex-wrap: wrap !important; gap: 14px !important; }
         }
       `}</style>
 
-      {/* ── NAV ────────────────────────────────────────────────────── */}
+      {/* ── NAV ───────────────────────────────────────────────────────────── */}
       <nav style={{
         position: 'sticky', top: 0, zIndex: 100,
-        background: 'rgba(10,10,15,0.85)',
+        background: 'rgba(10,10,15,0.88)',
         borderBottom: `1px solid ${T.borderSubtle}`,
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
+        backdropFilter: 'blur(14px)',
+        WebkitBackdropFilter: 'blur(14px)',
       }}>
         <div style={{
           maxWidth: 1200, margin: '0 auto', padding: '0 24px',
@@ -153,7 +192,6 @@ export default function Home() {
 
           {/* Center nav — desktop */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 32 }} className="desktop-nav">
-            <Link href="/dashboard" className="nav-link">Product</Link>
             <Link href="/pricing" className="nav-link">Pricing</Link>
             <a href="#about" className="nav-link">About</a>
             <a href="#how-it-works" className="nav-link">How It Works</a>
@@ -163,7 +201,7 @@ export default function Home() {
           {/* Right — desktop */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }} className="desktop-nav">
             <Link href="/sign-in" className="btn-ghost">Log In</Link>
-            <Link href="/sign-up" className="btn-orange-sm">Get Started Free</Link>
+            <Link href="/demo" className="btn-orange-sm">Take Interactive Tour</Link>
           </div>
 
           {/* Hamburger */}
@@ -189,11 +227,10 @@ export default function Home() {
             padding: '12px 24px 24px',
           }}>
             {[
-              { label: 'Product', href: '/dashboard' },
-              { label: 'Pricing', href: '/pricing' },
-              { label: 'About', href: '#about' },
+              { label: 'Pricing',      href: '/pricing' },
+              { label: 'About',        href: '#about' },
               { label: 'How It Works', href: '#how-it-works' },
-              { label: 'Demo', href: '/demo' },
+              { label: 'Demo',         href: '/demo' },
             ].map(l => (
               <a
                 key={l.label}
@@ -203,20 +240,23 @@ export default function Home() {
                   display: 'block', color: T.textSecondary, fontSize: 15,
                   fontWeight: 500, padding: '14px 0',
                   borderBottom: `1px solid ${T.borderSubtle}`,
+                  transition: 'color 0.2s',
                 }}
+                onMouseEnter={e => (e.currentTarget.style.color = T.textPrimary)}
+                onMouseLeave={e => (e.currentTarget.style.color = T.textSecondary)}
               >
                 {l.label}
               </a>
             ))}
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
               <Link href="/sign-in" className="btn-ghost" style={{ flex: 1, justifyContent: 'center' }}>Log In</Link>
-              <Link href="/sign-up" className="btn-orange" style={{ flex: 1, justifyContent: 'center', fontSize: 14 }}>Get Started Free</Link>
+              <Link href="/demo" className="btn-orange" style={{ flex: 1, justifyContent: 'center', fontSize: 14 }}>Take Interactive Tour</Link>
             </div>
           </div>
         )}
       </nav>
 
-      {/* ── HERO ────────────────────────────────────────────────────── */}
+      {/* ── HERO ──────────────────────────────────────────────────────────── */}
       <section style={{
         minHeight: 'calc(100vh - 64px)',
         background: T.bg, padding: 'clamp(60px, 8vw, 100px) 24px',
@@ -284,7 +324,7 @@ export default function Home() {
                 Start Verifying Free
               </Link>
               <Link href="/demo" className="demo-link">
-                See a live demo <ArrowRight size={15} />
+                See a live demo <span className="demo-arrow"><ArrowRight size={15} /></span>
               </Link>
             </div>
 
@@ -301,124 +341,126 @@ export default function Home() {
             </div>
           </div>
 
-          {/* RIGHT — 45% */}
-          <div className="hero-right hero-right-wrap" style={{ flex: '0 0 45%', maxWidth: '45%' }}>
-            {/* Glow ring */}
+          {/* RIGHT — 45% — mini dashboard preview */}
+          <div className="hero-right hero-right-wrap" style={{ flex: '0 0 45%', maxWidth: '45%', position: 'relative' }}>
+            {/* Outer glow ring */}
             <div style={{
-              position: 'absolute', inset: -32, borderRadius: 28,
-              background: 'radial-gradient(ellipse, rgba(217,119,6,0.07) 0%, transparent 70%)',
+              position: 'absolute', inset: -24, borderRadius: 28,
+              background: 'radial-gradient(ellipse, rgba(217,119,6,0.09) 0%, transparent 70%)',
               pointerEvents: 'none',
             }} />
 
             <div style={{
-              background: T.card,
-              border: `1px solid rgba(217,119,6,0.2)`,
-              borderRadius: 16,
-              boxShadow: '0 32px 80px rgba(0,0,0,0.65), 0 0 0 1px rgba(217,119,6,0.08)',
+              background: '#0d0d16',
+              border: '1px solid rgba(217,119,6,0.28)',
+              borderRadius: 18,
+              boxShadow: '0 32px 80px rgba(0,0,0,0.70), 0 0 0 1px rgba(217,119,6,0.06), 0 0 60px rgba(217,119,6,0.07)',
               overflow: 'hidden',
               position: 'relative',
+              animation: 'float-card 5s ease-in-out infinite',
             }}>
+
               {/* Card header */}
               <div style={{
-                background: T.surface, borderBottom: `1px solid ${T.borderSubtle}`,
-                padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: '#0f0f1a',
+                borderBottom: '1px solid rgba(217,119,6,0.15)',
+                padding: '13px 18px',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Shield size={13} color={T.orange} />
-                  <span style={{ fontSize: 11, fontWeight: 700, color: T.textPrimary, letterSpacing: '0.1em' }}>
-                    COVIRA COMPLIANCE ALERT
-                  </span>
+                  <Shield size={12} color={T.orange} />
+                  <span style={{ fontSize: 10, fontWeight: 800, color: T.textPrimary, letterSpacing: '0.12em' }}>COVIRA DASHBOARD</span>
                 </div>
                 <div style={{
-                  background: 'rgba(217,119,6,0.15)', border: `1px solid rgba(217,119,6,0.3)`,
+                  background: 'rgba(34,197,94,0.10)', border: '1px solid rgba(34,197,94,0.25)',
                   borderRadius: 100, padding: '3px 10px',
                   display: 'flex', alignItems: 'center', gap: 5,
                 }}>
                   <div style={{
-                    width: 5, height: 5, borderRadius: '50%', background: T.orange,
+                    width: 5, height: 5, borderRadius: '50%', background: T.green,
                     animation: 'live-pulse 1.5s ease-in-out infinite',
                   }} />
-                  <span style={{ fontSize: 10, fontWeight: 700, color: T.orange, letterSpacing: '0.08em' }}>LIVE</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: T.green, letterSpacing: '0.1em' }}>LIVE</span>
                 </div>
               </div>
 
-              <div style={{ padding: 18 }}>
-                {/* Vendor info */}
-                <div style={{ marginBottom: 14 }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>Pinnacle Roofing Inc.</p>
-                  <p style={{ fontSize: 11, color: T.textMuted, marginTop: 3 }}>COI uploaded 2 minutes ago</p>
-                </div>
+              <div style={{ padding: '16px 18px 18px' }}>
 
-                {/* Red alert */}
-                <div
-                  className="alert-card"
-                  style={{
-                    background: 'rgba(220,38,38,0.06)', border: `1px solid rgba(220,38,38,0.25)`,
-                    borderRadius: 10, padding: '14px 16px', marginBottom: 14,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
-                    <AlertTriangle size={14} color={T.red} />
-                    <span style={{ fontSize: 11, fontWeight: 700, color: T.red, letterSpacing: '0.08em' }}>
-                      COVERAGE GAP DETECTED
-                    </span>
-                  </div>
+                {/* 2×2 metric grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
                   {[
-                    { label: 'General Liability: $500,000', note: 'BELOW MINIMUM' },
-                    { label: 'Additional Insured:', note: 'NOT LISTED' },
-                    { label: 'Waiver of Subrogation:', note: 'MISSING' },
-                  ].map(item => (
-                    <div key={item.label} style={{
+                    { label: 'Total Vendors', value: '42',  color: T.textPrimary,   Icon: Users         },
+                    { label: 'Compliant',      value: '29',  color: T.green,         Icon: CheckCircle2  },
+                    { label: 'Issues Found',   value: '9',   color: T.orange,        Icon: AlertTriangle },
+                    { label: 'Expiring Soon',  value: '4',   color: '#fbbf24',       Icon: Clock         },
+                  ].map(({ label, value, color, Icon }) => (
+                    <div key={label} style={{
+                      background: '#13131f', border: '1px solid #1a1a2e',
+                      borderRadius: 10, padding: '11px 13px',
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '5px 0', borderBottom: `1px solid rgba(220,38,38,0.12)`,
-                      fontSize: 11,
                     }}>
-                      <span style={{ color: T.textSecondary }}>{item.label}</span>
-                      <span style={{
-                        color: T.red, fontWeight: 700, fontSize: 10, letterSpacing: '0.05em',
-                      }}>{item.note}</span>
+                      <div>
+                        <div style={{ fontSize: 9, color: T.textMuted, fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</div>
+                        <div style={{ fontSize: 22, fontWeight: 800, color, lineHeight: 1, letterSpacing: '-0.5px' }}>{value}</div>
+                      </div>
+                      <Icon size={14} color={color} style={{ opacity: 0.5 }} />
                     </div>
                   ))}
                 </div>
 
-                {/* Send button */}
-                <button style={{
-                  width: '100%', padding: '10px', background: T.orange,
-                  border: 'none', borderRadius: 8, color: '#fff',
-                  fontSize: 13, fontWeight: 600, marginBottom: 14,
-                  cursor: 'pointer', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', gap: 6,
-                  transition: 'background 0.15s',
+                {/* Vendor rows */}
+                <div style={{
+                  background: '#13131f', border: '1px solid #1a1a2e',
+                  borderRadius: 10, overflow: 'hidden', marginBottom: 12,
                 }}>
-                  Send Vendor Request <ArrowRight size={13} />
-                </button>
+                  {[
+                    { name: 'ABC Plumbing LLC',   status: 'Issues Found', statusColor: T.orange, statusBg: 'rgba(217,119,6,0.10)', statusBorder: 'rgba(217,119,6,0.22)' },
+                    { name: 'Summit Electric Co.', status: 'Compliant',    statusColor: T.green,  statusBg: 'rgba(34,197,94,0.09)',  statusBorder: 'rgba(34,197,94,0.22)' },
+                    { name: 'Bluewater HVAC',      status: 'Compliant',    statusColor: T.green,  statusBg: 'rgba(34,197,94,0.09)',  statusBorder: 'rgba(34,197,94,0.22)' },
+                  ].map((v, i) => (
+                    <div key={v.name} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '9px 12px',
+                      borderBottom: i < 2 ? '1px solid #1a1a2e' : 'none',
+                    }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>{v.name}</span>
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 4,
+                        background: v.statusBg, color: v.statusColor, border: `1px solid ${v.statusBorder}`,
+                        whiteSpace: 'nowrap',
+                      }}>{v.status}</span>
+                    </div>
+                  ))}
+                </div>
 
-                {/* Green success card */}
-                <div
-                  className="success-card"
-                  style={{
-                    background: 'rgba(22,163,74,0.07)', border: `1px solid rgba(22,163,74,0.25)`,
-                    borderRadius: 10, padding: '12px 14px',
-                    display: 'flex', alignItems: 'flex-start', gap: 10,
-                  }}
-                >
-                  <CheckCircle2 size={16} color={T.green} style={{ marginTop: 1, flexShrink: 0 }} />
-                  <div>
-                    <p style={{ fontSize: 12, fontWeight: 700, color: T.green }}>
-                      Summit Electric Co. — Compliant
-                    </p>
-                    <p style={{ fontSize: 11, color: T.textMuted, marginTop: 3 }}>
-                      All 5 requirements met · Expires Feb 2027
-                    </p>
-                  </div>
+                {/* Bottom line */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <ArrowRight size={11} color={T.orange} />
+                  <span style={{ fontSize: 11, fontWeight: 600, color: T.orange }}>4 vendors need attention</span>
                 </div>
               </div>
+
+              {/* Orange particle glow — bottom right */}
+              <div style={{
+                position: 'absolute', bottom: -20, right: -20,
+                width: 120, height: 120, borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(217,119,6,0.18) 0%, transparent 70%)',
+                pointerEvents: 'none',
+                animation: 'particle-drift 6s ease-in-out infinite',
+              }} />
+              <div style={{
+                position: 'absolute', bottom: 10, right: 10,
+                width: 60, height: 60, borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(217,119,6,0.10) 0%, transparent 70%)',
+                pointerEvents: 'none',
+                animation: 'particle-drift 4s 1s ease-in-out infinite',
+              }} />
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── TRUST BAR ───────────────────────────────────────────────── */}
+      {/* ── TRUST BAR ─────────────────────────────────────────────────────── */}
       <div style={{
         background: T.surface,
         borderTop: `1px solid ${T.borderSubtle}`,
@@ -452,7 +494,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ── PROBLEM SECTION ─────────────────────────────────────────── */}
+      {/* ── PROBLEM / SOLUTION ────────────────────────────────────────────── */}
       <section style={{ background: T.bg, padding: 'clamp(72px, 9vw, 110px) 24px' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div
@@ -476,7 +518,7 @@ export default function Home() {
                 {[
                   'Your PM software stores COIs. It does not verify them.',
                   'Manual spreadsheet tracking misses renewals.',
-                  'You won\'t know there\'s a gap until someone gets hurt.',
+                  "You won't know there's a gap until someone gets hurt.",
                 ].map(item => (
                   <div key={item} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                     <div style={{
@@ -521,7 +563,7 @@ export default function Home() {
                       background: 'rgba(22,163,74,0.15)', border: `1px solid rgba(22,163,74,0.3)`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
-                      <Check size={10} color={T.green} />
+                      <Check size={10} color="#22c55e" />
                     </div>
                     <p style={{ fontSize: 15, color: T.textSecondary, lineHeight: 1.6 }}>{item}</p>
                   </div>
@@ -535,7 +577,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ────────────────────────────────────────────── */}
+      {/* ── HOW IT WORKS ──────────────────────────────────────────────────── */}
       <section id="how-it-works" style={{
         background: T.surface, borderTop: `1px solid ${T.borderSubtle}`,
         padding: 'clamp(72px, 9vw, 110px) 24px',
@@ -577,7 +619,7 @@ export default function Home() {
                 Icon: FileText, num: '03', title: 'Act',
                 desc: 'Get a plain-English report with specific gaps and one-click vendor outreach.',
               },
-            ].map(({ Icon, num, title, desc }, i) => (
+            ].map(({ Icon, num, title, desc }) => (
               <div key={num} style={{ flex: 1, position: 'relative', zIndex: 1, padding: '0 12px' }}>
                 <div
                   className="card-hover"
@@ -607,7 +649,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── PRICING ─────────────────────────────────────────────────── */}
+      {/* ── PRICING ───────────────────────────────────────────────────────── */}
       <section id="pricing" style={{
         background: T.bg, borderTop: `1px solid ${T.borderSubtle}`,
         padding: 'clamp(72px, 9vw, 110px) 24px',
@@ -637,39 +679,22 @@ export default function Home() {
                 name: 'Starter', price: '$49', period: '/mo', cap: 'Up to 25 vendor COI reviews',
                 popular: false, buttonLabel: 'Start Free Trial',
                 href: 'https://buy.stripe.com/test_6oU6oH0yy69Z6PX7iTdMI02',
-                buttonStyle: 'outline',
-                features: [
-                  'AI COI analysis',
-                  'Vendor database',
-                  'Basic reporting',
-                  'Email support',
-                ],
+                solid: false,
+                features: ['AI COI analysis', 'Vendor database', 'Basic reporting', 'Email support'],
               },
               {
                 name: 'Pro', price: '$99', period: '/mo', cap: 'Up to 100 vendor COI reviews',
                 popular: true, buttonLabel: 'Start Free Trial',
                 href: 'https://buy.stripe.com/test_8x2dR9gxw8i7eip46HdMI01',
-                buttonStyle: 'solid',
-                features: [
-                  'Everything in Starter',
-                  'Expiration tracking',
-                  'Advanced reporting',
-                  'Priority support',
-                  'Export data',
-                ],
+                solid: true,
+                features: ['Everything in Starter', 'Expiration tracking', 'Advanced reporting', 'Priority support', 'Export data'],
               },
               {
                 name: 'Business', price: '$149', period: '/mo', cap: 'Up to 250 vendor COI reviews',
                 popular: false, buttonLabel: 'Start Free Trial',
                 href: 'https://buy.stripe.com/test_5kQ00jfts8i78Y58mXdMI00',
-                buttonStyle: 'outline',
-                features: [
-                  'Everything in Pro',
-                  'Team access',
-                  'Custom requirements',
-                  'API access',
-                  'Dedicated support',
-                ],
+                solid: false,
+                features: ['Everything in Pro', 'Team access', 'Custom requirements', 'API access', 'Dedicated support'],
               },
             ].map(plan => (
               <div
@@ -718,14 +743,18 @@ export default function Home() {
                   href={plan.href}
                   target="_blank"
                   rel="noopener noreferrer"
+                  className="pricing-btn"
                   style={{
-                    display: 'block', textAlign: 'center', padding: '12px',
-                    borderRadius: 9, fontSize: 14, fontWeight: 600,
-                    background: plan.buttonStyle === 'solid' ? T.orange : 'transparent',
-                    color: plan.buttonStyle === 'solid' ? '#fff' : T.orange,
+                    background: plan.solid ? T.orange : 'transparent',
+                    color: plan.solid ? '#fff' : T.orange,
                     border: `1.5px solid ${T.orange}`,
-                    transition: 'background 0.15s, color 0.15s',
-                    textDecoration: 'none',
+                  }}
+                  onMouseEnter={e => {
+                    if (plan.solid) e.currentTarget.style.background = T.orangeHover
+                    else { e.currentTarget.style.background = 'rgba(217,119,6,0.08)' }
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = plan.solid ? T.orange : 'transparent'
                   }}
                 >
                   {plan.buttonLabel}
@@ -740,76 +769,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── TESTIMONIALS ────────────────────────────────────────────── */}
+      {/* ── FINAL CTA ─────────────────────────────────────────────────────── */}
       <section id="about" style={{
-        background: T.surface, borderTop: `1px solid ${T.borderSubtle}`,
-        padding: 'clamp(72px, 9vw, 110px) 24px',
-      }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: 52 }}>
-            <h2 style={{
-              fontSize: 'clamp(26px, 3.5vw, 42px)', fontWeight: 800,
-              color: T.textPrimary, letterSpacing: '-1.2px', marginBottom: 10,
-            }}>
-              Property managers trust Covira.
-            </h2>
-            <p style={{ fontSize: 15, color: T.textSecondary }}>Real feedback from real operators.</p>
-          </div>
-
-          <div
-            className="testimonial-grid"
-            style={{ display: 'flex', gap: 20, alignItems: 'stretch' }}
-          >
-            {[
-              {
-                quote: "We had a contractor working our properties for three months with a lapsed policy. We had no idea. Covira would have caught it on day one.",
-                name: 'Marcus D.',
-                role: 'Portfolio Manager, Greenway Properties',
-              },
-              {
-                quote: "I manage 40 vendors across six properties. This used to take my assistant a full day every month. Now it takes ten minutes.",
-                name: 'Sandra K.',
-                role: 'Operations Director, Coastal PM Group',
-              },
-              {
-                quote: "The plain-English reports are what got me. I'm not an insurance person. Now I don't need to be.",
-                name: 'Tyler B.',
-                role: 'Owner, Benchmark Property Management',
-              },
-            ].map((t, i) => (
-              <div
-                key={i}
-                className="card-hover"
-                style={{
-                  flex: 1, background: T.card,
-                  border: `1px solid ${T.borderSubtle}`,
-                  borderRadius: 14, padding: '28px 24px',
-                  display: 'flex', flexDirection: 'column',
-                }}
-              >
-                <div style={{ display: 'flex', gap: 2, marginBottom: 18 }}>
-                  {[...Array(5)].map((_, j) => (
-                    <span key={j} style={{ color: T.orange, fontSize: 13 }}>★</span>
-                  ))}
-                </div>
-                <p style={{
-                  fontSize: 14, color: T.textSecondary, lineHeight: 1.8,
-                  flex: 1, marginBottom: 24, fontStyle: 'italic',
-                }}>
-                  &ldquo;{t.quote}&rdquo;
-                </p>
-                <div style={{ borderTop: `1px solid ${T.borderSubtle}`, paddingTop: 16 }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary }}>{t.name}</p>
-                  <p style={{ fontSize: 12, color: T.textMuted, marginTop: 3 }}>{t.role}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── FINAL CTA ───────────────────────────────────────────────── */}
-      <section style={{
         background: T.bg, borderTop: `1px solid ${T.borderSubtle}`,
         padding: 'clamp(80px, 11vw, 130px) 24px',
         textAlign: 'center', position: 'relative', overflow: 'hidden',
@@ -838,7 +799,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── FOOTER ──────────────────────────────────────────────────── */}
+      {/* ── FOOTER ────────────────────────────────────────────────────────── */}
       <footer style={{
         background: T.bg, borderTop: `1px solid ${T.borderSubtle}`,
         padding: '48px 24px 32px',
@@ -864,17 +825,17 @@ export default function Home() {
             {/* Center links */}
             <div className="footer-links" style={{ display: 'flex', gap: 28, flexWrap: 'wrap', alignItems: 'center' }}>
               {[
-                { label: 'Product', href: '/dashboard' },
-                { label: 'Pricing', href: '/pricing' },
-                { label: 'How It Works', href: '#how-it-works' },
-                { label: 'About', href: '#about' },
-                { label: 'Privacy Policy', href: '#' },
-                { label: 'Terms of Service', href: '#' },
+                { label: 'Pricing',         href: '/pricing' },
+                { label: 'How It Works',    href: '#how-it-works' },
+                { label: 'About',           href: '#about' },
+                { label: 'Demo',            href: '/demo' },
+                { label: 'Privacy Policy',  href: '#' },
+                { label: 'Terms of Service',href: '#' },
               ].map(l => (
                 <a
                   key={l.label}
                   href={l.href}
-                  style={{ fontSize: 13, color: T.textMuted, textDecoration: 'none', transition: 'color 0.15s' }}
+                  style={{ fontSize: 13, color: T.textMuted, textDecoration: 'none', transition: 'color 0.2s' }}
                   onMouseEnter={e => (e.currentTarget.style.color = T.textPrimary)}
                   onMouseLeave={e => (e.currentTarget.style.color = T.textMuted)}
                 >
