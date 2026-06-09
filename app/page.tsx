@@ -157,6 +157,7 @@ export default function Home() {
             <Link href="/pricing" className="nav-link">Pricing</Link>
             <a href="#about" className="nav-link">About</a>
             <a href="#how-it-works" className="nav-link">How It Works</a>
+            <Link href="/demo" className="nav-link">Demo</Link>
           </div>
 
           {/* Right — desktop */}
@@ -192,6 +193,7 @@ export default function Home() {
               { label: 'Pricing', href: '/pricing' },
               { label: 'About', href: '#about' },
               { label: 'How It Works', href: '#how-it-works' },
+              { label: 'Demo', href: '/demo' },
             ].map(l => (
               <a
                 key={l.label}
