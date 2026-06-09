@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Check, Shield } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import { useUser } from '@clerk/nextjs'
@@ -61,12 +60,19 @@ export default function PricingPage() {
   const [annual, setAnnual] = useState(false)
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
-  const { user } = useUser()
-  const router = useRouter()
+  const { user, isLoaded } = useUser()
 
   const handleStartTrial = async (plan: typeof PLANS[0]) => {
+    // Wait for Clerk to finish hydrating — prevents a signed-in user from being
+    // treated as logged-out during the brief window before useUser resolves.
+    if (!isLoaded) return
+
     if (!user) {
-      router.push('/sign-in?redirect_url=/pricing')
+      // Hard navigation avoids Clerk v7's modal routing (router.push would
+      // render the SignIn component as an overlay on this page instead of
+      // navigating away, and the ClerkProvider fallback would send the user
+      // to /dashboard rather than back to /pricing after auth).
+      window.location.href = '/sign-in?redirect_url=/pricing'
       return
     }
 
@@ -180,6 +186,7 @@ export default function PricingPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 20 }}>
               {PLANS.map(plan => {
                 const isLoading = loadingPlan === plan.name
+                const isDisabled = !isLoaded || isLoading
                 return (
                   <div
                     key={plan.name}
@@ -242,7 +249,7 @@ export default function PricingPage() {
 
                     <button
                       onClick={() => handleStartTrial(plan)}
-                      disabled={isLoading}
+                      disabled={isDisabled}
                       style={{
                         display: 'block', width: '100%', textAlign: 'center',
                         background: plan.popular ? '#D97706' : 'transparent',
@@ -250,17 +257,17 @@ export default function PricingPage() {
                         border: plan.popular ? 'none' : '1px solid #1e1e2e',
                         fontSize: 14, fontWeight: 700,
                         padding: '12px', borderRadius: 8,
-                        cursor: isLoading ? 'not-allowed' : 'pointer',
-                        opacity: isLoading ? 0.7 : 1,
+                        cursor: isDisabled ? 'not-allowed' : 'pointer',
+                        opacity: isDisabled ? 0.7 : 1,
                         transition: 'all 0.15s',
                       }}
                       onMouseEnter={e => {
-                        if (isLoading) return
+                        if (isDisabled) return
                         if (plan.popular) e.currentTarget.style.background = '#b45309'
                         else { e.currentTarget.style.borderColor = '#D97706'; e.currentTarget.style.color = '#D97706' }
                       }}
                       onMouseLeave={e => {
-                        if (isLoading) return
+                        if (isDisabled) return
                         if (plan.popular) e.currentTarget.style.background = '#D97706'
                         else { e.currentTarget.style.borderColor = '#1e1e2e'; e.currentTarget.style.color = '#f0ede8' }
                       }}
