@@ -275,8 +275,8 @@ export default function Home() {
         {/* Dot grid */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none',
-          backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)',
-          backgroundSize: '40px 40px',
+          backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px)',
+          backgroundSize: '32px 32px',
         }} />
         {/* Animated gradient overlay */}
         <div style={{
@@ -284,18 +284,20 @@ export default function Home() {
           background: 'linear-gradient(135deg, rgba(88,28,135,0.05) 0%, rgba(30,27,75,0.09) 45%, transparent 70%)',
           animation: 'hero-gradient-shift 10s ease-in-out infinite',
         }} />
-        {/* Ambient glow — right */}
+        {/* Blue orb — right, behind dashboard card */}
         <div style={{
-          position: 'absolute', top: '20%', right: '-10%',
+          position: 'absolute', top: '5%', right: '-15%',
           width: 600, height: 600, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(217,119,6,0.10) 0%, transparent 65%)',
+          background: 'rgba(99,102,241,0.06)',
+          filter: 'blur(120px)',
           pointerEvents: 'none',
         }} />
-        {/* Ambient glow — left, behind hero text */}
+        {/* Orange orb — left, behind hero text */}
         <div style={{
-          position: 'absolute', top: '15%', left: '-8%',
-          width: 520, height: 520, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(217,119,6,0.07) 0%, transparent 65%)',
+          position: 'absolute', top: '-5%', left: '-15%',
+          width: 800, height: 800, borderRadius: '50%',
+          background: 'rgba(217,119,6,0.12)',
+          filter: 'blur(150px)',
           pointerEvents: 'none',
         }} />
 
@@ -485,7 +487,7 @@ export default function Home() {
 
       {/* ── TRUST BAR ─────────────────────────────────────────────────────── */}
       <div style={{
-        background: `linear-gradient(to bottom, rgba(217,119,6,0.02) 0%, transparent 50%), ${T.surface}`,
+        background: 'linear-gradient(to bottom, #0a0a0f 0%, #0d0d17 100%)',
         borderTop: `1px solid ${T.borderSubtle}`,
         borderBottom: `1px solid ${T.borderSubtle}`,
         padding: '20px 24px',
@@ -518,7 +520,7 @@ export default function Home() {
       </div>
 
       {/* ── PROBLEM / SOLUTION ────────────────────────────────────────────── */}
-      <section style={{ background: 'linear-gradient(to bottom, #0c0c16 0%, #0a0a0f 30%)', padding: 'clamp(72px, 9vw, 110px) 24px' }}>
+      <section style={{ background: 'linear-gradient(to bottom, #0d0d17 0%, #0a0a0f 60%)', padding: 'clamp(72px, 9vw, 110px) 24px' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div
             className="problem-grid"
@@ -602,7 +604,7 @@ export default function Home() {
 
       {/* ── HOW IT WORKS ──────────────────────────────────────────────────── */}
       <section id="how-it-works" style={{
-        background: T.surface, borderTop: `1px solid ${T.borderSubtle}`,
+        background: '#0d0d17', borderTop: `1px solid ${T.borderSubtle}`,
         padding: 'clamp(72px, 9vw, 110px) 24px',
       }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
@@ -674,7 +676,7 @@ export default function Home() {
 
       {/* ── PRICING ───────────────────────────────────────────────────────── */}
       <section id="pricing" style={{
-        background: 'linear-gradient(to bottom, #0c0c16 0%, #0a0a0f 28%)', borderTop: `1px solid ${T.borderSubtle}`,
+        background: 'linear-gradient(to bottom, #0d0d17 0%, #0a0a0f 55%)', borderTop: `1px solid ${T.borderSubtle}`,
         padding: 'clamp(72px, 9vw, 110px) 24px',
       }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
@@ -799,8 +801,12 @@ export default function Home() {
         textAlign: 'center', position: 'relative', overflow: 'hidden',
       }}>
         <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none',
-          background: 'radial-gradient(ellipse 70% 60% at 50% 50%, rgba(217,119,6,0.10) 0%, transparent 70%)',
+          position: 'absolute', top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 600, height: 600, borderRadius: '50%',
+          background: 'rgba(217,119,6,0.10)',
+          filter: 'blur(100px)',
+          pointerEvents: 'none',
         }} />
         <div style={{ position: 'relative', maxWidth: 600, margin: '0 auto' }}>
           <h2 style={{

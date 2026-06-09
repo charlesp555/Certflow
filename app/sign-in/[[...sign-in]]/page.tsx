@@ -16,19 +16,27 @@ export default function SignInPage() {
       overflow: 'hidden',
       fontFamily: 'Inter, -apple-system, sans-serif',
     }}>
+      {/* Orange orb — top right */}
+      <div style={{
+        position: 'absolute', top: -100, right: -100,
+        width: 600, height: 600, borderRadius: '50%',
+        background: 'rgba(217,119,6,0.15)',
+        filter: 'blur(120px)',
+        pointerEvents: 'none',
+      }} />
+      {/* Purple/blue orb — bottom left */}
+      <div style={{
+        position: 'absolute', bottom: -100, left: -100,
+        width: 600, height: 600, borderRadius: '50%',
+        background: 'rgba(99,102,241,0.08)',
+        filter: 'blur(100px)',
+        pointerEvents: 'none',
+      }} />
       {/* Dot grid */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
-        backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px)',
-        backgroundSize: '40px 40px',
-      }} />
-      {/* Orange center glow */}
-      <div style={{
-        position: 'absolute', top: '50%', left: '50%',
-        transform: 'translate(-50%, -50%)',
-        width: 700, height: 700, borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(217,119,6,0.08) 0%, transparent 60%)',
-        pointerEvents: 'none',
+        backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px)',
+        backgroundSize: '32px 32px',
       }} />
 
       {/* Logo */}
