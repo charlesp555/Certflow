@@ -6,7 +6,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 export async function POST(request: Request) {
   try {
     const { priceId, userId } = await request.json()
-    console.log('[Stripe API] Received priceId:', priceId, '| userId:', userId)
+    console.log('Checkout API called with:', { priceId, userId })
 
     if (!priceId || !userId) {
       return NextResponse.json({ error: 'Missing priceId or userId' }, { status: 400 })

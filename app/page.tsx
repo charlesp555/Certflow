@@ -619,7 +619,7 @@ export default function Home() {
               fontSize: 'clamp(28px, 3.8vw, 46px)', fontWeight: 800,
               color: T.textPrimary, letterSpacing: '-1.5px', lineHeight: 1.1, marginBottom: 12,
             }}>
-              Start free. Scale as you grow.
+              Simple, transparent pricing.
             </h2>
             <p style={{ fontSize: 15, color: T.textSecondary }}>
               No contracts. No per-seat fees. Cancel anytime.
@@ -632,38 +632,41 @@ export default function Home() {
           >
             {[
               {
-                name: 'Free', price: '$0', period: '/mo', cap: 'Up to 3 vendors',
-                popular: false, buttonLabel: 'Start Free', buttonHref: '/signup',
+                name: 'Starter', price: '$49', period: '/mo', cap: 'Up to 25 vendor COI reviews',
+                popular: false, buttonLabel: 'Start Free Trial',
+                href: 'https://buy.stripe.com/test_6oU6oH0yy69Z6PX7iTdMI02',
                 buttonStyle: 'outline',
                 features: [
                   'AI COI analysis',
-                  'Basic compliance report',
+                  'Vendor database',
+                  'Basic reporting',
                   'Email support',
                 ],
               },
               {
-                name: 'Pro', price: '$49', period: '/mo', cap: 'Up to 50 vendors',
-                popular: true, buttonLabel: 'Start Free Trial', buttonHref: '/signup',
+                name: 'Pro', price: '$99', period: '/mo', cap: 'Up to 100 vendor COI reviews',
+                popular: true, buttonLabel: 'Start Free Trial',
+                href: 'https://buy.stripe.com/test_8x2dR9gxw8i7eip46HdMI01',
                 buttonStyle: 'solid',
                 features: [
-                  'Everything in Free',
+                  'Everything in Starter',
                   'Expiration tracking',
-                  'Vendor database',
+                  'Advanced reporting',
                   'Priority support',
-                  'Export reports',
+                  'Export data',
                 ],
               },
               {
-                name: 'Business', price: '$149', period: '/mo', cap: 'Unlimited vendors',
-                popular: false, buttonLabel: 'Contact Us', buttonHref: '/signup',
+                name: 'Business', price: '$149', period: '/mo', cap: 'Up to 250 vendor COI reviews',
+                popular: false, buttonLabel: 'Start Free Trial',
+                href: 'https://buy.stripe.com/test_5kQ00jfts8i78Y58mXdMI00',
                 buttonStyle: 'outline',
                 features: [
                   'Everything in Pro',
-                  'Custom requirements',
                   'Team access',
+                  'Custom requirements',
                   'API access',
                   'Dedicated support',
-                  'SLA guarantee',
                 ],
               },
             ].map(plan => (
@@ -709,8 +712,10 @@ export default function Home() {
                   ))}
                 </div>
 
-                <Link
-                  href={plan.buttonHref}
+                <a
+                  href={plan.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   style={{
                     display: 'block', textAlign: 'center', padding: '12px',
                     borderRadius: 9, fontSize: 14, fontWeight: 600,
@@ -722,13 +727,13 @@ export default function Home() {
                   }}
                 >
                   {plan.buttonLabel}
-                </Link>
+                </a>
               </div>
             ))}
           </div>
 
           <p style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: T.textMuted }}>
-            Free plan includes 3 vendor COI verifications — no credit card required.
+            All plans include a 14-day free trial — no credit card required.
           </p>
         </div>
       </section>
