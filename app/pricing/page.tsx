@@ -6,15 +6,15 @@ import { Check, Shield } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import { useUser } from '@clerk/nextjs'
 
-// Replace these with your real Stripe price IDs from the Stripe dashboard
+// Price IDs are read from NEXT_PUBLIC_STRIPE_PRICE_* in .env.local
 const PLANS = [
   {
     name: 'Starter',
     monthlyPrice: 49,
     annualPrice: 42,
     cap: 'Up to 25 vendor COI reviews',
-    priceIdMonthly: 'price_starter_monthly_placeholder',
-    priceIdAnnual: 'price_starter_annual_placeholder',
+    priceIdMonthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTHLY ?? '',
+    priceIdAnnual: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_ANNUAL ?? '',
     features: [
       'AI COI analysis',
       'Vendor database',
@@ -28,8 +28,8 @@ const PLANS = [
     monthlyPrice: 99,
     annualPrice: 84,
     cap: 'Up to 100 vendor COI reviews',
-    priceIdMonthly: 'price_pro_monthly_placeholder',
-    priceIdAnnual: 'price_pro_annual_placeholder',
+    priceIdMonthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTHLY ?? '',
+    priceIdAnnual: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_ANNUAL ?? '',
     features: [
       'Everything in Starter',
       'Expiration tracking',
@@ -44,8 +44,8 @@ const PLANS = [
     monthlyPrice: 199,
     annualPrice: 169,
     cap: 'Up to 250 vendor COI reviews',
-    priceIdMonthly: 'price_business_monthly_placeholder',
-    priceIdAnnual: 'price_business_annual_placeholder',
+    priceIdMonthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_MONTHLY ?? '',
+    priceIdAnnual: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_ANNUAL ?? '',
     features: [
       'Everything in Pro',
       'Team access',
@@ -60,6 +60,7 @@ const PLANS = [
 export default function PricingPage() {
   const [annual, setAnnual] = useState(false)
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
   const { user } = useUser()
   const router = useRouter()
 
@@ -70,7 +71,10 @@ export default function PricingPage() {
     }
 
     const priceId = annual ? plan.priceIdAnnual : plan.priceIdMonthly
+    console.log('[Stripe] Starting checkout — plan:', plan.name, '| priceId:', priceId, '| userId:', user.id)
+
     setLoadingPlan(plan.name)
+    setCheckoutError(null)
 
     try {
       const res = await fetch('/api/stripe/create-checkout', {
@@ -78,12 +82,28 @@ export default function PricingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ priceId, userId: user.id }),
       })
+
       const data = await res.json()
-      if (data.url) {
-        window.location.href = data.url
+      console.log('[Stripe] API response (status', res.status + '):', data)
+
+      if (!res.ok || data.error) {
+        const msg = data.error ?? `Request failed with status ${res.status}`
+        console.error('[Stripe] Checkout error:', msg)
+        setCheckoutError(msg)
+        return
       }
-    } catch {
-      // fall through
+
+      if (data.url) {
+        console.log('[Stripe] Redirecting to:', data.url)
+        window.location.href = data.url
+      } else {
+        console.error('[Stripe] No URL in response:', data)
+        setCheckoutError('No checkout URL returned. Check your Stripe configuration.')
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Network error'
+      console.error('[Stripe] Fetch error:', msg)
+      setCheckoutError(msg)
     } finally {
       setLoadingPlan(null)
     }
@@ -144,6 +164,17 @@ export default function PricingPage() {
                 </button>
               </div>
             </div>
+
+            {/* Checkout error */}
+            {checkoutError && (
+              <div style={{
+                marginBottom: 24, padding: '12px 16px', borderRadius: 8,
+                background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)',
+                fontSize: 13, color: '#fca5a5', textAlign: 'center',
+              }}>
+                {checkoutError}
+              </div>
+            )}
 
             {/* Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 20 }}>
