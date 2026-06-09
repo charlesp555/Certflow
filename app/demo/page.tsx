@@ -1,443 +1,652 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
-  Shield, LayoutDashboard, Building2, FileText,
-  TrendingUp, AlertTriangle, Clock, User,
+  Bell, ChevronDown, AlertTriangle, ArrowRight, Users,
+  CheckCircle2, Clock, LayoutDashboard, Building2, FileText,
+  TrendingUp, ClipboardList, FolderOpen, Puzzle, Settings, Shield, User,
 } from 'lucide-react'
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-const SUBMISSIONS = [
-  { vendor: 'ABC Plumbing LLC',      date: 'May 20, 2025', status: 'Issues Found',  issues: 2, expiration: 'May 22, 2026' },
-  { vendor: 'Summit Electric Co.',   date: 'May 19, 2025', status: 'Compliant',     issues: 0, expiration: 'Feb 15, 2027' },
-  { vendor: 'Bluewater HVAC',        date: 'May 18, 2025', status: 'Compliant',     issues: 0, expiration: 'Jan 10, 2027' },
-  { vendor: 'Pinnacle Roofing Inc.', date: 'May 16, 2025', status: 'Issues Found',  issues: 1, expiration: 'Jun 01, 2026' },
-  { vendor: 'Bright Services',       date: 'May 15, 2025', status: 'Expiring Soon', issues: 0, expiration: 'Jun 05, 2025' },
-  { vendor: 'ProBuild Contractors',  date: 'May 14, 2025', status: 'Compliant',     issues: 0, expiration: 'Mar 12, 2027' },
-]
+const BANNER_H = 36
 
-const VENDORS = [
-  { name: 'ABC Plumbing LLC',      type: 'Plumbing',           status: 'Issues Found',  expiration: 'May 22, 2026' },
-  { name: 'Summit Electric Co.',   type: 'Electrical',         status: 'Compliant',     expiration: 'Feb 15, 2027' },
-  { name: 'Bluewater HVAC',        type: 'HVAC',               status: 'Compliant',     expiration: 'Jan 10, 2027' },
-  { name: 'Pinnacle Roofing Inc.', type: 'Roofing',            status: 'Issues Found',  expiration: 'Jun 01, 2026' },
-  { name: 'Bright Services',       type: 'Janitorial',         status: 'Expiring Soon', expiration: 'Jun 05, 2025' },
-  { name: 'ProBuild Contractors',  type: 'General Contractor', status: 'Compliant',     expiration: 'Mar 12, 2027' },
-  { name: 'Metro Painting Co.',    type: 'Flooring',           status: 'Pending Review',expiration: '—'            },
-  { name: 'FastFix Maintenance',   type: 'General Contractor', status: 'Compliant',     expiration: 'Dec 20, 2026' },
-]
-
-const STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  'Compliant':      { bg: 'rgba(34,197,94,0.08)',  color: '#22c55e', border: 'rgba(34,197,94,0.2)'  },
-  'Issues Found':   { bg: 'rgba(217,119,6,0.08)',  color: '#D97706', border: 'rgba(217,119,6,0.22)' },
-  'Expiring Soon':  { bg: 'rgba(251,191,36,0.08)', color: '#fbbf24', border: 'rgba(251,191,36,0.22)'},
-  'Pending Review': { bg: 'rgba(139,140,248,0.08)',color: '#8b8cf8', border: 'rgba(139,140,248,0.2)'},
+const T = {
+  bg:        '#0a0a0f',
+  surface:   '#0f0f17',
+  card:      '#13131f',
+  border:    '#1a1a2e',
+  orange:    '#D97706',
+  green:     '#22c55e',
+  blue:      '#3b82f6',
+  primary:   '#f8f8f8',
+  secondary: '#8b8fa8',
+  muted:     '#4b5063',
 }
 
-const SIDEBAR_NAV = [
-  { Icon: LayoutDashboard, label: 'Dashboard' },
-  { Icon: Building2,       label: 'Vendors' },
-  { Icon: FileText,        label: 'Submissions' },
-  { Icon: TrendingUp,      label: 'Reports' },
+// ─── Hardcoded demo data ───────────────────────────────────────────────────────
+
+const TOTAL = 52, COMPLIANT = 38, ISSUES = 9, EXPIRING = 5
+
+const SUBMISSIONS = [
+  { vendor: 'ABC Plumbing LLC',      uploaded: 'May 20, 2025', status: 'Issues Found',  issues: 2, expiration: 'May 22, 2026' },
+  { vendor: 'Summit Electric Co.',   uploaded: 'May 19, 2025', status: 'Compliant',     issues: 0, expiration: 'Feb 15, 2027' },
+  { vendor: 'Bluewater HVAC',        uploaded: 'May 18, 2025', status: 'Compliant',     issues: 0, expiration: 'Jan 10, 2027' },
+  { vendor: 'Pinnacle Roofing Inc.', uploaded: 'May 16, 2025', status: 'Issues Found',  issues: 1, expiration: 'Jun 01, 2026' },
+  { vendor: 'Bright Services',       uploaded: 'May 15, 2025', status: 'Expiring Soon', issues: 0, expiration: 'Jun 05, 2025' },
+  { vendor: 'ProBuild Contractors',  uploaded: 'May 14, 2025', status: 'Compliant',     issues: 0, expiration: 'Mar 12, 2027' },
 ]
 
-// ─── Donut chart arc paths (cx=70, cy=70, r=54) ───────────────────────────────
-// Green 73%: 0° → 262.8°  | Orange 17%: 262.8° → 324°  | Blue 10%: 324° → 360°
-// Points calculated from: x = cx + r·sin(θ), y = cy − r·cos(θ)
-const ARCS = [
-  { d: 'M 70 16 A 54 54 0 1 1 16.43 76.77',         color: '#22c55e' },  // green  73%
-  { d: 'M 16.43 76.77 A 54 54 0 0 1 38.26 26.31',   color: '#D97706' },  // orange 17%
-  { d: 'M 38.26 26.31 A 54 54 0 0 1 70 16',         color: '#60a5fa' },  // blue   10%
+const ACTION_ITEMS = [
+  '3 vendors missing additional insured endorsement',
+  '2 COIs expire within the next 30 days',
+  '1 vendor has insufficient general liability limits',
+  'ABC Plumbing LLC COI expires May 22, 2026',
 ]
+
+// ─── Demo Sidebar (mirrors Sidebar.tsx exactly; all nav → /demo) ──────────────
+
+const DEMO_NAV = [
+  { Icon: LayoutDashboard, label: 'Dashboard'    },
+  { Icon: Building2,       label: 'Vendors'      },
+  { Icon: FileText,        label: 'Submissions'  },
+  { Icon: TrendingUp,      label: 'Reports'      },
+  { Icon: Bell,            label: 'Alerts'       },
+  { Icon: ClipboardList,   label: 'Requirements' },
+  { Icon: FolderOpen,      label: 'Documents'    },
+  { Icon: Puzzle,          label: 'Integrations' },
+  { Icon: Settings,        label: 'Settings'     },
+]
+
+function DemoSidebar() {
+  return (
+    <aside style={{
+      width: 240, flexShrink: 0,
+      background: T.surface,
+      borderRight: `1px solid ${T.border}`,
+      display: 'flex', flexDirection: 'column',
+      position: 'fixed', top: BANNER_H, bottom: 0, left: 0,
+      zIndex: 50,
+    }}>
+      <div style={{ padding: '22px 20px 18px', borderBottom: `1px solid ${T.border}` }}>
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+          <div style={{
+            width: 32, height: 32,
+            background: 'rgba(217,119,6,0.12)', border: '1px solid rgba(217,119,6,0.25)',
+            borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Shield size={17} color={T.orange} strokeWidth={2.5} />
+          </div>
+          <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.07em', color: T.primary }}>COVIRA</span>
+        </Link>
+      </div>
+
+      <nav style={{ flex: 1, padding: '10px 10px', overflowY: 'auto' }}>
+        {DEMO_NAV.map(({ Icon, label }, i) => {
+          const active = i === 0
+          return (
+            <Link
+              key={label}
+              href="/demo"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '9px 12px', borderRadius: 8, marginBottom: 2,
+                background: active ? 'rgba(217,119,6,0.10)' : 'transparent',
+                borderLeft: `2px solid ${active ? T.orange : 'transparent'}`,
+                color: active ? T.orange : T.secondary,
+                fontSize: 14, fontWeight: active ? 600 : 500,
+                textDecoration: 'none',
+                transition: 'background 0.15s, color 0.15s',
+              }}
+              onMouseEnter={e => {
+                if (!active) {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+                  e.currentTarget.style.color = T.primary
+                }
+              }}
+              onMouseLeave={e => {
+                if (!active) {
+                  e.currentTarget.style.background = 'transparent'
+                  e.currentTarget.style.color = T.secondary
+                }
+              }}
+            >
+              <Icon size={16} strokeWidth={2} />
+              {label}
+            </Link>
+          )
+        })}
+      </nav>
+
+      <div style={{
+        padding: '14px 16px', borderTop: `1px solid ${T.border}`,
+        display: 'flex', alignItems: 'center', gap: 10,
+      }}>
+        <div style={{
+          width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+          background: 'rgba(217,119,6,0.15)', border: '1px solid rgba(217,119,6,0.28)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <User size={16} color={T.orange} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: T.primary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            Demo Account
+          </div>
+          <div style={{ fontSize: 11, color: T.secondary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            demo@covira.ai
+          </div>
+        </div>
+        <Link href="/demo" style={{
+          display: 'flex', color: T.secondary, textDecoration: 'none',
+          padding: 4, borderRadius: 6, transition: 'color 0.15s',
+        }}
+          onMouseEnter={e => (e.currentTarget.style.color = T.primary)}
+          onMouseLeave={e => (e.currentTarget.style.color = T.secondary)}
+        >
+          <Settings size={14} />
+        </Link>
+      </div>
+    </aside>
+  )
+}
+
+// ─── useCountUp ───────────────────────────────────────────────────────────────
+
+function useCountUp(target: number, duration = 1100): number {
+  const [val, setVal] = useState(0)
+  useEffect(() => {
+    let raf: number
+    const t0 = performance.now()
+    const tick = (now: number) => {
+      const p = Math.min((now - t0) / duration, 1)
+      const eased = 1 - Math.pow(1 - p, 3)
+      setVal(Math.round(target * eased))
+      if (p < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [target, duration])
+  return val
+}
+
+// ─── MetricCard ───────────────────────────────────────────────────────────────
+
+function MetricCard({
+  label, target, tag, tagColor, icon: Icon, isIssues = false,
+}: {
+  label: string
+  target: number
+  tag: string
+  tagColor: 'green' | 'orange'
+  icon: React.ElementType
+  isIssues?: boolean
+}) {
+  const val = useCountUp(target)
+  const [hov, setHov] = useState(false)
+  const accent = tagColor === 'green' ? T.green : T.orange
+  const tagBg     = tagColor === 'green' ? 'rgba(34,197,94,0.10)'  : 'rgba(217,119,6,0.10)'
+  const tagBorder = tagColor === 'green' ? 'rgba(34,197,94,0.20)'  : 'rgba(217,119,6,0.20)'
+
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        flex: 1, minWidth: 0,
+        background: T.card, border: `1px solid ${T.border}`,
+        borderTop: `2px solid ${hov ? T.orange : 'transparent'}`,
+        borderRadius: 12, padding: '20px 22px', position: 'relative',
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-top-color 0.2s ease',
+        transform: hov ? 'translateY(-2px)' : 'translateY(0)',
+        boxShadow: hov ? '0 12px 40px rgba(0,0,0,0.55)' : '0 2px 8px rgba(0,0,0,0.2)',
+      }}
+    >
+      <div style={{
+        position: 'absolute', top: 18, right: 18,
+        width: 30, height: 30, borderRadius: 8,
+        background: 'rgba(217,119,6,0.07)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <Icon size={14} color={T.orange} strokeWidth={2} style={{ opacity: 0.6 }} />
+      </div>
+      <div style={{ fontSize: 12, color: T.secondary, fontWeight: 500, marginBottom: 10 }}>{label}</div>
+      <div style={{ fontSize: 33, fontWeight: 800, color: T.primary, lineHeight: 1, marginBottom: 12, letterSpacing: '-1px' }}>{val}</div>
+      <div
+        className={isIssues ? 'issues-badge' : ''}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          background: tagBg, color: accent, border: `1px solid ${tagBorder}`,
+          borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 600,
+        }}
+      >
+        {tag}
+      </div>
+    </div>
+  )
+}
+
+// ─── AnimatedDonut ────────────────────────────────────────────────────────────
+
+function AnimatedDonut({ compliant, issues, expiring, total }: {
+  compliant: number; issues: number; expiring: number; total: number
+}) {
+  const [progress, setProgress] = useState(0)
+
+  useEffect(() => {
+    setProgress(0)
+    let raf: number
+    const duration = 1050
+    const t0 = performance.now()
+    const tick = (now: number) => {
+      const p = Math.min((now - t0) / duration, 1)
+      const eased = 1 - Math.pow(1 - p, 3)
+      setProgress(eased)
+      if (p < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [compliant, issues, expiring])
+
+  const R = 70, cx = 100, cy = 100
+  const C = 2 * Math.PI * R
+  const safeTotal = total || 1
+
+  const segments = [
+    { pct: compliant / safeTotal, color: T.green,  label: 'Compliant',     count: compliant },
+    { pct: issues    / safeTotal, color: T.orange, label: 'Issues Found',  count: issues    },
+    { pct: expiring  / safeTotal, color: T.blue,   label: 'Expiring Soon', count: expiring  },
+  ]
+
+  let cum = 0
+  const arcs = segments.map(seg => {
+    const start = cum
+    const end = cum + seg.pct
+    let drawn = 0
+    if (progress >= end)        drawn = seg.pct * C
+    else if (progress > start)  drawn = (progress - start) * C
+    cum += seg.pct
+    return { ...seg, dash: drawn, gap: C - drawn, rotation: start * 360 - 90 }
+  })
+
+  const centerPct = Math.round((compliant / total) * 100 * progress)
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
+      <div style={{ position: 'relative', width: 200, height: 200, flexShrink: 0 }}>
+        <svg width="200" height="200" viewBox="0 0 200 200" style={{ overflow: 'visible' }}>
+          <circle cx={cx} cy={cy} r={R} fill="none" stroke="#1a1a2e" strokeWidth={24} />
+          {arcs.map((arc, i) => (
+            <circle
+              key={i} cx={cx} cy={cy} r={R}
+              fill="none" stroke={arc.color} strokeWidth={24}
+              strokeDasharray={`${arc.dash} ${arc.gap}`}
+              strokeLinecap="butt"
+              style={{ transform: `rotate(${arc.rotation}deg)`, transformOrigin: `${cx}px ${cy}px` }}
+            />
+          ))}
+        </svg>
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          textAlign: 'center', pointerEvents: 'none',
+        }}>
+          <div style={{ fontSize: 26, fontWeight: 800, color: T.primary, lineHeight: 1.1, letterSpacing: '-1px' }}>
+            {centerPct}%
+          </div>
+          <div style={{ fontSize: 12, color: T.secondary, marginTop: 4 }}>Compliant</div>
+        </div>
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {segments.map(seg => (
+          <div key={seg.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 9, height: 9, borderRadius: '50%', background: seg.color, flexShrink: 0 }} />
+              <span style={{ fontSize: 13, color: T.secondary }}>{seg.label}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: T.primary }}>{seg.count}</span>
+              <span style={{
+                fontSize: 11, color: T.muted,
+                background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border}`,
+                borderRadius: 4, padding: '1px 7px',
+              }}>
+                {`${Math.round(seg.pct * 100)}%`}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── ActionItem ───────────────────────────────────────────────────────────────
+
+function ActionItem({ text, index, mounted, onAction }: {
+  text: string
+  index: number
+  mounted: boolean
+  onAction: () => void
+}) {
+  const [hov, setHov] = useState(false)
+  return (
+    <div
+      className={mounted ? 'action-animate' : 'pre-animate'}
+      onClick={onAction}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 11,
+        padding: '11px 13px',
+        background: hov ? 'rgba(217,119,6,0.10)' : 'rgba(217,119,6,0.05)',
+        border: `1px solid ${hov ? 'rgba(217,119,6,0.25)' : 'rgba(217,119,6,0.12)'}`,
+        borderRadius: 9, cursor: 'pointer',
+        animationDelay: mounted ? `${index * 80 + 150}ms` : undefined,
+        transition: 'background 0.15s, border-color 0.15s',
+      }}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+    >
+      <AlertTriangle size={15} color={T.orange} style={{ flexShrink: 0 }} />
+      <span style={{ fontSize: 13, color: T.primary, lineHeight: 1.5, fontWeight: 500, flex: 1 }}>{text}</span>
+      <ArrowRight
+        size={13} color={T.secondary}
+        style={{ flexShrink: 0, opacity: hov ? 1 : 0, transition: 'opacity 0.15s' }}
+      />
+    </div>
+  )
+}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DemoPage() {
+  const [mounted, setMounted] = useState(false)
   const [toast, setToast] = useState(false)
+
+  useEffect(() => { setMounted(true) }, [])
 
   const showToast = () => {
     setToast(true)
-    setTimeout(() => setToast(false), 3000)
+    setTimeout(() => setToast(false), 3200)
   }
 
   return (
-    <div style={{ background: '#0a0a0f', minHeight: '100vh', fontFamily: 'Inter, -apple-system, sans-serif' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: T.bg, fontFamily: 'Inter, -apple-system, sans-serif', color: T.primary }}>
+      <style>{`
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(14px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideInRight {
+          from { opacity: 0; transform: translateX(18px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes issueGlow {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(217,119,6,0); }
+          50%       { box-shadow: 0 0 10px 3px rgba(217,119,6,0.20); }
+        }
+        @keyframes bellDot {
+          0%, 100% { transform: scale(1);    opacity: 1; }
+          50%       { transform: scale(0.72); opacity: 0.45; }
+        }
+        .pre-animate     { opacity: 0; }
+        .row-animate     { animation: fadeSlideUp 0.38s ease both; }
+        .action-animate  { animation: slideInRight 0.38s ease both; }
+        .issues-badge    { animation: issueGlow 3.2s ease-in-out infinite; }
+        .bell-dot        { animation: bellDot 2.8s ease-in-out infinite; }
+      `}</style>
 
-      {/* ── Banner ── */}
+      {/* ── Demo banner ── */}
       <div style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200,
-        background: '#D97706', height: 48,
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+        height: BANNER_H, background: T.surface, borderBottom: `1px solid ${T.border}`,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 24px',
       }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>
-          🎯 Live Demo — This is sample data. Sign up free to add your own vendors.
+        <span style={{ fontSize: 12, color: T.secondary }}>
+          You&apos;re viewing a demo. Your data stays private.
         </span>
-        <Link href="/sign-up" style={{
-          background: '#fff', color: '#D97706', fontSize: 13, fontWeight: 700,
-          padding: '6px 16px', borderRadius: 8, textDecoration: 'none', flexShrink: 0,
-        }}>
-          Start Free →
+        <Link
+          href="/sign-up"
+          style={{ fontSize: 12, fontWeight: 600, color: T.orange, textDecoration: 'none', transition: 'opacity 0.15s' }}
+          onMouseEnter={e => (e.currentTarget.style.opacity = '0.75')}
+          onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+        >
+          Sign Up Free →
         </Link>
       </div>
 
-      {/* ── Below banner ── */}
-      <div style={{ paddingTop: 48, display: 'flex', minHeight: '100vh' }}>
+      <DemoSidebar />
 
-        {/* ── Sidebar ── */}
-        <aside style={{
-          width: 240, flexShrink: 0,
-          background: '#0d0d15', borderRight: '1px solid #1a1a2e',
-          display: 'flex', flexDirection: 'column',
-          position: 'fixed', top: 48, bottom: 0, left: 0, zIndex: 50,
-          overflowY: 'auto',
+      <main style={{ marginLeft: 240, flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', paddingTop: BANNER_H }}>
+
+        {/* ── Header ── */}
+        <header style={{
+          position: 'sticky', top: BANNER_H, zIndex: 40,
+          background: T.bg, borderBottom: `1px solid ${T.border}`,
+          height: 64, padding: '0 28px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
-          {/* Logo */}
-          <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #1a1a2e' }}>
-            <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-              <div style={{
-                width: 32, height: 32,
-                background: 'rgba(217,119,6,0.12)', border: '1px solid rgba(217,119,6,0.25)',
-                borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Shield size={17} color="#D97706" strokeWidth={2.5} />
-              </div>
-              <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.07em', color: '#f8f8f8' }}>COVIRA</span>
-            </Link>
+          <div>
+            <h1 style={{ fontSize: 16, fontWeight: 700, color: T.primary, margin: 0, lineHeight: 1.2 }}>Dashboard</h1>
+            <p style={{ fontSize: 12, color: T.secondary, margin: 0 }}>Welcome back, Demo</p>
           </div>
 
-          {/* Nav */}
-          <nav style={{ flex: 1, padding: '10px 10px' }}>
-            {SIDEBAR_NAV.map(({ Icon, label }, i) => (
-              <Link key={label} href="/demo" style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '9px 12px', borderRadius: 8, marginBottom: 2,
-                background: i === 0 ? 'rgba(217,119,6,0.10)' : 'transparent',
-                borderLeft: `2px solid ${i === 0 ? '#D97706' : 'transparent'}`,
-                color: i === 0 ? '#D97706' : '#7a7e9a',
-                fontSize: 14, fontWeight: i === 0 ? 600 : 500,
-                textDecoration: 'none',
-              }}>
-                <Icon size={16} strokeWidth={2} />
-                {label}
-              </Link>
-            ))}
-          </nav>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              onClick={showToast}
+              style={{
+                position: 'relative', background: 'none',
+                border: `1px solid ${T.border}`, borderRadius: 8,
+                width: 38, height: 38, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: T.secondary, transition: 'border-color 0.15s, color 0.15s, background 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = T.orange; e.currentTarget.style.color = T.primary; e.currentTarget.style.background = 'rgba(217,119,6,0.06)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = T.border;  e.currentTarget.style.color = T.secondary; e.currentTarget.style.background = 'none' }}
+            >
+              <Bell size={17} />
+              <span className="bell-dot" style={{
+                position: 'absolute', top: 9, right: 9,
+                width: 7, height: 7, borderRadius: '50%',
+                background: T.orange, border: `2px solid ${T.bg}`,
+              }} />
+            </button>
 
-          {/* Demo user */}
-          <div style={{
-            padding: '14px 16px', borderTop: '1px solid #1a1a2e',
-            display: 'flex', alignItems: 'center', gap: 10,
-          }}>
-            <div style={{
-              width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
-              background: 'rgba(217,119,6,0.12)', border: '1px solid rgba(217,119,6,0.25)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <User size={16} color="#D97706" />
-            </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#f0ede8' }}>Demo Account</div>
-              <div style={{ fontSize: 11, color: '#7a7e9a' }}>demo@covira.ai</div>
-            </div>
-          </div>
-        </aside>
-
-        {/* ── Main ── */}
-        <main style={{ marginLeft: 240, flex: 1, display: 'flex', flexDirection: 'column' }}>
-
-          {/* Topbar */}
-          <header style={{
-            padding: '0 32px', height: 64,
-            borderBottom: '1px solid #1e1e2e',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            background: '#0a0a0f', position: 'sticky', top: 48, zIndex: 40,
-          }}>
-            <div>
-              <h1 style={{ fontSize: 18, fontWeight: 700, color: '#f0ede8', margin: 0 }}>Dashboard</h1>
-              <p style={{ fontSize: 12, color: '#6b6e87', margin: '2px 0 0' }}>Demo — sample data only</p>
-            </div>
             <Link href="/sign-up" style={{
-              background: '#D97706', color: '#fff', fontSize: 13, fontWeight: 600,
-              padding: '8px 18px', borderRadius: 8, textDecoration: 'none',
+              width: 32, height: 32, borderRadius: '50%',
+              background: 'rgba(217,119,6,0.15)', border: '1px solid rgba(217,119,6,0.28)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              textDecoration: 'none', flexShrink: 0,
             }}>
-              Sign Up Free
+              <User size={15} color={T.orange} />
             </Link>
-          </header>
+          </div>
+        </header>
 
-          {/* Content */}
-          <div style={{ padding: '28px 32px', flex: 1 }}>
+        {/* ── Content ── */}
+        <div style={{ padding: 24, flex: 1 }}>
 
-            {/* ── Metric cards ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
-              {[
-                { label: 'Total Vendors',  value: '52', sub: 'Active vendors',  dot: '#8b8cf8' },
-                { label: 'Compliant',      value: '38', sub: '73% of vendors',  dot: '#22c55e' },
-                { label: 'Issues Found',   value: '9',  sub: '17% of vendors',  dot: '#D97706' },
-                { label: 'Expiring Soon',  value: '5',  sub: '10% of vendors',  dot: '#fbbf24' },
-              ].map(card => (
-                <div key={card.label} style={{
-                  background: '#111118', border: '1px solid #1e1e2e', borderRadius: 12, padding: '20px 22px',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <span style={{ fontSize: 11, color: '#6b6e87', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.6px' }}>
-                      {card.label}
-                    </span>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: card.dot }} />
-                  </div>
-                  <div style={{ fontSize: 38, fontWeight: 800, color: '#f0ede8', lineHeight: 1, marginBottom: 6 }}>
-                    {card.value}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#6b6e87' }}>{card.sub}</div>
+          {/* Metric cards */}
+          <div style={{ display: 'flex', gap: 14, marginBottom: 22 }}>
+            <MetricCard label="Total Vendors" target={TOTAL}     tag={`${TOTAL} total`}   tagColor="green"  icon={Users}         />
+            <MetricCard label="Compliant"     target={COMPLIANT} tag="73%"                 tagColor="green"  icon={CheckCircle2}  />
+            <MetricCard label="Issues Found"  target={ISSUES}    tag="Review needed"       tagColor="orange" icon={AlertTriangle} isIssues />
+            <MetricCard label="Expiring Soon" target={EXPIRING}  tag="Action needed"       tagColor="orange" icon={Clock}         />
+          </div>
+
+          {/* Two-column layout */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 310px', gap: 18, alignItems: 'start' }}>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+              {/* Compliance Overview */}
+              <div
+                style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 24, transition: 'border-color 0.2s, box-shadow 0.2s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#2a2a3e'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.4)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = T.border;  e.currentTarget.style.boxShadow = 'none' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+                  <h2 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: 0 }}>Compliance Overview</h2>
+                  <button style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}`,
+                    borderRadius: 6, padding: '5px 10px',
+                    fontSize: 12, color: T.secondary, cursor: 'pointer',
+                    transition: 'border-color 0.15s',
+                  }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = '#2a2a3e')}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = T.border)}
+                  >
+                    This Month <ChevronDown size={11} />
+                  </button>
                 </div>
-              ))}
-            </div>
+                <AnimatedDonut compliant={COMPLIANT} issues={ISSUES} expiring={EXPIRING} total={TOTAL} />
+              </div>
 
-            {/* ── Chart + Action items ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 20, marginBottom: 24 }}>
-
-              {/* Donut chart */}
-              <div style={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 12, padding: '24px' }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: '#f0ede8', margin: '0 0 20px' }}>Compliance Overview</h3>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                  <div style={{ flexShrink: 0 }}>
-                    <svg width="140" height="140" viewBox="0 0 140 140">
-                      <circle cx="70" cy="70" r="54" fill="none" stroke="#1e1e2e" strokeWidth="18" />
-                      {ARCS.map((arc, i) => (
-                        <path key={i} d={arc.d} fill="none" stroke={arc.color} strokeWidth="18" strokeLinecap="butt" />
-                      ))}
-                      <text x="70" y="66" textAnchor="middle" fill="#f0ede8" fontSize="19" fontWeight="800" fontFamily="Inter, -apple-system, sans-serif">73%</text>
-                      <text x="70" y="82" textAnchor="middle" fill="#6b6e87" fontSize="10" fontFamily="Inter, -apple-system, sans-serif">Compliant</text>
-                    </svg>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {[
-                      { color: '#22c55e', label: 'Compliant',     value: '38', pct: '73%' },
-                      { color: '#D97706', label: 'Issues Found',  value: '9',  pct: '17%' },
-                      { color: '#60a5fa', label: 'Expiring Soon', value: '5',  pct: '10%' },
-                    ].map(item => (
-                      <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: item.color, flexShrink: 0 }} />
-                        <div>
-                          <div style={{ fontSize: 13, color: '#f0ede8', fontWeight: 600 }}>{item.label}</div>
-                          <div style={{ fontSize: 11, color: '#6b6e87' }}>{item.value} vendors · {item.pct}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              {/* Recent Submissions */}
+              <div
+                style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 24, transition: 'border-color 0.2s, box-shadow 0.2s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#2a2a3e'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.4)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = T.border;  e.currentTarget.style.boxShadow = 'none' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                  <h2 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: 0 }}>Recent Submissions</h2>
+                  <button
+                    onClick={showToast}
+                    style={{ fontSize: 13, color: T.orange, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, padding: 0, transition: 'opacity 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.opacity = '0.75')}
+                    onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                  >
+                    View all →
+                  </button>
                 </div>
-              </div>
 
-              {/* Action items */}
-              <div style={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 12, padding: '24px' }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: '#f0ede8', margin: '0 0 20px' }}>Action Items</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-                  {[
-                    { Icon: AlertTriangle, color: '#D97706', bg: 'rgba(217,119,6,0.07)',  border: 'rgba(217,119,6,0.2)',  text: '3 vendors missing additional insured endorsement' },
-                    { Icon: Clock,         color: '#fbbf24', bg: 'rgba(251,191,36,0.07)', border: 'rgba(251,191,36,0.2)', text: '2 COIs expire within the next 30 days' },
-                    { Icon: AlertTriangle, color: '#f87171', bg: 'rgba(248,113,113,0.07)',border: 'rgba(248,113,113,0.2)',text: '1 vendor has insufficient general liability limits' },
-                  ].map((item, i) => (
-                    <div key={i} style={{
-                      display: 'flex', alignItems: 'center', gap: 14,
-                      background: item.bg, border: `1px solid ${item.border}`,
-                      borderRadius: 10, padding: '13px 16px',
-                    }}>
-                      <item.Icon size={15} color={item.color} style={{ flexShrink: 0 }} />
-                      <span style={{ fontSize: 14, color: '#e8e4f0' }}>{item.text}</span>
-                    </div>
-                  ))}
-                </div>
-                <Link href="/sign-up" style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                  background: '#D97706', color: '#fff',
-                  fontSize: 13, fontWeight: 600, padding: '10px 18px',
-                  borderRadius: 8, textDecoration: 'none',
-                }}>
-                  Fix These Issues →
-                </Link>
-              </div>
-            </div>
-
-            {/* ── Recent Submissions ── */}
-            <div style={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 12, overflow: 'hidden', marginBottom: 36 }}>
-              <div style={{ padding: '18px 24px', borderBottom: '1px solid #1e1e2e' }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: '#f0ede8', margin: 0 }}>Recent Submissions</h3>
-              </div>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid #1e1e2e' }}>
-                      {['Vendor', 'Submitted', 'Status', 'Issues', 'COI Expiration'].map(col => (
-                        <th key={col} style={{
-                          textAlign: 'left', padding: '11px 16px',
-                          fontSize: 11, color: '#6b6e87', fontWeight: 600,
-                          textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap',
-                        }}>{col}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {SUBMISSIONS.map((row, i) => {
-                      const s = STATUS_STYLES[row.status] || STATUS_STYLES['Pending Review']
-                      return (
-                        <tr key={i} style={{ borderBottom: i < SUBMISSIONS.length - 1 ? '1px solid #1a1a28' : 'none' }}>
-                          <td style={{ padding: '13px 16px', fontSize: 14, fontWeight: 600, color: '#f0ede8', whiteSpace: 'nowrap' }}>{row.vendor}</td>
-                          <td style={{ padding: '13px 16px', fontSize: 13, color: '#6b6e87', whiteSpace: 'nowrap' }}>{row.date}</td>
-                          <td style={{ padding: '13px 16px' }}>
-                            <span style={{
-                              background: s.bg, color: s.color, border: `1px solid ${s.border}`,
-                              borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
-                            }}>{row.status}</span>
-                          </td>
-                          <td style={{ padding: '13px 16px', textAlign: 'center' }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: row.issues > 0 ? '#D97706' : '#6b6e87' }}>{row.issues}</span>
-                          </td>
-                          <td style={{ padding: '13px 16px', fontSize: 13, color: '#6b6e87', whiteSpace: 'nowrap' }}>{row.expiration}</td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* ── Vendors ── */}
-            <h2 style={{ fontSize: 17, fontWeight: 700, color: '#f0ede8', margin: '0 0 16px' }}>Vendors</h2>
-
-            <div style={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 12, overflow: 'hidden', marginBottom: 36 }}>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid #1e1e2e' }}>
-                      {['Vendor Name', 'Type', 'Status', 'COI Expiration', 'Actions'].map(col => (
-                        <th key={col} style={{
-                          textAlign: 'left', padding: '13px 16px',
-                          fontSize: 11, color: '#6b6e87', fontWeight: 600,
-                          textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap',
-                        }}>{col}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {VENDORS.map((vendor, i) => {
-                      const s = STATUS_STYLES[vendor.status] || STATUS_STYLES['Pending Review']
-                      return (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr>
+                        {['Vendor', 'COI Uploaded', 'Status', 'Issues', 'Expiration Date'].map(col => (
+                          <th key={col} style={{
+                            textAlign: 'left', padding: '0 12px 12px',
+                            fontSize: 10, color: T.muted, fontWeight: 600,
+                            textTransform: 'uppercase', letterSpacing: '0.07em',
+                            borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap',
+                          }}>
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {SUBMISSIONS.map((row, i) => (
                         <tr
                           key={i}
-                          style={{ borderBottom: i < VENDORS.length - 1 ? '1px solid #1a1a28' : 'none', transition: 'background 0.1s' }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                          className={mounted ? 'row-animate' : 'pre-animate'}
+                          style={{ cursor: 'pointer', animationDelay: mounted ? `${i * 80}ms` : undefined, transition: 'background 0.15s' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = '#1a1a2e')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                          onClick={showToast}
                         >
-                          <td style={{ padding: '13px 16px', whiteSpace: 'nowrap' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <Building2 size={14} color="#4a4e6a" />
-                              <span style={{ fontSize: 14, fontWeight: 600, color: '#f0ede8' }}>{vendor.name}</span>
-                            </div>
+                          <td style={{ padding: '13px 12px', borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: T.primary }}>{row.vendor}</span>
                           </td>
-                          <td style={{ padding: '13px 16px', fontSize: 13, color: '#6b6e87', whiteSpace: 'nowrap' }}>{vendor.type}</td>
-                          <td style={{ padding: '13px 16px' }}>
-                            <span style={{
-                              background: s.bg, color: s.color, border: `1px solid ${s.border}`,
-                              borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
-                            }}>{vendor.status}</span>
+                          <td style={{ padding: '13px 12px', fontSize: 12, color: T.secondary, borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                            {row.uploaded}
                           </td>
-                          <td style={{ padding: '13px 16px', fontSize: 13, color: '#6b6e87', whiteSpace: 'nowrap' }}>{vendor.expiration}</td>
-                          <td style={{ padding: '13px 16px', whiteSpace: 'nowrap' }}>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                              <button onClick={showToast} style={{
-                                background: 'rgba(217,119,6,0.08)', color: '#D97706',
-                                border: '1px solid rgba(217,119,6,0.22)',
-                                fontSize: 12, fontWeight: 600, padding: '6px 12px',
-                                borderRadius: 6, cursor: 'pointer',
-                              }}>
-                                Upload COI
-                              </button>
-                              <button onClick={showToast} style={{
-                                background: 'rgba(255,255,255,0.03)', color: '#7a7e9a',
-                                border: '1px solid #1e1e2e',
-                                fontSize: 12, fontWeight: 600, padding: '6px 12px',
-                                borderRadius: 6, cursor: 'pointer',
-                              }}>
-                                View
-                              </button>
-                            </div>
+                          <td style={{ padding: '13px 12px', borderBottom: `1px solid ${T.border}` }}>
+                            {row.status === 'Compliant' ? (
+                              <span style={{ background: 'rgba(34,197,94,0.09)',  color: T.green,   border: '1px solid rgba(34,197,94,0.22)',  borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>Compliant</span>
+                            ) : row.status === 'Expiring Soon' ? (
+                              <span style={{ background: 'rgba(251,191,36,0.09)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.22)', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>Expiring Soon</span>
+                            ) : (
+                              <span style={{ background: 'rgba(217,119,6,0.09)',  color: T.orange,  border: '1px solid rgba(217,119,6,0.22)',  borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>Issues Found</span>
+                            )}
+                          </td>
+                          <td style={{ padding: '13px 12px', fontSize: 13, fontWeight: 700, color: row.issues > 0 ? T.orange : T.muted, borderBottom: `1px solid ${T.border}`, textAlign: 'center' }}>
+                            {row.issues}
+                          </td>
+                          <td style={{ padding: '13px 12px', fontSize: 12, color: T.secondary, borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                            {row.expiration}
                           </td>
                         </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <div style={{ padding: '11px 16px', borderTop: '1px solid #1e1e2e' }}>
-                <span style={{ fontSize: 13, color: '#6b6e87' }}>Showing 8 of 52 vendors</span>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
 
-            {/* ── CTA ── */}
-            <div style={{
-              background: 'linear-gradient(135deg, rgba(217,119,6,0.07) 0%, rgba(217,119,6,0.02) 100%)',
-              border: '1px solid rgba(217,119,6,0.18)',
-              borderRadius: 16, padding: '48px 40px',
-              textAlign: 'center', marginBottom: 40,
-            }}>
-              <div style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                background: 'rgba(217,119,6,0.1)', border: '1px solid rgba(217,119,6,0.22)',
-                borderRadius: 100, padding: '5px 14px', marginBottom: 20,
-              }}>
-                <Shield size={12} color="#D97706" />
-                <span style={{ fontSize: 12, color: '#D97706', fontWeight: 600, letterSpacing: '0.5px' }}>Get Started</span>
+            {/* Action Items */}
+            <div
+              style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 22, transition: 'border-color 0.2s, box-shadow 0.2s' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#2a2a3e'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.4)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = T.border;  e.currentTarget.style.boxShadow = 'none' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+                <h2 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: 0 }}>Action Items</h2>
+                <button
+                  onClick={showToast}
+                  style={{ fontSize: 13, color: T.orange, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, padding: 0, transition: 'opacity 0.15s' }}
+                  onMouseEnter={e => (e.currentTarget.style.opacity = '0.75')}
+                  onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                >
+                  View all →
+                </button>
               </div>
-              <h2 style={{ fontSize: 28, fontWeight: 800, color: '#f0ede8', margin: '0 0 12px', letterSpacing: '-0.8px' }}>
-                Ready to verify your own vendors?
-              </h2>
-              <p style={{ fontSize: 15, color: '#6b6e87', margin: '0 0 28px', lineHeight: 1.6 }}>
-                Sign up free and add your first vendor in under 2 minutes.
-              </p>
-              <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-                <Link href="/sign-up" style={{
-                  background: '#D97706', color: '#fff', fontSize: 15, fontWeight: 700,
-                  padding: '13px 28px', borderRadius: 10, textDecoration: 'none',
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {ACTION_ITEMS.map((text, i) => (
+                  <ActionItem key={i} text={text} index={i} mounted={mounted} onAction={showToast} />
+                ))}
+              </div>
+
+              <div style={{
+                marginTop: 16, padding: '11px 13px',
+                background: 'rgba(255,255,255,0.025)', border: `1px solid ${T.border}`,
+                borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Users size={13} color={T.secondary} />
+                  <span style={{ fontSize: 12, color: T.secondary }}>Total open items</span>
+                </div>
+                <span style={{
+                  background: 'rgba(217,119,6,0.12)', color: T.orange,
+                  fontSize: 12, fontWeight: 700,
+                  borderRadius: 20, padding: '2px 10px',
+                  border: '1px solid rgba(217,119,6,0.20)',
                 }}>
-                  Get Started Free
-                </Link>
-                <Link href="/pricing" style={{
-                  background: 'transparent', color: '#f0ede8', fontSize: 15, fontWeight: 600,
-                  padding: '13px 28px', borderRadius: 10, textDecoration: 'none',
-                  border: '1px solid #1e1e2e',
-                }}>
-                  View Pricing
-                </Link>
+                  {ACTION_ITEMS.length}
+                </span>
               </div>
             </div>
 
           </div>
-        </main>
-      </div>
+        </div>
+      </main>
 
       {/* ── Toast ── */}
       {toast && (
         <div style={{
           position: 'fixed', bottom: 24, right: 24, zIndex: 300,
-          background: '#15151f', border: '1px solid rgba(217,119,6,0.28)',
+          background: T.card, border: `1px solid rgba(217,119,6,0.25)`,
           borderRadius: 10, padding: '14px 18px',
           display: 'flex', alignItems: 'center', gap: 12,
           boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-          fontSize: 14, color: '#f0ede8',
+          animation: 'fadeSlideUp 0.25s ease both',
         }}>
-          <Shield size={16} color="#D97706" />
-          <span>Sign up to access vendor profiles</span>
+          <AlertTriangle size={16} color={T.orange} style={{ flexShrink: 0 }} />
+          <span style={{ fontSize: 14, color: T.primary }}>Create a free account to manage your vendors</span>
           <Link href="/sign-up" style={{
-            background: '#D97706', color: '#fff', fontSize: 12, fontWeight: 600,
-            padding: '5px 12px', borderRadius: 6, textDecoration: 'none', marginLeft: 4,
+            background: T.orange, color: '#fff', fontSize: 12, fontWeight: 600,
+            padding: '5px 12px', borderRadius: 6, textDecoration: 'none',
+            marginLeft: 4, flexShrink: 0,
           }}>
             Sign Up →
           </Link>
         </div>
       )}
-
     </div>
   )
 }

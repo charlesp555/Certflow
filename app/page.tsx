@@ -525,7 +525,7 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-              <Link href="/upload" className="btn-orange" style={{ alignSelf: 'flex-start' }}>
+              <Link href="/demo" className="btn-orange" style={{ alignSelf: 'flex-start' }}>
                 See it in action <ArrowRight size={15} />
               </Link>
             </div>
