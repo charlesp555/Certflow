@@ -59,6 +59,15 @@ export default function Home() {
           50%  { transform: translate(-12px,-18px) scale(1.2); opacity: 0.3; }
           100% { transform: translate(0,0) scale(1); opacity: 0.6; }
         }
+        @keyframes hero-gradient-shift {
+          0%   { opacity: 0.6; transform: scale(1) translate(0,0); }
+          50%  { opacity: 1;   transform: scale(1.12) translate(-1%,1%); }
+          100% { opacity: 0.6; transform: scale(1) translate(0,0); }
+        }
+        @keyframes badge-glow {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(217,119,6,0); }
+          50%       { box-shadow: 0 0 22px 6px rgba(217,119,6,0.13); }
+        }
 
         .hero-left  { animation: fade-in 0.5s ease forwards; }
         .hero-right { animation: slide-up 0.6s 0.15s ease both; }
@@ -263,17 +272,30 @@ export default function Home() {
         position: 'relative', overflow: 'hidden',
         display: 'flex', alignItems: 'center',
       }}>
-        {/* BG grid */}
+        {/* Dot grid */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none',
-          backgroundImage: `linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px)`,
-          backgroundSize: '56px 56px',
+          backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
         }} />
-        {/* Ambient glow */}
+        {/* Animated gradient overlay */}
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none',
+          background: 'linear-gradient(135deg, rgba(88,28,135,0.05) 0%, rgba(30,27,75,0.09) 45%, transparent 70%)',
+          animation: 'hero-gradient-shift 10s ease-in-out infinite',
+        }} />
+        {/* Ambient glow — right */}
         <div style={{
           position: 'absolute', top: '20%', right: '-10%',
           width: 600, height: 600, borderRadius: '50%',
           background: 'radial-gradient(circle, rgba(217,119,6,0.10) 0%, transparent 65%)',
+          pointerEvents: 'none',
+        }} />
+        {/* Ambient glow — left, behind hero text */}
+        <div style={{
+          position: 'absolute', top: '15%', left: '-8%',
+          width: 520, height: 520, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(217,119,6,0.07) 0%, transparent 65%)',
           pointerEvents: 'none',
         }} />
 
@@ -290,8 +312,9 @@ export default function Home() {
             {/* Pill badge */}
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
-              background: 'rgba(217,119,6,0.08)', border: `1px solid rgba(217,119,6,0.2)`,
+              background: 'rgba(217,119,6,0.10)', border: `1px solid rgba(217,119,6,0.28)`,
               borderRadius: 100, padding: '6px 14px', marginBottom: 32,
+              animation: 'badge-glow 3.5s ease-in-out infinite',
             }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.orange }} />
               <span style={{ fontSize: 12, fontWeight: 600, color: T.orange, letterSpacing: '0.04em' }}>
@@ -462,7 +485,7 @@ export default function Home() {
 
       {/* ── TRUST BAR ─────────────────────────────────────────────────────── */}
       <div style={{
-        background: T.surface,
+        background: `linear-gradient(to bottom, rgba(217,119,6,0.02) 0%, transparent 50%), ${T.surface}`,
         borderTop: `1px solid ${T.borderSubtle}`,
         borderBottom: `1px solid ${T.borderSubtle}`,
         padding: '20px 24px',
@@ -495,7 +518,7 @@ export default function Home() {
       </div>
 
       {/* ── PROBLEM / SOLUTION ────────────────────────────────────────────── */}
-      <section style={{ background: T.bg, padding: 'clamp(72px, 9vw, 110px) 24px' }}>
+      <section style={{ background: 'linear-gradient(to bottom, #0c0c16 0%, #0a0a0f 30%)', padding: 'clamp(72px, 9vw, 110px) 24px' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div
             className="problem-grid"
@@ -651,7 +674,7 @@ export default function Home() {
 
       {/* ── PRICING ───────────────────────────────────────────────────────── */}
       <section id="pricing" style={{
-        background: T.bg, borderTop: `1px solid ${T.borderSubtle}`,
+        background: 'linear-gradient(to bottom, #0c0c16 0%, #0a0a0f 28%)', borderTop: `1px solid ${T.borderSubtle}`,
         padding: 'clamp(72px, 9vw, 110px) 24px',
       }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
