@@ -351,7 +351,7 @@ export default function Home() {
             }} />
 
             <div style={{
-              background: '#0d0d16',
+              background: '#1a1a2e',
               border: '1px solid rgba(217,119,6,0.28)',
               borderRadius: 18,
               boxShadow: '0 32px 80px rgba(0,0,0,0.70), 0 0 0 1px rgba(217,119,6,0.06), 0 0 60px rgba(217,119,6,0.07)',
@@ -395,7 +395,7 @@ export default function Home() {
                     { label: 'Expiring Soon',  value: '4',   color: '#fbbf24',       Icon: Clock         },
                   ].map(({ label, value, color, Icon }) => (
                     <div key={label} style={{
-                      background: '#13131f', border: '1px solid #1a1a2e',
+                      background: '#1e1e3a', border: '1px solid #2a2a45',
                       borderRadius: 10, padding: '11px 13px',
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     }}>
@@ -410,7 +410,7 @@ export default function Home() {
 
                 {/* Vendor rows */}
                 <div style={{
-                  background: '#13131f', border: '1px solid #1a1a2e',
+                  background: '#1e1e3a', border: '1px solid #2a2a45',
                   borderRadius: 10, overflow: 'hidden', marginBottom: 12,
                 }}>
                   {[
@@ -421,7 +421,7 @@ export default function Home() {
                     <div key={v.name} style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       padding: '9px 12px',
-                      borderBottom: i < 2 ? '1px solid #1a1a2e' : 'none',
+                      borderBottom: i < 2 ? '1px solid #2a2a45' : 'none',
                     }}>
                       <span style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>{v.name}</span>
                       <span style={{
