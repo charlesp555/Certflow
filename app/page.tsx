@@ -281,7 +281,7 @@ export default function Home() {
               <Link href="/sign-up" className="btn-orange" style={{ fontSize: 16, padding: '14px 30px' }}>
                 Start Verifying Free
               </Link>
-              <Link href="/upload" className="demo-link">
+              <Link href="/demo" className="demo-link">
                 See a live demo <ArrowRight size={15} />
               </Link>
             </div>
