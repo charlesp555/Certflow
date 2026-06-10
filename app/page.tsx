@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Link from 'next/link'
 import {
   Shield, Menu, X, Check, Users, AlertTriangle, Clock,
@@ -24,6 +24,7 @@ const T = {
 
 export default function Home() {
   const [navOpen, setNavOpen] = useState(false)
+  const cursorOverlayRef = useRef<HTMLDivElement>(null)
 
   return (
     <div style={{ background: T.bg, minHeight: '100vh', color: T.textPrimary, fontFamily: 'Inter, sans-serif' }}>
@@ -68,6 +69,10 @@ export default function Home() {
           0%, 100% { box-shadow: 0 0 0 0 rgba(217,119,6,0); }
           50%       { box-shadow: 0 0 22px 6px rgba(217,119,6,0.13); }
         }
+        @keyframes hero-glow-pulse {
+          0%, 100% { opacity: 0.08; }
+          50%       { opacity: 0.15; }
+        }
 
         .hero-left  { animation: fade-in 0.5s ease forwards; }
         .hero-right { animation: slide-up 0.6s 0.15s ease both; }
@@ -98,7 +103,18 @@ export default function Home() {
           border: none; text-decoration: none;
           box-shadow: 0 4px 20px rgba(217,119,6,0.28);
           transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
+          position: relative; overflow: hidden;
         }
+        .btn-orange::before {
+          content: '';
+          position: absolute; top: 0; left: -100%;
+          width: 55%; height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+          transform: skewX(-20deg);
+          transition: left 0.5s ease;
+          pointer-events: none;
+        }
+        .btn-orange:hover::before { left: 160%; }
         .btn-orange:hover {
           background: ${T.orangeHover};
           box-shadow: 0 6px 32px rgba(217,119,6,0.50), 0 0 0 5px rgba(217,119,6,0.12);
@@ -266,12 +282,22 @@ export default function Home() {
       </nav>
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <section style={{
-        minHeight: 'calc(100vh - 64px)',
-        background: T.bg, padding: 'clamp(60px, 8vw, 100px) 24px',
-        position: 'relative', overflow: 'hidden',
-        display: 'flex', alignItems: 'center',
-      }}>
+      <section
+        style={{
+          minHeight: '100vh',
+          background: T.bg, padding: 'clamp(60px, 8vw, 100px) 24px',
+          position: 'relative', overflow: 'hidden',
+          display: 'flex', alignItems: 'center',
+        }}
+        onMouseMove={(e) => {
+          if (!cursorOverlayRef.current) return
+          const rect = e.currentTarget.getBoundingClientRect()
+          cursorOverlayRef.current.style.background = `radial-gradient(600px circle at ${e.clientX - rect.left}px ${e.clientY - rect.top}px, rgba(217,119,6,0.12), transparent 40%)`
+        }}
+        onMouseLeave={() => {
+          if (cursorOverlayRef.current) cursorOverlayRef.current.style.background = 'transparent'
+        }}
+      >
         {/* Dot grid */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none',
@@ -283,6 +309,17 @@ export default function Home() {
           position: 'absolute', inset: 0, pointerEvents: 'none',
           background: 'linear-gradient(135deg, rgba(88,28,135,0.05) 0%, rgba(30,27,75,0.09) 45%, transparent 70%)',
           animation: 'hero-gradient-shift 10s ease-in-out infinite',
+        }} />
+        {/* Cursor tracking glow */}
+        <div ref={cursorOverlayRef} style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none',
+        }} />
+        {/* Pulsing orange glow */}
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none',
+          background: 'radial-gradient(ellipse 55% 50% at 28% 50%, rgba(217,119,6,1) 0%, transparent 60%)',
+          opacity: 0.08,
+          animation: 'hero-glow-pulse 4s ease-in-out infinite',
         }} />
         {/* Blue orb — right, behind dashboard card */}
         <div style={{
@@ -326,17 +363,17 @@ export default function Home() {
 
             {/* Headline */}
             <h1 style={{
-              fontSize: 'clamp(44px, 5.8vw, 72px)', fontWeight: 900,
-              lineHeight: 1.04, letterSpacing: '-2.5px', marginBottom: 24,
+              fontSize: 'clamp(48px, 6.2vw, 80px)', fontWeight: 900,
+              lineHeight: 0.95, letterSpacing: '-2.5px', marginBottom: 24,
             }}>
               <span style={{ display: 'block', color: T.textPrimary }}>Your vendors say</span>
               <span style={{ display: 'block', color: T.textPrimary }}>they&apos;re covered.</span>
-              <span style={{ display: 'block', color: T.orange, fontStyle: 'italic' }}>Prove it.</span>
+              <span style={{ display: 'block', color: T.orange, fontStyle: 'italic', fontSize: '1.08em' }}>Prove it.</span>
             </h1>
 
             {/* Subhead */}
             <p style={{
-              fontSize: 18, color: T.textSecondary, lineHeight: 1.7,
+              fontSize: 18, color: '#a8adc4', lineHeight: 1.7,
               maxWidth: 480, marginBottom: 40,
             }}>
               One uninsured vendor. One incident. One lawsuit. Covira verifies vendor insurance
@@ -382,7 +419,7 @@ export default function Home() {
               boxShadow: '0 32px 80px rgba(0,0,0,0.70), 0 0 0 1px rgba(217,119,6,0.06), 0 0 60px rgba(217,119,6,0.07)',
               overflow: 'hidden',
               position: 'relative',
-              animation: 'float-card 5s ease-in-out infinite',
+              animation: 'float-card 3s ease-in-out infinite',
             }}>
 
               {/* Card header */}
