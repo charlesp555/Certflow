@@ -741,7 +741,7 @@ function CompletionScreen({ onRestart }: { onRestart: () => void }) {
           <Link href="/sign-up" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: T.orange, color: '#fff', fontSize: 15, fontWeight: 700, padding: '14px 28px', borderRadius: 10, textDecoration: 'none' }}>
             Start Verifying Free <ArrowRight size={15} />
           </Link>
-          <a href="mailto:charles@covira.ai" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: T.primary, fontSize: 14, fontWeight: 600, padding: '13px 28px', borderRadius: 10, textDecoration: 'none', border: `1px solid ${T.border}` }}>
+          <a href="https://calendly.com/charles-covira/30min" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: T.primary, fontSize: 14, fontWeight: 600, padding: '13px 28px', borderRadius: 10, textDecoration: 'none', border: `1px solid ${T.border}` }}>
             Book a Consultation
           </a>
         </div>

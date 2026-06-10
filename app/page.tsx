@@ -856,9 +856,29 @@ export default function Home() {
           <p style={{ fontSize: 16, color: T.textSecondary, lineHeight: 1.7, marginBottom: 36, maxWidth: 440, margin: '0 auto 36px' }}>
             Join property managers who verify vendor insurance the smart way.
           </p>
-          <Link href="/sign-up" className="btn-orange" style={{ fontSize: 16, padding: '16px 36px' }}>
-            Get Started Free — No Credit Card Required
-          </Link>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, justifyContent: 'center' }}>
+            <Link href="/sign-up" className="btn-orange" style={{ fontSize: 16, padding: '16px 36px' }}>
+              Get Started Free — No Credit Card Required
+            </Link>
+            <a
+              href="https://calendly.com/charles-covira/30min"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                fontSize: 16, fontWeight: 600, padding: '16px 32px',
+                borderRadius: 10, textDecoration: 'none',
+                border: '1px solid rgba(217,119,6,0.45)',
+                color: '#D97706',
+                background: 'rgba(217,119,6,0.06)',
+                transition: 'background 0.2s, border-color 0.2s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(217,119,6,0.12)'; (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(217,119,6,0.7)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(217,119,6,0.06)'; (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(217,119,6,0.45)' }}
+            >
+              Book a Demo Call
+            </a>
+          </div>
           <p style={{ fontSize: 13, color: T.textMuted, marginTop: 16 }}>
             Takes 60 seconds to set up. First 3 vendors always free.
           </p>
