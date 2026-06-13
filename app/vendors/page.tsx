@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import {
-  Bell, User, ChevronDown, Search, Upload,
-  Eye, X, Building2, Lock,
+  Bell, ChevronDown, Search, Upload,
+  Eye, X, Building2, Lock, Trash2, AlertTriangle,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
-import { useUser } from '@clerk/nextjs'
+import { useUser, UserButton } from '@clerk/nextjs'
 import { supabase } from '@/lib/supabase'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -308,6 +308,96 @@ function AddVendorModal({
   )
 }
 
+// ─── Delete Confirm Modal ─────────────────────────────────────────────────────
+
+function DeleteConfirmModal({
+  vendor,
+  onClose,
+  onConfirm,
+  deleting,
+  error,
+}: {
+  vendor: { id: string; name: string }
+  onClose: () => void
+  onConfirm: () => void
+  deleting: boolean
+  error: string
+}) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 100,
+      background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+    }} onClick={onClose}>
+      <div style={{
+        background: '#111118', border: '1px solid #1e1e2e', borderRadius: 16,
+        padding: 36, width: '100%', maxWidth: 440,
+        boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
+      }} onClick={e => e.stopPropagation()}>
+
+        {/* Icon */}
+        <div style={{
+          width: 48, height: 48, borderRadius: '50%',
+          background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.25)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          margin: '0 auto 20px',
+        }}>
+          <AlertTriangle size={22} color="#ef4444" />
+        </div>
+
+        <h2 style={{ fontSize: 18, fontWeight: 700, color: '#f0ede8', margin: '0 0 10px', textAlign: 'center' }}>
+          Delete {vendor.name}?
+        </h2>
+        <p style={{ fontSize: 14, color: '#8a8599', margin: '0 0 28px', lineHeight: 1.6, textAlign: 'center' }}>
+          This will permanently remove the vendor and all its uploaded COIs and
+          analysis data. This can&apos;t be undone.
+        </p>
+
+        {error && (
+          <div style={{
+            fontSize: 13, color: '#fca5a5',
+            background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)',
+            borderRadius: 8, padding: '10px 14px', marginBottom: 20,
+          }}>
+            {error}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={onClose}
+            disabled={deleting}
+            style={{
+              flex: 1, background: 'transparent', border: '1px solid #1e1e2e',
+              color: '#8a8599', fontSize: 14, fontWeight: 500,
+              padding: '11px 20px', borderRadius: 8, cursor: deleting ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { if (!deleting) { e.currentTarget.style.borderColor = '#2e2e3e'; e.currentTarget.style.color = '#f0ede8' } }}
+            onMouseLeave={e => { if (!deleting) { e.currentTarget.style.borderColor = '#1e1e2e'; e.currentTarget.style.color = '#8a8599' } }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={deleting}
+            style={{
+              flex: 1, background: deleting ? '#7f1d1d' : '#ef4444', color: '#fff',
+              fontSize: 14, fontWeight: 600,
+              padding: '11px 20px', borderRadius: 8, border: 'none',
+              cursor: deleting ? 'not-allowed' : 'pointer', transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => { if (!deleting) e.currentTarget.style.background = '#dc2626' }}
+            onMouseLeave={e => { if (!deleting) e.currentTarget.style.background = '#ef4444' }}
+          >
+            {deleting ? 'Deleting…' : 'Delete Vendor'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Filter Select ────────────────────────────────────────────────────────────
 
 function FilterSelect({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
@@ -343,6 +433,9 @@ export default function VendorsPage() {
   const [filterStatus, setFilterStatus] = useState('All')
   const [filterType, setFilterType] = useState('All')
   const [filterExp, setFilterExp] = useState('All')
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   const fetchVendors = useCallback(async () => {
     if (!user?.id) return
@@ -382,14 +475,48 @@ export default function VendorsPage() {
     }
   }
 
+  const handleDelete = async () => {
+    if (!deleteTarget || !user?.id) return
+    setDeleting(true)
+    setDeleteError('')
+
+    // Delete submissions first (foreign key constraint), scoped to this user
+    const { error: subErr } = await supabase
+      .from('submissions')
+      .delete()
+      .eq('vendor_id', deleteTarget.id)
+      .eq('clerk_user_id', user.id)
+
+    if (subErr) {
+      setDeleteError('Failed to delete COI data. Please try again.')
+      setDeleting(false)
+      return
+    }
+
+    // Then delete the vendor itself, scoped to this user
+    const { error: vendorErr } = await supabase
+      .from('vendors')
+      .delete()
+      .eq('id', deleteTarget.id)
+      .eq('clerk_user_id', user.id)
+
+    if (vendorErr) {
+      setDeleteError('Failed to delete vendor. Please try again.')
+      setDeleting(false)
+      return
+    }
+
+    setDeleting(false)
+    setDeleteTarget(null)
+    fetchVendors()
+  }
+
   const filtered = vendors.filter(v => {
     if (search && !v.name.toLowerCase().includes(search.toLowerCase())) return false
     if (filterStatus !== 'All' && v.status !== filterStatus) return false
     if (filterType !== 'All' && v.type !== filterType) return false
     return true
   })
-
-  const displayName = user?.fullName || user?.firstName || 'Account'
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a0f', fontFamily: 'Inter, -apple-system, sans-serif' }}>
@@ -404,6 +531,16 @@ export default function VendorsPage() {
           clerkUserId={user.id}
           onClose={() => setShowModal(false)}
           onSave={fetchVendors}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteConfirmModal
+          vendor={deleteTarget}
+          onClose={() => { setDeleteTarget(null); setDeleteError('') }}
+          onConfirm={handleDelete}
+          deleting={deleting}
+          error={deleteError}
         />
       )}
 
@@ -437,17 +574,7 @@ export default function VendorsPage() {
               <Bell size={20} />
               <span style={{ position: 'absolute', top: 5, right: 5, width: 8, height: 8, background: '#D97706', borderRadius: '50%', border: '2px solid #0a0a0f' }} />
             </button>
-            <button style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              background: 'transparent', border: '1px solid #1e1e2e',
-              borderRadius: 8, padding: '6px 12px', cursor: 'pointer',
-            }}>
-              <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(217,119,6,0.20)', border: '1px solid rgba(217,119,6,0.30)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <User size={13} color="#D97706" />
-              </div>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#f0ede8' }}>{displayName}</span>
-              <ChevronDown size={14} color="#8a8599" />
-            </button>
+            <UserButton />
           </div>
         </header>
 
@@ -561,6 +688,22 @@ export default function VendorsPage() {
                                 <Eye size={12} />
                                 View
                               </Link>
+                              <button
+                                onClick={() => { setDeleteTarget({ id: vendor.id, name: vendor.name }); setDeleteError('') }}
+                                title={`Delete ${vendor.name}`}
+                                style={{
+                                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                  width: 30, height: 30,
+                                  background: 'rgba(255,255,255,0.04)', color: '#4b5063',
+                                  border: '1px solid #1e1e2e',
+                                  borderRadius: 6, cursor: 'pointer', transition: 'all 0.15s',
+                                  flexShrink: 0,
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.30)' }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#4b5063'; e.currentTarget.style.borderColor = '#1e1e2e' }}
+                              >
+                                <Trash2 size={13} />
+                              </button>
                             </div>
                           </td>
                         </tr>

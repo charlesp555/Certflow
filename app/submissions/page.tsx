@@ -410,7 +410,7 @@ export default function SubmissionsPage() {
                         animationDelay: mounted ? `${i * 60}ms` : undefined,
                         transition: 'background 0.15s',
                       }}
-                      onClick={() => { window.location.href = '/report' }}
+                      onClick={() => { window.location.href = `/report/${row.id}` }}
                       onMouseEnter={e => (e.currentTarget.style.background = '#1a1a2e')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
@@ -483,7 +483,7 @@ export default function SubmissionsPage() {
                       {/* Actions */}
                       <td style={{ padding: '14px 16px' }} onClick={e => e.stopPropagation()}>
                         <Link
-                          href="/report"
+                          href={`/report/${row.id}`}
                           style={{
                             display: 'inline-flex', alignItems: 'center', gap: 5,
                             background: 'rgba(255,255,255,0.04)', color: T.secondary,

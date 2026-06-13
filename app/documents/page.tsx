@@ -3,11 +3,12 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import {
-  Bell, User, ChevronDown, Search, Upload,
+  Bell, ChevronDown, Search, Upload,
   Download, Eye, FileText, CheckCircle2,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
-import { UserButton } from '@clerk/nextjs'
+import { UserButton, useUser } from '@clerk/nextjs'
+import { supabase } from '@/lib/supabase'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
@@ -43,35 +44,73 @@ interface Doc {
   status: DocStatus
 }
 
-// ── Data ──────────────────────────────────────────────────────────────────────
+type AnalysisResult = {
+  insuredName?: string | null
+  effectiveDate?: string | null
+  expirationDate?: string | null
+  overallStatus?: string | null
+}
 
-const DOCS: Doc[] = [
-  { id:  '1', filename: 'COI_ABC_Plumbing_052025.pdf',      vendor: 'ABC Plumbing LLC',      vendorId: '1', uploaded: 'May 20, 2025', policyPeriod: 'May 22, 2025 – May 22, 2026', status: 'Active'        },
-  { id:  '2', filename: 'COI_ABC_Plumbing_012025.pdf',      vendor: 'ABC Plumbing LLC',      vendorId: '1', uploaded: 'Jan 15, 2025', policyPeriod: 'Jan 15, 2025 – Jan 15, 2026', status: 'Expired'       },
-  { id:  '3', filename: 'COI_Summit_Electric_052025.pdf',   vendor: 'Summit Electric Co.',   vendorId: '2', uploaded: 'May 19, 2025', policyPeriod: 'Feb 15, 2025 – Feb 15, 2027', status: 'Active'        },
-  { id:  '4', filename: 'COI_Bluewater_HVAC_052025.pdf',    vendor: 'Bluewater HVAC',        vendorId: '3', uploaded: 'May 18, 2025', policyPeriod: 'Jan 10, 2025 – Jan 10, 2027', status: 'Active'        },
-  { id:  '5', filename: 'COI_Pinnacle_Roofing_052025.pdf',  vendor: 'Pinnacle Roofing Inc.', vendorId: '4', uploaded: 'May 16, 2025', policyPeriod: 'Jun 01, 2025 – Jun 01, 2026', status: 'Active'        },
-  { id:  '6', filename: 'COI_Bright_Services_052025.pdf',   vendor: 'Bright Services',       vendorId: '5', uploaded: 'May 15, 2025', policyPeriod: 'Jun 05, 2024 – Jun 05, 2025', status: 'Expiring Soon' },
-  { id:  '7', filename: 'COI_ProBuild_052025.pdf',          vendor: 'ProBuild Contractors',  vendorId: '6', uploaded: 'May 14, 2025', policyPeriod: 'Mar 12, 2025 – Mar 12, 2027', status: 'Active'        },
-  { id:  '8', filename: 'COI_Elite_Flooring_052025.pdf',    vendor: 'Elite Flooring',        vendorId: '7', uploaded: 'May 12, 2025', policyPeriod: 'Pending',                     status: 'Pending Review'},
-  { id:  '9', filename: 'COI_Metro_Electric_052025.pdf',    vendor: 'Metro Electric Co.',    vendorId: '8', uploaded: 'May 10, 2025', policyPeriod: 'Aug 30, 2025 – Aug 30, 2026', status: 'Active'        },
-  { id: '10', filename: 'COI_ABC_Plumbing_082024.pdf',      vendor: 'ABC Plumbing LLC',      vendorId: '1', uploaded: 'Aug 03, 2024', policyPeriod: 'Aug 03, 2024 – Aug 03, 2025', status: 'Expired'       },
-  { id: '11', filename: 'COI_Summit_Electric_012025.pdf',   vendor: 'Summit Electric Co.',   vendorId: '2', uploaded: 'Jan 10, 2025', policyPeriod: 'Jan 10, 2025 – Feb 15, 2026', status: 'Active'        },
-  { id: '12', filename: 'COI_Pinnacle_Roofing_012025.pdf',  vendor: 'Pinnacle Roofing Inc.', vendorId: '4', uploaded: 'Jan 08, 2025', policyPeriod: 'Jan 08, 2025 – Jun 01, 2025', status: 'Expired'       },
-]
+type SubRow = {
+  id: string
+  vendor_id: string | null
+  status: string | null
+  analysis_result: AnalysisResult | null
+  created_at: string | null
+  vendors: { id: string; name: string } | null
+}
 
-const VENDOR_OPTIONS = ['All Vendors', ...Array.from(new Set(DOCS.map(d => d.vendor)))]
+// ── Constants ─────────────────────────────────────────────────────────────────
+
 const STATUS_OPTIONS: ('All' | DocStatus)[] = ['All', 'Active', 'Expiring Soon', 'Expired', 'Pending Review']
 const SORT_OPTIONS: SortKey[] = ['Newest First', 'Oldest First', 'Expiring Soonest']
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+function mapDocStatus(overallStatus: string | null | undefined): DocStatus {
+  switch (overallStatus) {
+    case 'COMPLIANT':
+    case 'NON_COMPLIANT': return 'Active'
+    case 'EXPIRING':      return 'Expiring Soon'
+    case 'EXPIRED':       return 'Expired'
+    default:              return 'Pending Review'
+  }
+}
+
+function mapRow(row: SubRow): Doc {
+  const ar = row.analysis_result
+  const vendorName = row.vendors?.name ?? ar?.insuredName ?? 'Unknown Vendor'
+  const d = row.created_at ? new Date(row.created_at) : null
+  const uploadDate = d
+    ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : '—'
+  const fileSlug = vendorName.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/_$/, '')
+  const dateSlug = d
+    ? `${String(d.getMonth() + 1).padStart(2, '0')}${d.getFullYear()}`
+    : 'unknown'
+  let policyPeriod = 'Pending'
+  if (ar?.effectiveDate && ar?.expirationDate) {
+    policyPeriod = `${ar.effectiveDate} – ${ar.expirationDate}`
+  } else if (ar?.expirationDate) {
+    policyPeriod = ar.expirationDate
+  }
+  return {
+    id: row.id,
+    filename: `COI_${fileSlug}_${dateSlug}.pdf`,
+    vendor: vendorName,
+    vendorId: row.vendors?.id ?? row.vendor_id ?? '',
+    uploaded: uploadDate,
+    policyPeriod,
+    status: mapDocStatus(ar?.overallStatus),
+  }
+}
+
 function statusStyle(s: DocStatus) {
   switch (s) {
-    case 'Active':        return { bg: 'rgba(34,197,94,0.09)',   color: T.green, border: 'rgba(34,197,94,0.22)'   }
-    case 'Expiring Soon': return { bg: 'rgba(251,191,36,0.09)',  color: T.amber, border: 'rgba(251,191,36,0.22)'  }
-    case 'Expired':       return { bg: 'rgba(239,68,68,0.09)',   color: T.red,   border: 'rgba(239,68,68,0.22)'   }
-    case 'Pending Review':return { bg: 'rgba(139,140,248,0.09)', color: T.blue,  border: 'rgba(139,140,248,0.22)' }
+    case 'Active':         return { bg: 'rgba(34,197,94,0.09)',   color: T.green, border: 'rgba(34,197,94,0.22)'   }
+    case 'Expiring Soon':  return { bg: 'rgba(251,191,36,0.09)',  color: T.amber, border: 'rgba(251,191,36,0.22)'  }
+    case 'Expired':        return { bg: 'rgba(239,68,68,0.09)',   color: T.red,   border: 'rgba(239,68,68,0.22)'   }
+    case 'Pending Review': return { bg: 'rgba(139,140,248,0.09)', color: T.blue,  border: 'rgba(139,140,248,0.22)' }
   }
 }
 
@@ -150,6 +189,9 @@ function Toast({ message, visible }: { message: string; visible: boolean }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function DocumentsPage() {
+  const { user, isLoaded } = useUser()
+  const [docs,         setDocs]         = useState<Doc[]>([])
+  const [loading,      setLoading]      = useState(true)
   const [search,       setSearch]       = useState('')
   const [statusFilter, setStatusFilter] = useState<'All' | DocStatus>('All')
   const [vendorFilter, setVendorFilter] = useState('All Vendors')
@@ -161,14 +203,34 @@ export default function DocumentsPage() {
   useEffect(() => { setMounted(true) }, [])
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
 
+  useEffect(() => {
+    if (!isLoaded) return
+    if (!user) { setLoading(false); return }
+
+    async function fetchDocs() {
+      const { data, error } = await supabase
+        .from('submissions')
+        .select('id, vendor_id, status, analysis_result, created_at, vendors(id, name)')
+        .eq('clerk_user_id', user!.id)
+        .order('created_at', { ascending: false })
+
+      if (!error && data) setDocs((data as unknown as SubRow[]).map(mapRow))
+      setLoading(false)
+    }
+
+    fetchDocs()
+  }, [isLoaded, user])
+
   function showToast() {
     if (timerRef.current) clearTimeout(timerRef.current)
     setToastVisible(true)
     timerRef.current = setTimeout(() => setToastVisible(false), 3000)
   }
 
+  const vendorOptions = ['All Vendors', ...Array.from(new Set(docs.map(d => d.vendor)))]
+
   // Filter
-  let displayed = DOCS.filter(d => {
+  let displayed = docs.filter(d => {
     if (search && !d.filename.toLowerCase().includes(search.toLowerCase()) &&
         !d.vendor.toLowerCase().includes(search.toLowerCase())) return false
     if (statusFilter !== 'All' && d.status !== statusFilter) return false
@@ -178,18 +240,16 @@ export default function DocumentsPage() {
 
   // Sort
   if (sortBy === 'Oldest First') displayed = [...displayed].reverse()
-  // 'Expiring Soonest' puts Active/Expiring first, Expired last
   if (sortBy === 'Expiring Soonest') {
     const order: DocStatus[] = ['Expiring Soon', 'Active', 'Pending Review', 'Expired']
     displayed = [...displayed].sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status))
   }
 
-  // Stats (full dataset)
   const stats = {
-    total:    DOCS.length,
-    active:   DOCS.filter(d => d.status === 'Active').length,
-    expiring: DOCS.filter(d => d.status === 'Expiring Soon').length,
-    expired:  DOCS.filter(d => d.status === 'Expired').length,
+    total:    docs.length,
+    active:   docs.filter(d => d.status === 'Active').length,
+    expiring: docs.filter(d => d.status === 'Expiring Soon').length,
+    expired:  docs.filter(d => d.status === 'Expired').length,
   }
 
   return (
@@ -205,6 +265,7 @@ export default function DocumentsPage() {
         }
         .pre-animate { opacity: 0; }
         .row-animate { animation: fadeSlideUp 0.34s ease both; }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
 
       <Toast message="Download started" visible={toastVisible} />
@@ -269,10 +330,10 @@ export default function DocumentsPage() {
 
           {/* Stats row */}
           <div style={{ display: 'flex', gap: 14 }}>
-            <StatCard label="Total Documents" value={stats.total}    color={T.primary}  />
-            <StatCard label="Active Policies"  value={stats.active}   color={T.green}    />
-            <StatCard label="Expiring Soon"    value={stats.expiring} color={T.amber}    />
-            <StatCard label="Expired"          value={stats.expired}  color={T.red}      />
+            <StatCard label="Total Documents" value={stats.total}    color={T.primary} />
+            <StatCard label="Active Policies"  value={stats.active}   color={T.green}   />
+            <StatCard label="Expiring Soon"    value={stats.expiring} color={T.amber}   />
+            <StatCard label="Expired"          value={stats.expired}  color={T.red}     />
           </div>
 
           {/* Filter bar */}
@@ -297,7 +358,7 @@ export default function DocumentsPage() {
               />
             </div>
             <FilterSelect value={statusFilter} onChange={v => setStatusFilter(v as 'All' | DocStatus)} options={STATUS_OPTIONS} />
-            <FilterSelect value={vendorFilter} onChange={setVendorFilter} options={VENDOR_OPTIONS} />
+            <FilterSelect value={vendorFilter} onChange={setVendorFilter} options={vendorOptions} />
             <FilterSelect value={sortBy}       onChange={v => setSortBy(v as SortKey)}              options={SORT_OPTIONS} />
           </div>
 
@@ -306,160 +367,197 @@ export default function DocumentsPage() {
             background: T.card, border: `1px solid ${T.border}`,
             borderRadius: 12, overflow: 'hidden', flex: 1,
           }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: `1px solid ${T.border}` }}>
-                    {['Document', 'Vendor', 'Uploaded', 'Policy Period', 'Status', 'Actions'].map(col => (
-                      <th key={col} style={{
-                        textAlign: 'left', padding: '12px 16px',
-                        fontSize: 10, color: T.muted, fontWeight: 600,
-                        textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap',
-                      }}>
-                        {col}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayed.map((doc, i) => {
-                    const ss      = statusStyle(doc.status)
-                    const expired = doc.status === 'Expired'
-                    return (
-                      <tr
-                        key={doc.id}
-                        className={mounted ? 'row-animate' : 'pre-animate'}
-                        style={{
-                          borderBottom: i < displayed.length - 1 ? `1px solid ${T.border}` : 'none',
-                          opacity: expired ? 0.7 : 1,
-                          animationDelay: mounted ? `${i * 45}ms` : undefined,
-                          transition: 'background 0.15s',
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#1a1a2e')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                      >
-                        {/* Document */}
-                        <td style={{ padding: '13px 16px', whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div style={{
-                              width: 30, height: 30, borderRadius: 7, flexShrink: 0,
-                              background: `${ss.bg}`,
-                              border: `1px solid ${ss.border}`,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            }}>
-                              <FileText size={13} color={fileIconColor(doc.status)} />
-                            </div>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: T.primary, fontFamily: 'monospace' }}>
-                              {doc.filename}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Vendor */}
-                        <td style={{ padding: '13px 16px', whiteSpace: 'nowrap' }}>
-                          <Link
-                            href={`/vendors/${doc.vendorId}`}
-                            style={{ fontSize: 13, fontWeight: 500, color: T.secondary, textDecoration: 'none', transition: 'color 0.15s' }}
-                            onMouseEnter={e => (e.currentTarget.style.color = T.orange)}
-                            onMouseLeave={e => (e.currentTarget.style.color = T.secondary)}
-                          >
-                            {doc.vendor}
-                          </Link>
-                        </td>
-
-                        {/* Uploaded */}
-                        <td style={{ padding: '13px 16px', fontSize: 12, color: T.secondary, whiteSpace: 'nowrap' }}>
-                          {doc.uploaded}
-                        </td>
-
-                        {/* Policy period */}
-                        <td style={{
-                          padding: '13px 16px', fontSize: 12, whiteSpace: 'nowrap',
-                          color: doc.policyPeriod === 'Pending' ? T.muted : T.secondary,
-                          fontStyle: doc.policyPeriod === 'Pending' ? 'italic' : 'normal',
-                        }}>
-                          {doc.policyPeriod}
-                        </td>
-
-                        {/* Status */}
-                        <td style={{ padding: '13px 16px' }}>
-                          <span style={{
-                            background: ss.bg, color: ss.color, border: `1px solid ${ss.border}`,
-                            borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
-                          }}>
-                            {doc.status}
-                          </span>
-                        </td>
-
-                        {/* Actions */}
-                        <td style={{ padding: '13px 16px' }}>
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <Link
-                              href="/report"
-                              style={{
-                                display: 'inline-flex', alignItems: 'center', gap: 5,
-                                background: 'rgba(217,119,6,0.07)', color: T.orange,
-                                border: '1px solid rgba(217,119,6,0.20)',
-                                borderRadius: 6, padding: '5px 11px',
-                                fontSize: 12, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap',
-                                transition: 'all 0.15s',
-                              }}
-                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.15)'; e.currentTarget.style.borderColor = 'rgba(217,119,6,0.35)' }}
-                              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.07)'; e.currentTarget.style.borderColor = 'rgba(217,119,6,0.20)' }}
-                            >
-                              <Eye size={11} /> View
-                            </Link>
-                            <button
-                              onClick={showToast}
-                              style={{
-                                display: 'inline-flex', alignItems: 'center', gap: 5,
-                                background: 'rgba(255,255,255,0.04)', color: T.secondary,
-                                border: `1px solid ${T.border}`,
-                                borderRadius: 6, padding: '5px 11px',
-                                fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
-                                transition: 'all 0.15s',
-                              }}
-                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.09)'; e.currentTarget.style.color = T.primary; e.currentTarget.style.borderColor = T.borderAccent }}
-                              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = T.secondary; e.currentTarget.style.borderColor = T.border }}
-                            >
-                              <Download size={11} /> Download
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {displayed.length === 0 && (
-              <div style={{ padding: '52px 24px', textAlign: 'center' }}>
-                <FileText size={32} color={T.border} style={{ marginBottom: 12 }} />
-                <p style={{ fontSize: 14, fontWeight: 600, color: T.primary, margin: '0 0 6px' }}>No documents found</p>
-                <p style={{ fontSize: 13, color: T.secondary, margin: 0 }}>Try adjusting your search or filters</p>
+            {loading ? (
+              <div style={{ padding: '64px 24px', textAlign: 'center' }}>
+                <div style={{
+                  width: 32, height: 32,
+                  border: `3px solid rgba(217,119,6,0.15)`,
+                  borderTop: `3px solid ${T.orange}`,
+                  borderRadius: '50%',
+                  animation: 'spin 0.85s linear infinite',
+                  margin: '0 auto 12px',
+                }} />
+                <p style={{ fontSize: 13, color: T.secondary, margin: 0 }}>Loading documents…</p>
               </div>
-            )}
+            ) : docs.length === 0 ? (
+              <div style={{ padding: '72px 24px', textAlign: 'center' }}>
+                <FileText size={40} color={T.border} style={{ marginBottom: 16 }} />
+                <p style={{ fontSize: 16, fontWeight: 700, color: T.primary, margin: '0 0 8px' }}>
+                  No documents yet
+                </p>
+                <p style={{ fontSize: 13, color: T.secondary, margin: '0 0 24px' }}>
+                  Upload your first COI to see it here.
+                </p>
+                <Link href="/upload" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 7,
+                  background: T.orange, color: '#fff', textDecoration: 'none',
+                  borderRadius: 8, padding: '10px 20px', fontSize: 13, fontWeight: 600,
+                  boxShadow: '0 2px 12px rgba(217,119,6,0.25)',
+                }}>
+                  <Upload size={14} /> Upload your first COI
+                </Link>
+              </div>
+            ) : (
+              <>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                        {['Document', 'Vendor', 'Uploaded', 'Policy Period', 'Status', 'Actions'].map(col => (
+                          <th key={col} style={{
+                            textAlign: 'left', padding: '12px 16px',
+                            fontSize: 10, color: T.muted, fontWeight: 600,
+                            textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap',
+                          }}>
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayed.map((doc, i) => {
+                        const ss      = statusStyle(doc.status)
+                        const expired = doc.status === 'Expired'
+                        return (
+                          <tr
+                            key={doc.id}
+                            className={mounted ? 'row-animate' : 'pre-animate'}
+                            style={{
+                              borderBottom: i < displayed.length - 1 ? `1px solid ${T.border}` : 'none',
+                              opacity: expired ? 0.7 : 1,
+                              animationDelay: mounted ? `${i * 45}ms` : undefined,
+                              transition: 'background 0.15s',
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.background = '#1a1a2e')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                          >
+                            {/* Document */}
+                            <td style={{ padding: '13px 16px', whiteSpace: 'nowrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <div style={{
+                                  width: 30, height: 30, borderRadius: 7, flexShrink: 0,
+                                  background: ss.bg, border: `1px solid ${ss.border}`,
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                }}>
+                                  <FileText size={13} color={fileIconColor(doc.status)} />
+                                </div>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: T.primary, fontFamily: 'monospace' }}>
+                                  {doc.filename}
+                                </span>
+                              </div>
+                            </td>
 
-            {/* Footer */}
-            <div style={{
-              padding: '11px 16px', borderTop: `1px solid ${T.border}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            }}>
-              <span style={{ fontSize: 12, color: T.muted }}>
-                Showing {displayed.length} of {DOCS.length} documents
-              </span>
-              <Link href="/upload" style={{
-                display: 'inline-flex', alignItems: 'center', gap: 5,
-                fontSize: 12, color: T.orange, textDecoration: 'none', fontWeight: 500,
-                transition: 'opacity 0.15s',
-              }}
-                onMouseEnter={e => (e.currentTarget.style.opacity = '0.7')}
-                onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-              >
-                <Upload size={12} /> Upload new COI
-              </Link>
-            </div>
+                            {/* Vendor */}
+                            <td style={{ padding: '13px 16px', whiteSpace: 'nowrap' }}>
+                              {doc.vendorId ? (
+                                <Link
+                                  href={`/vendors/${doc.vendorId}`}
+                                  style={{ fontSize: 13, fontWeight: 500, color: T.secondary, textDecoration: 'none', transition: 'color 0.15s' }}
+                                  onMouseEnter={e => (e.currentTarget.style.color = T.orange)}
+                                  onMouseLeave={e => (e.currentTarget.style.color = T.secondary)}
+                                >
+                                  {doc.vendor}
+                                </Link>
+                              ) : (
+                                <span style={{ fontSize: 13, fontWeight: 500, color: T.secondary }}>{doc.vendor}</span>
+                              )}
+                            </td>
+
+                            {/* Uploaded */}
+                            <td style={{ padding: '13px 16px', fontSize: 12, color: T.secondary, whiteSpace: 'nowrap' }}>
+                              {doc.uploaded}
+                            </td>
+
+                            {/* Policy period */}
+                            <td style={{
+                              padding: '13px 16px', fontSize: 12, whiteSpace: 'nowrap',
+                              color: doc.policyPeriod === 'Pending' ? T.muted : T.secondary,
+                              fontStyle: doc.policyPeriod === 'Pending' ? 'italic' : 'normal',
+                            }}>
+                              {doc.policyPeriod}
+                            </td>
+
+                            {/* Status */}
+                            <td style={{ padding: '13px 16px' }}>
+                              <span style={{
+                                background: ss.bg, color: ss.color, border: `1px solid ${ss.border}`,
+                                borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
+                              }}>
+                                {doc.status}
+                              </span>
+                            </td>
+
+                            {/* Actions */}
+                            <td style={{ padding: '13px 16px' }}>
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                <Link
+                                  href={`/report/${doc.id}`}
+                                  style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                                    background: 'rgba(217,119,6,0.07)', color: T.orange,
+                                    border: '1px solid rgba(217,119,6,0.20)',
+                                    borderRadius: 6, padding: '5px 11px',
+                                    fontSize: 12, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap',
+                                    transition: 'all 0.15s',
+                                  }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.15)'; e.currentTarget.style.borderColor = 'rgba(217,119,6,0.35)' }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.07)'; e.currentTarget.style.borderColor = 'rgba(217,119,6,0.20)' }}
+                                >
+                                  <Eye size={11} /> View
+                                </Link>
+                                <button
+                                  onClick={showToast}
+                                  style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                                    background: 'rgba(255,255,255,0.04)', color: T.secondary,
+                                    border: `1px solid ${T.border}`,
+                                    borderRadius: 6, padding: '5px 11px',
+                                    fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+                                    transition: 'all 0.15s',
+                                  }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.09)'; e.currentTarget.style.color = T.primary; e.currentTarget.style.borderColor = T.borderAccent }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = T.secondary; e.currentTarget.style.borderColor = T.border }}
+                                >
+                                  <Download size={11} /> Download
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {displayed.length === 0 && (
+                  <div style={{ padding: '52px 24px', textAlign: 'center' }}>
+                    <FileText size={32} color={T.border} style={{ marginBottom: 12 }} />
+                    <p style={{ fontSize: 14, fontWeight: 600, color: T.primary, margin: '0 0 6px' }}>No documents found</p>
+                    <p style={{ fontSize: 13, color: T.secondary, margin: 0 }}>Try adjusting your search or filters</p>
+                  </div>
+                )}
+
+                {/* Footer */}
+                <div style={{
+                  padding: '11px 16px', borderTop: `1px solid ${T.border}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                }}>
+                  <span style={{ fontSize: 12, color: T.muted }}>
+                    Showing {displayed.length} of {docs.length} documents
+                  </span>
+                  <Link href="/upload" style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    fontSize: 12, color: T.orange, textDecoration: 'none', fontWeight: 500,
+                    transition: 'opacity 0.15s',
+                  }}
+                    onMouseEnter={e => (e.currentTarget.style.opacity = '0.7')}
+                    onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                  >
+                    <Upload size={12} /> Upload new COI
+                  </Link>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </main>

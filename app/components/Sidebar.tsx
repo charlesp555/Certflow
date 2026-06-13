@@ -9,15 +9,15 @@ import {
 } from 'lucide-react'
 
 const NAV = [
-  { icon: LayoutDashboard, label: 'Dashboard',    href: '/dashboard'    },
-  { icon: Building2,       label: 'Vendors',      href: '/vendors'      },
-  { icon: FileText,        label: 'Submissions',  href: '/submissions'  },
-  { icon: TrendingUp,      label: 'Reports',      href: '/reports'      },
-  { icon: Bell,            label: 'Alerts',       href: '/alerts'       },
-  { icon: ClipboardList,   label: 'Requirements', href: '/requirements' },
-  { icon: FolderOpen,      label: 'Documents',    href: '/documents'    },
-  { icon: Puzzle,          label: 'Integrations', href: '/integrations' },
-  { icon: Settings,        label: 'Settings',     href: '/settings'     },
+  { icon: LayoutDashboard, label: 'Dashboard',    href: '/dashboard'                      },
+  { icon: Building2,       label: 'Vendors',      href: '/vendors'                        },
+  { icon: FileText,        label: 'Submissions',  href: '/submissions'                    },
+  { icon: TrendingUp,      label: 'Reports',      href: '/reports'                        },
+  { icon: Bell,            label: 'Alerts',       href: '/alerts',       comingSoon: true },
+  { icon: ClipboardList,   label: 'Requirements', href: '/requirements'                   },
+  { icon: FolderOpen,      label: 'Documents',    href: '/documents'                      },
+  { icon: Puzzle,          label: 'Integrations', href: '/integrations', comingSoon: true },
+  { icon: Settings,        label: 'Settings',     href: '/settings'                       },
 ]
 
 const T = {
@@ -64,8 +64,9 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: '10px 10px', overflowY: 'auto' }}>
-        {NAV.map(({ icon: Icon, label, href }) => {
-          const active = isActive(href, pathname)
+        {NAV.map(({ icon: Icon, label, href, comingSoon }) => {
+          const active = !comingSoon && isActive(href, pathname)
+          const color = comingSoon ? '#3d4158' : (active ? T.orange : T.secondary)
           return (
             <Link
               key={href}
@@ -75,26 +76,42 @@ export default function Sidebar() {
                 padding: '9px 12px', borderRadius: 8, marginBottom: 2,
                 background: active ? 'rgba(217,119,6,0.10)' : 'transparent',
                 borderLeft: `2px solid ${active ? T.orange : 'transparent'}`,
-                color: active ? T.orange : T.secondary,
+                color,
                 fontSize: 14, fontWeight: active ? 600 : 500,
                 textDecoration: 'none',
                 transition: 'background 0.15s, color 0.15s',
               }}
               onMouseEnter={e => {
-                if (!active) {
+                if (comingSoon) {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.02)'
+                } else if (!active) {
                   e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
                   e.currentTarget.style.color = T.primary
                 }
               }}
               onMouseLeave={e => {
-                if (!active) {
+                if (comingSoon) {
+                  e.currentTarget.style.background = 'transparent'
+                } else if (!active) {
                   e.currentTarget.style.background = 'transparent'
                   e.currentTarget.style.color = T.secondary
                 }
               }}
             >
               <Icon size={16} strokeWidth={2} />
-              {label}
+              <span style={{ flex: 1 }}>{label}</span>
+              {comingSoon && (
+                <span style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  color: '#3d4158',
+                  border: '1px solid rgba(255,255,255,0.07)',
+                  borderRadius: 20, padding: '1px 6px',
+                  fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
+                  lineHeight: 1.6, flexShrink: 0,
+                }}>
+                  SOON
+                </span>
+              )}
             </Link>
           )
         })}
