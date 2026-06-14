@@ -1,14 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import Link from 'next/link'
-import {
-  Bell, User, ChevronDown, Check, X, Plus,
-  Pencil, Trash2, CheckCircle2, Building2,
-  Puzzle, CreditCard, Shield,
-} from 'lucide-react'
+import { Bell, User, Check, CheckCircle2, Building2, Puzzle, CreditCard } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
-import { UserButton } from '@clerk/nextjs'
+import { UserButton, useUser } from '@clerk/nextjs'
+import { supabase } from '@/lib/supabase'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
@@ -170,34 +166,50 @@ function SectionCard({ children, style }: { children: React.ReactNode; style?: R
 
 // ── Company Tab ───────────────────────────────────────────────────────────────
 
-function CompanyTab({ showToast }: { showToast: (m: string) => void }) {
-  const [form, setForm] = useState({
-    name: 'Greenway Property Management',
-    industry: 'Property Management',
-    size: '11-50 employees',
-    website: 'greenwaypm.com',
-    address: '123 Main St, Atlanta, GA 30301',
-  })
+function CompanyTab({ userId, showToast }: { userId: string | null; showToast: (m: string) => void }) {
+  const [form, setForm] = useState({ name: '', industry: '', size: '', website: '', address: '' })
+  const [dataLoaded, setDataLoaded] = useState(false)
+  const [saving, setSaving] = useState(false)
 
-  const [members, setMembers] = useState([
-    { id: 1, name: 'James Carter',   email: 'james@greenwaypm.com',  role: 'Administrator' },
-    { id: 2, name: 'Sarah Mitchell', email: 'sarah@greenwaypm.com',  role: 'Manager'       },
-    { id: 3, name: 'Tom Bradley',    email: 'tom@greenwaypm.com',    role: 'Viewer'        },
-  ])
+  useEffect(() => {
+    if (!userId) return
+    supabase
+      .from('user_company')
+      .select('name, industry, size, website, address')
+      .eq('clerk_user_id', userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setForm({
+            name:     data.name     ?? '',
+            industry: data.industry ?? '',
+            size:     data.size     ?? '',
+            website:  data.website  ?? '',
+            address:  data.address  ?? '',
+          })
+        }
+        setDataLoaded(true)
+      })
+  }, [userId])
 
-  const [editingMember, setEditingMember] = useState<number | null>(null)
-
-  function removeMember(id: number) { setMembers(prev => prev.filter(m => m.id !== id)) }
-
-  function addMember() {
-    const id = Date.now()
-    setMembers(prev => [...prev, { id, name: '', email: '', role: 'Viewer' }])
-    setEditingMember(id)
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/company', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      if (!res.ok) throw new Error('Save failed')
+      showToast('Company information saved')
+    } catch {
+      showToast('Failed to save — please try again')
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const selectStyle: React.CSSProperties = {
-    ...inputStyle, cursor: 'pointer', appearance: 'none',
-  }
+  const selectStyle: React.CSSProperties = { ...inputStyle, cursor: 'pointer', appearance: 'none' }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -207,199 +219,94 @@ function CompanyTab({ showToast }: { showToast: (m: string) => void }) {
         <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: '0 0 20px' }}>
           Company Information
         </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-          <FormField label="Company Name">
-            <input
-              style={inputStyle} value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              onFocus={e => (e.target.style.borderColor = T.orange)}
-              onBlur={e => (e.target.style.borderColor = T.border)}
-            />
-          </FormField>
-          <FormField label="Industry">
-            <select
-              style={selectStyle} value={form.industry}
-              onChange={e => setForm(f => ({ ...f, industry: e.target.value }))}
-              onFocus={e => (e.target.style.borderColor = T.orange)}
-              onBlur={e => (e.target.style.borderColor = T.border)}
-            >
-              {['Property Management', 'Real Estate', 'Construction', 'Hospitality', 'Other'].map(o => (
-                <option key={o} value={o} style={{ background: T.card }}>{o}</option>
-              ))}
-            </select>
-          </FormField>
-          <FormField label="Company Size">
-            <select
-              style={selectStyle} value={form.size}
-              onChange={e => setForm(f => ({ ...f, size: e.target.value }))}
-              onFocus={e => (e.target.style.borderColor = T.orange)}
-              onBlur={e => (e.target.style.borderColor = T.border)}
-            >
-              {['1-10 employees', '11-50 employees', '51-200 employees', '200+ employees'].map(o => (
-                <option key={o} value={o} style={{ background: T.card }}>{o}</option>
-              ))}
-            </select>
-          </FormField>
-          <FormField label="Website">
-            <input
-              style={inputStyle} value={form.website}
-              onChange={e => setForm(f => ({ ...f, website: e.target.value }))}
-              onFocus={e => (e.target.style.borderColor = T.orange)}
-              onBlur={e => (e.target.style.borderColor = T.border)}
-            />
-          </FormField>
-        </div>
-        <FormField label="Address">
-          <textarea
-            style={{ ...inputStyle, resize: 'vertical', minHeight: 72 }}
-            value={form.address}
-            onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-            onFocus={e => (e.target.style.borderColor = T.orange)}
-            onBlur={e => (e.target.style.borderColor = T.border)}
-          />
-        </FormField>
-        <div style={{ marginTop: 20 }}>
-          <OrangeBtn onClick={() => showToast('Company information saved')}>
-            <Check size={14} /> Save Changes
-          </OrangeBtn>
-        </div>
+
+        {!dataLoaded ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {[120, 200, 160].map(w => (
+              <div key={w} style={{ height: 38, width: w, background: T.surface, borderRadius: 8, opacity: 0.6 }} />
+            ))}
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+              <FormField label="Company Name">
+                <input
+                  style={inputStyle} value={form.name}
+                  placeholder="Your company name"
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  onFocus={e => (e.target.style.borderColor = T.orange)}
+                  onBlur={e => (e.target.style.borderColor = T.border)}
+                />
+              </FormField>
+              <FormField label="Industry">
+                <select
+                  style={selectStyle} value={form.industry}
+                  onChange={e => setForm(f => ({ ...f, industry: e.target.value }))}
+                  onFocus={e => (e.target.style.borderColor = T.orange)}
+                  onBlur={e => (e.target.style.borderColor = T.border)}
+                >
+                  <option value="" style={{ background: T.card }}>Select industry…</option>
+                  {['Property Management', 'Real Estate', 'Construction', 'Hospitality', 'Other'].map(o => (
+                    <option key={o} value={o} style={{ background: T.card }}>{o}</option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField label="Company Size">
+                <select
+                  style={selectStyle} value={form.size}
+                  onChange={e => setForm(f => ({ ...f, size: e.target.value }))}
+                  onFocus={e => (e.target.style.borderColor = T.orange)}
+                  onBlur={e => (e.target.style.borderColor = T.border)}
+                >
+                  <option value="" style={{ background: T.card }}>Select size…</option>
+                  {['1-10 employees', '11-50 employees', '51-200 employees', '200+ employees'].map(o => (
+                    <option key={o} value={o} style={{ background: T.card }}>{o}</option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField label="Website">
+                <input
+                  style={inputStyle} value={form.website}
+                  placeholder="yourcompany.com"
+                  onChange={e => setForm(f => ({ ...f, website: e.target.value }))}
+                  onFocus={e => (e.target.style.borderColor = T.orange)}
+                  onBlur={e => (e.target.style.borderColor = T.border)}
+                />
+              </FormField>
+            </div>
+            <FormField label="Address">
+              <textarea
+                style={{ ...inputStyle, resize: 'vertical', minHeight: 72 }}
+                value={form.address}
+                placeholder="123 Main St, City, State ZIP"
+                onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                onFocus={e => (e.target.style.borderColor = T.orange)}
+                onBlur={e => (e.target.style.borderColor = T.border)}
+              />
+            </FormField>
+            <div style={{ marginTop: 20 }}>
+              <OrangeBtn onClick={saving ? undefined : handleSave}>
+                {saving ? 'Saving…' : <><Check size={14} /> Save Changes</>}
+              </OrangeBtn>
+            </div>
+          </>
+        )}
       </SectionCard>
 
-      {/* Team Members */}
+      {/* Team Members — Coming Soon */}
       <SectionCard>
-        <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: '0 0 18px' }}>
-          Team Members
-        </h3>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: `1px solid ${T.border}` }}>
-                {['Name', 'Email', 'Role', 'Actions'].map(col => (
-                  <th key={col} style={{
-                    textAlign: 'left', padding: '0 12px 10px',
-                    fontSize: 10, color: T.muted, fontWeight: 600,
-                    textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap',
-                  }}>{col}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {members.map((m, i) => (
-                <tr
-                  key={m.id}
-                  style={{
-                    borderBottom: i < members.length - 1 ? `1px solid ${T.border}` : 'none',
-                    transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#1a1a2e')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <td style={{ padding: '12px' }}>
-                    {editingMember === m.id ? (
-                      <input
-                        style={{ ...inputStyle, width: 140 }}
-                        value={m.name} placeholder="Full name"
-                        onChange={e => setMembers(prev => prev.map(x => x.id === m.id ? { ...x, name: e.target.value } : x))}
-                        onFocus={e => (e.target.style.borderColor = T.orange)}
-                        onBlur={e => (e.target.style.borderColor = T.border)}
-                      />
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                        <div style={{
-                          width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                          background: 'rgba(217,119,6,0.12)', border: '1px solid rgba(217,119,6,0.22)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 11, fontWeight: 700, color: T.orange,
-                        }}>
-                          {m.name.charAt(0) || '?'}
-                        </div>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: T.primary }}>{m.name || '—'}</span>
-                      </div>
-                    )}
-                  </td>
-                  <td style={{ padding: '12px' }}>
-                    {editingMember === m.id ? (
-                      <input
-                        style={{ ...inputStyle, width: 190 }}
-                        value={m.email} placeholder="email@company.com"
-                        onChange={e => setMembers(prev => prev.map(x => x.id === m.id ? { ...x, email: e.target.value } : x))}
-                        onFocus={e => (e.target.style.borderColor = T.orange)}
-                        onBlur={e => (e.target.style.borderColor = T.border)}
-                      />
-                    ) : (
-                      <span style={{ fontSize: 13, color: T.secondary }}>{m.email || '—'}</span>
-                    )}
-                  </td>
-                  <td style={{ padding: '12px' }}>
-                    {editingMember === m.id ? (
-                      <select
-                        style={{ ...inputStyle, width: 130, cursor: 'pointer', appearance: 'none' }}
-                        value={m.role}
-                        onChange={e => setMembers(prev => prev.map(x => x.id === m.id ? { ...x, role: e.target.value } : x))}
-                        onFocus={e => (e.target.style.borderColor = T.orange)}
-                        onBlur={e => (e.target.style.borderColor = T.border)}
-                      >
-                        {['Administrator', 'Manager', 'Viewer'].map(r => (
-                          <option key={r} value={r} style={{ background: T.card }}>{r}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <span style={{
-                        background: m.role === 'Administrator' ? 'rgba(217,119,6,0.09)' : 'rgba(255,255,255,0.05)',
-                        color: m.role === 'Administrator' ? T.orange : T.secondary,
-                        border: `1px solid ${m.role === 'Administrator' ? 'rgba(217,119,6,0.22)' : T.border}`,
-                        borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600,
-                      }}>{m.role}</span>
-                    )}
-                  </td>
-                  <td style={{ padding: '12px' }}>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      {editingMember === m.id ? (
-                        <button
-                          onClick={() => { setEditingMember(null); showToast('Member updated') }}
-                          style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 5,
-                            background: 'rgba(34,197,94,0.10)', color: T.green,
-                            border: '1px solid rgba(34,197,94,0.25)',
-                            borderRadius: 6, padding: '6px 12px',
-                            fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                            transition: 'background 0.15s',
-                          }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(34,197,94,0.18)')}
-                          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(34,197,94,0.10)')}
-                        >
-                          <Check size={12} /> Save
-                        </button>
-                      ) : (
-                        <GhostBtn onClick={() => setEditingMember(m.id)}>
-                          <Pencil size={12} /> Edit
-                        </GhostBtn>
-                      )}
-                      <button
-                        onClick={() => removeMember(m.id)}
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 5,
-                          background: 'rgba(239,68,68,0.07)', color: '#ef4444',
-                          border: '1px solid rgba(239,68,68,0.20)',
-                          borderRadius: 6, padding: '6px 12px',
-                          fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                          transition: 'background 0.15s',
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.14)')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.07)')}
-                      >
-                        <Trash2 size={12} /> Remove
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <User size={15} color={T.muted} />
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: 0 }}>Team Members</h3>
+          <span style={{
+            fontSize: 11, fontWeight: 600, color: T.muted,
+            background: 'rgba(255,255,255,0.05)', border: `1px solid ${T.border}`,
+            borderRadius: 20, padding: '2px 9px',
+          }}>Coming Soon</span>
         </div>
-        <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
-          <OutlineBtn onClick={addMember}><Plus size={14} /> Invite Team Member</OutlineBtn>
-        </div>
+        <p style={{ fontSize: 13, color: T.secondary, margin: 0, lineHeight: 1.7 }}>
+          Multi-user team management is in development. You&apos;ll be able to invite teammates, assign roles, and control access here once it launches.
+        </p>
       </SectionCard>
     </div>
   )
@@ -685,6 +592,7 @@ function BillingTab({ showToast }: { showToast: (m: string) => void }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
+  const { user } = useUser()
   const [activeTab,    setActiveTab]    = useState<TabKey>('company')
   const [toastMsg,     setToastMsg]     = useState('')
   const [toastVisible, setToastVisible] = useState(false)
@@ -784,7 +692,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Tab content */}
-          {activeTab === 'company'       && <CompanyTab       showToast={showToast} />}
+          {activeTab === 'company'       && <CompanyTab       userId={user?.id ?? null} showToast={showToast} />}
           {activeTab === 'notifications' && <NotificationsTab showToast={showToast} />}
           {activeTab === 'integrations'  && <IntegrationsTab  showToast={showToast} />}
           {activeTab === 'billing'       && <BillingTab       showToast={showToast} />}

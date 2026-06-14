@@ -17,6 +17,14 @@ type Coverage = {
   deductible: string
 }
 
+type RequirementCheck = {
+  coverage: string
+  minimum: string
+  actual: string
+  passed: boolean
+  reason: string
+}
+
 type AnalysisResult = {
   insuredName?: string | null
   insuredAddress?: string | null
@@ -31,6 +39,7 @@ type AnalysisResult = {
   producer?: string | null
   flags?: string[]
   overallStatus?: 'COMPLIANT' | 'EXPIRING' | 'EXPIRED' | 'NON_COMPLIANT' | null
+  requirementsCheck?: RequirementCheck[]
 }
 
 type SubmissionRow = {
@@ -179,30 +188,44 @@ export default function ReportDetailPage() {
   const summary = ar ? generateSummary(ar, vendorName) : ''
   const flags   = ar?.flags ?? []
 
-  // Build requirements rows from real analysis data
+  // Build requirements rows — prefer requirementsCheck from the analysis (real pass/fail and saved requirement amounts)
   const reqRows: { coverage: string; required: string; actual: string; pass: boolean }[] = []
+  const reqCheck = ar?.requirementsCheck ?? []
 
-  if (ar?.coverages) {
-    for (const cov of ar.coverages) {
-      const actual = [cov.eachOccurrence, cov.aggregate]
-        .filter(v => v && v !== '$0' && v !== 'N/A' && v !== '—')
-        .join(' / ') || 'Included'
-      reqRows.push({ coverage: cov.type, required: 'Present', actual, pass: true })
+  if (reqCheck.length > 0) {
+    for (const req of reqCheck) {
+      reqRows.push({
+        coverage: req.coverage,
+        required: req.minimum || 'Required',
+        actual: req.actual || '—',
+        pass: req.passed,
+      })
     }
-  }
-  if (ar) {
-    reqRows.push({
-      coverage: 'Additional Insured',
-      required: 'Required',
-      actual: ar.additionalInsured ? 'Included' : 'Missing',
-      pass: ar.additionalInsured ?? false,
-    })
-    reqRows.push({
-      coverage: 'Waiver of Subrogation',
-      required: 'Required',
-      actual: ar.waiverOfSubrogation ? 'Included' : 'Missing',
-      pass: ar.waiverOfSubrogation ?? false,
-    })
+  } else {
+    // Fallback for older submissions without requirementsCheck
+    if (ar?.coverages) {
+      for (const cov of ar.coverages) {
+        const actual = [cov.eachOccurrence, cov.aggregate]
+          .filter(v => v && v !== '$0' && v !== 'N/A' && v !== '—')
+          .join(' / ') || '—'
+        const present = actual !== '—'
+        reqRows.push({ coverage: cov.type, required: 'Present', actual: present ? actual : 'Missing', pass: present })
+      }
+    }
+    if (ar) {
+      reqRows.push({
+        coverage: 'Additional Insured',
+        required: 'Required',
+        actual: ar.additionalInsured ? 'Included' : 'Missing',
+        pass: ar.additionalInsured ?? false,
+      })
+      reqRows.push({
+        coverage: 'Waiver of Subrogation',
+        required: 'Required',
+        actual: ar.waiverOfSubrogation ? 'Included' : 'Missing',
+        pass: ar.waiverOfSubrogation ?? false,
+      })
+    }
   }
 
   return (

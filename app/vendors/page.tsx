@@ -7,6 +7,7 @@ import {
   Eye, X, Building2, Lock, Trash2, AlertTriangle,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
+import COIUploadModal from '../components/COIUploadModal'
 import { useUser, UserButton } from '@clerk/nextjs'
 import { supabase } from '@/lib/supabase'
 
@@ -436,6 +437,7 @@ export default function VendorsPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [uploadTarget, setUploadTarget] = useState<{ id: string; name: string } | null>(null)
 
   const fetchVendors = useCallback(async () => {
     if (!user?.id) return
@@ -541,6 +543,15 @@ export default function VendorsPage() {
           onConfirm={handleDelete}
           deleting={deleting}
           error={deleteError}
+        />
+      )}
+
+      {uploadTarget && (
+        <COIUploadModal
+          vendorId={uploadTarget.id}
+          vendorName={uploadTarget.name}
+          onClose={() => setUploadTarget(null)}
+          onSuccess={fetchVendors}
         />
       )}
 
@@ -658,21 +669,21 @@ export default function VendorsPage() {
                           <td style={{ padding: '14px 16px', fontSize: 13, color: '#8a8599', whiteSpace: 'nowrap' }}>{vendor.lastUploaded}</td>
                           <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', gap: 8 }}>
-                              <Link
-                                href={`/upload?vendorId=${vendor.id}&vendorName=${encodeURIComponent(vendor.name)}`}
+                              <button
+                                onClick={() => setUploadTarget({ id: vendor.id, name: vendor.name })}
                                 style={{
                                   display: 'inline-flex', alignItems: 'center', gap: 5,
                                   background: 'rgba(217,119,6,0.10)', color: '#D97706',
                                   border: '1px solid rgba(217,119,6,0.25)',
                                   fontSize: 12, fontWeight: 600, padding: '6px 12px',
-                                  borderRadius: 6, textDecoration: 'none', transition: 'all 0.15s',
+                                  borderRadius: 6, cursor: 'pointer', transition: 'all 0.15s',
                                 }}
                                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.20)' }}
                                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.10)' }}
                               >
                                 <Upload size={12} />
                                 Upload COI
-                              </Link>
+                              </button>
                               <Link
                                 href={`/vendors/${vendor.id}`}
                                 style={{

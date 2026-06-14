@@ -1,14 +1,24 @@
 'use client'
 import { useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import Nav from '../components/Nav'
-import Footer from '../components/Footer'
+import Link from 'next/link'
+import { Shield } from 'lucide-react'
+import { UserButton } from '@clerk/nextjs'
 
 type Coverage = {
   type: string
   eachOccurrence: string
   aggregate: string
   deductible: string
+}
+
+type RequirementCheck = {
+  coverage: string
+  required: boolean
+  minimum: string
+  actual: string
+  passed: boolean
+  reason: string
 }
 
 type COIData = {
@@ -23,6 +33,7 @@ type COIData = {
   waiverOfSubrogation: boolean
   certificateHolder: string
   producer: string
+  requirementsCheck?: RequirementCheck[]
   flags: string[]
   overallStatus: 'COMPLIANT' | 'EXPIRING' | 'EXPIRED' | 'NON_COMPLIANT'
 }
@@ -84,7 +95,23 @@ function UploadForm() {
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
-      <Nav />
+      {/* Minimal in-app header */}
+      <header style={{
+        borderBottom: '1px solid var(--border)',
+        background: 'rgba(10,10,15,0.95)',
+        backdropFilter: 'blur(14px)',
+        WebkitBackdropFilter: 'blur(14px)',
+        position: 'sticky', top: 0, zIndex: 50,
+        padding: '0 24px', height: 60,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+          <Shield size={18} color="#D97706" strokeWidth={2.5} />
+          <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.5px', color: 'var(--text)' }}>COVIRA</span>
+        </Link>
+        <UserButton />
+      </header>
+
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '60px 24px' }}>
 
         <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 9, color: 'var(--amber)', letterSpacing: '2.5px', textTransform: 'uppercase', marginBottom: 12 }}>
@@ -204,6 +231,48 @@ function UploadForm() {
               </div>
             )}
 
+            {result.requirementsCheck && result.requirementsCheck.length > 0 && (
+              <div style={{ background: 'var(--bg2)', border: '0.5px solid var(--border2)', borderRadius: 10, padding: '16px 20px' }}>
+                <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 9, color: 'var(--amber)', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 14 }}>
+                  requirements check
+                </div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
+                      {['Coverage', 'Required Min.', 'Actual', 'Result'].map(h => (
+                        <th key={h} style={{ textAlign: 'left', padding: '6px 8px', fontFamily: 'IBM Plex Mono, monospace', fontSize: 9, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 400 }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.requirementsCheck.map((rc, i) => (
+                      <tr key={i} style={{ borderBottom: i < result.requirementsCheck!.length - 1 ? '0.5px solid var(--border)' : 'none' }}>
+                        <td style={{ padding: '9px 8px', color: 'var(--text)', fontWeight: 600 }}>{rc.coverage}</td>
+                        <td style={{ padding: '9px 8px', color: 'var(--muted2)', fontFamily: 'IBM Plex Mono, monospace', fontSize: 11 }}>{rc.minimum}</td>
+                        <td style={{ padding: '9px 8px', color: 'var(--text)', fontFamily: 'IBM Plex Mono, monospace', fontSize: 11 }}>{rc.actual}</td>
+                        <td style={{ padding: '9px 8px' }}>
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                            background: rc.passed ? 'rgba(16,185,129,0.10)' : 'rgba(239,68,68,0.10)',
+                            color: rc.passed ? '#6ee7b7' : '#fca5a5',
+                            border: `0.5px solid ${rc.passed ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)'}`,
+                            borderRadius: 5, padding: '3px 9px',
+                            fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, fontWeight: 700,
+                            letterSpacing: '0.5px',
+                          }}>
+                            {rc.passed ? '✓ PASS' : '✗ FAIL'}
+                          </span>
+                          {!rc.passed && (
+                            <div style={{ fontSize: 11, color: '#fca5a5', marginTop: 3, opacity: 0.85 }}>{rc.reason}</div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
             <div style={{ background: 'var(--bg2)', border: '0.5px solid var(--border2)', borderRadius: 10, padding: '16px 20px' }}>
               <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 9, color: 'var(--amber)', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 12 }}>insured information</div>
               {[['Insured Name', result.insuredName], ['Address', result.insuredAddress], ['Producer', result.producer], ['Certificate Holder', result.certificateHolder], ['Effective Date', result.effectiveDate], ['Expiration Date', result.expirationDate]].map(([label, value]) => (
@@ -255,7 +324,6 @@ function UploadForm() {
           </div>
         )}
       </div>
-      <Footer />
     </div>
   )
 }

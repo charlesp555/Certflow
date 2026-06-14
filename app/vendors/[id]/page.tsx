@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -9,6 +9,7 @@ import {
   CheckCircle2, XCircle, MessageSquare, Shield,
 } from 'lucide-react'
 import Sidebar from '../../components/Sidebar'
+import COIUploadModal from '../../components/COIUploadModal'
 import { UserButton, useUser } from '@clerk/nextjs'
 import { supabase } from '@/lib/supabase'
 
@@ -42,6 +43,14 @@ type CoverageLine = {
   deductible: string
 }
 
+type RequirementCheck = {
+  coverage: string
+  minimum: string
+  actual: string
+  passed: boolean
+  reason: string
+}
+
 type AnalysisResult = {
   insuredName?: string | null
   effectiveDate?: string | null
@@ -51,6 +60,7 @@ type AnalysisResult = {
   waiverOfSubrogation?: boolean
   flags?: string[]
   overallStatus?: string | null
+  requirementsCheck?: RequirementCheck[]
 }
 
 type Submission = {
@@ -138,16 +148,25 @@ function OverviewTab({ latestSub, showToast }: { latestSub: Submission | null; s
   type CovRow = { type: string; actual: string; ok: boolean }
   const rows: CovRow[] = []
 
-  if (ar?.coverages) {
-    for (const c of ar.coverages) {
-      const display = [c.eachOccurrence, c.aggregate]
-        .filter(v => v && !['$0', 'N/A', 'n/a', '0', 'None'].includes(v))
-        .join(' / ') || '—'
-      rows.push({ type: c.type, actual: display, ok: valueOk(c.eachOccurrence) || valueOk(c.aggregate) })
+  const reqCheck = ar?.requirementsCheck ?? []
+
+  if (reqCheck.length > 0) {
+    for (const req of reqCheck) {
+      rows.push({ type: req.coverage, actual: req.actual || '—', ok: req.passed })
     }
+  } else {
+    // Fallback for older submissions without requirementsCheck
+    if (ar?.coverages) {
+      for (const c of ar.coverages) {
+        const display = [c.eachOccurrence, c.aggregate]
+          .filter(v => v && !['$0', 'N/A', 'n/a', '0', 'None'].includes(v))
+          .join(' / ') || '—'
+        rows.push({ type: c.type, actual: display, ok: valueOk(c.eachOccurrence) || valueOk(c.aggregate) })
+      }
+    }
+    rows.push({ type: 'Additional Insured',    actual: ar?.additionalInsured    ? 'Included' : 'Missing', ok: ar?.additionalInsured    ?? false })
+    rows.push({ type: 'Waiver of Subrogation', actual: ar?.waiverOfSubrogation  ? 'Included' : 'Missing', ok: ar?.waiverOfSubrogation  ?? false })
   }
-  rows.push({ type: 'Additional Insured',    actual: ar?.additionalInsured    ? 'Included' : 'Missing', ok: ar?.additionalInsured    ?? false })
-  rows.push({ type: 'Waiver of Subrogation', actual: ar?.waiverOfSubrogation  ? 'Included' : 'Missing', ok: ar?.waiverOfSubrogation  ?? false })
 
   const flags      = ar?.flags ?? []
   const missingCt  = rows.filter(r => !r.ok).length
@@ -155,17 +174,13 @@ function OverviewTab({ latestSub, showToast }: { latestSub: Submission | null; s
 
   let summaryText = 'No COI has been uploaded yet. Upload a COI to see the compliance summary for this vendor.'
   if (latestSub) {
-    if (flags.length === 0 && missingCt === 0) {
+    if (missingCt === 0) {
       summaryText = `${ar?.insuredName || 'This vendor'} is fully compliant. All coverage requirements are in place.`
     } else {
-      const issues = [
-        ...flags,
-        ...(ar?.additionalInsured    === false ? ['Additional Insured endorsement is missing']    : []),
-        ...(ar?.waiverOfSubrogation  === false ? ['Waiver of Subrogation endorsement is missing'] : []),
-      ]
-      const preview = issues.slice(0, 2).join('. ')
-      const more    = issues.length > 2 ? ` (and ${issues.length - 2} more).` : '.'
-      summaryText = `${ar?.insuredName || 'This vendor'} has ${issues.length} compliance issue${issues.length !== 1 ? 's' : ''}. ${preview}${more}`
+      const failedNames = rows.filter(r => !r.ok).map(r => r.type)
+      const preview     = failedNames.slice(0, 2).join(', ')
+      const more        = failedNames.length > 2 ? ` (and ${failedNames.length - 2} more)` : ''
+      summaryText = `${ar?.insuredName || 'This vendor'} has ${missingCt} unmet requirement${missingCt !== 1 ? 's' : ''}. ${preview}${more}.`
     }
   }
 
@@ -191,29 +206,32 @@ function OverviewTab({ latestSub, showToast }: { latestSub: Submission | null; s
           onMouseLeave={e => (e.currentTarget.style.borderColor = T.border)}
         >
           <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: '0 0 18px' }}>Insurance Summary</h3>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  {['Coverage Type', 'Actual', 'Status'].map(col => (
-                    <th key={col} style={{ textAlign: 'left', padding: '0 10px 10px', fontSize: 10, color: T.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>{col}</th>
-                  ))}
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '38%' }} />
+              <col />
+              <col style={{ width: '116px' }} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th style={{ textAlign: 'left', padding: '0 10px 10px', fontSize: 10, color: T.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', borderBottom: `1px solid ${T.border}` }}>Coverage Type</th>
+                <th style={{ textAlign: 'left', padding: '0 10px 10px', fontSize: 10, color: T.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', borderBottom: `1px solid ${T.border}` }}>Actual</th>
+                <th style={{ textAlign: 'right', padding: '0 10px 10px', fontSize: 10, color: T.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', borderBottom: `1px solid ${T.border}` }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, i) => (
+                <tr key={i} style={{ transition: 'background 0.12s' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#1a1a2e')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <td style={{ padding: '12px 10px', fontSize: 13, fontWeight: 600, color: T.primary, borderBottom: i < rows.length - 1 ? `1px solid ${T.border}` : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.type}</td>
+                  <td style={{ padding: '12px 10px', fontSize: 12, color: row.ok ? T.secondary : T.red, fontWeight: row.ok ? 400 : 600, borderBottom: i < rows.length - 1 ? `1px solid ${T.border}` : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.actual}</td>
+                  <td style={{ padding: '12px 10px', borderBottom: i < rows.length - 1 ? `1px solid ${T.border}` : 'none', textAlign: 'right' }}><CoverageBadge ok={row.ok} /></td>
                 </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, i) => (
-                  <tr key={i} style={{ transition: 'background 0.12s' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#1a1a2e')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    <td style={{ padding: '12px 10px', fontSize: 13, fontWeight: 600, color: T.primary, borderBottom: i < rows.length - 1 ? `1px solid ${T.border}` : 'none', whiteSpace: 'nowrap' }}>{row.type}</td>
-                    <td style={{ padding: '12px 10px', fontSize: 12, color: row.ok ? T.secondary : T.red, fontWeight: row.ok ? 400 : 600, borderBottom: i < rows.length - 1 ? `1px solid ${T.border}` : 'none', whiteSpace: 'nowrap' }}>{row.actual}</td>
-                    <td style={{ padding: '12px 10px', borderBottom: i < rows.length - 1 ? `1px solid ${T.border}` : 'none' }}><CoverageBadge ok={row.ok} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
 
         {/* Plain-English summary */}
@@ -271,16 +289,16 @@ function OverviewTab({ latestSub, showToast }: { latestSub: Submission | null; s
 
 // ── Documents Tab ─────────────────────────────────────────────────────────────
 
-function DocumentsTab({ vendor, submissions, showToast }: { vendor: Vendor; submissions: Submission[]; showToast: (m: string) => void }) {
+function DocumentsTab({ vendor, submissions, showToast, onUploadClick }: { vendor: Vendor; submissions: Submission[]; showToast: (m: string) => void; onUploadClick: () => void }) {
   const [dragOver, setDragOver] = useState(false)
-  const uploadHref = `/upload?vendorId=${vendor.id}&vendorName=${encodeURIComponent(vendor.name)}`
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <Link href={uploadHref} style={{ textDecoration: 'none' }}
+      <div
+        onClick={onUploadClick}
         onDragOver={e => { e.preventDefault(); setDragOver(true) }}
         onDragLeave={() => setDragOver(false)}
-        onDrop={e => { e.preventDefault(); setDragOver(false) }}
+        onDrop={e => { e.preventDefault(); setDragOver(false); onUploadClick() }}
       >
         <div style={{ border: `2px dashed ${dragOver ? T.orange : 'rgba(217,119,6,0.30)'}`, borderRadius: 12, padding: '36px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, background: dragOver ? 'rgba(217,119,6,0.07)' : 'rgba(217,119,6,0.025)', cursor: 'pointer', transition: 'all 0.2s' }}>
           <div style={{ width: 46, height: 46, borderRadius: 11, background: 'rgba(217,119,6,0.12)', border: '1px solid rgba(217,119,6,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -289,7 +307,7 @@ function DocumentsTab({ vendor, submissions, showToast }: { vendor: Vendor; subm
           <p style={{ fontSize: 14, fontWeight: 600, color: T.primary, margin: 0 }}>Drop new COI here or click to browse</p>
           <p style={{ fontSize: 12, color: T.secondary, margin: 0 }}>PDF — up to 20MB</p>
         </div>
-      </Link>
+      </div>
 
       <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, overflow: 'hidden' }}>
         <div style={{ padding: '16px 20px', borderBottom: `1px solid ${T.border}` }}>
@@ -495,48 +513,50 @@ export default function VendorProfile() {
   const id              = params.id as string
   const { user, isLoaded } = useUser()
 
-  const [vendor,       setVendor]       = useState<Vendor | null>(null)
-  const [submissions,  setSubmissions]  = useState<Submission[]>([])
-  const [loading,      setLoading]      = useState(true)
-  const [notFound,     setNotFound]     = useState(false)
-  const [activeTab,    setActiveTab]    = useState<Tab>('overview')
-  const [toastMsg,     setToastMsg]     = useState('')
-  const [toastVisible, setToastVisible] = useState(false)
+  const [vendor,        setVendor]        = useState<Vendor | null>(null)
+  const [submissions,   setSubmissions]   = useState<Submission[]>([])
+  const [loading,       setLoading]       = useState(true)
+  const [notFound,      setNotFound]      = useState(false)
+  const [activeTab,     setActiveTab]     = useState<Tab>('overview')
+  const [toastMsg,      setToastMsg]      = useState('')
+  const [toastVisible,  setToastVisible]  = useState(false)
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [refreshKey,    setRefreshKey]    = useState(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
 
+  const loadData = useCallback(async () => {
+    if (!user) return
+    const [vRes, sRes] = await Promise.all([
+      supabase
+        .from('vendors')
+        .select('id, name, type, status, expiration_date, created_at')
+        .eq('id', id)
+        .eq('clerk_user_id', user.id)
+        .single(),
+      supabase
+        .from('submissions')
+        .select('id, status, issues_count, risk_score, analysis_result, created_at')
+        .eq('vendor_id', id)
+        .eq('clerk_user_id', user.id)
+        .order('created_at', { ascending: false }),
+    ])
+    if (vRes.error || !vRes.data) {
+      setNotFound(true)
+    } else {
+      setVendor(vRes.data as Vendor)
+      setSubmissions((sRes.data ?? []) as Submission[])
+    }
+    setLoading(false)
+  }, [id, user])
+
   useEffect(() => {
     if (!isLoaded) return
     if (!user) { setLoading(false); return }
-
-    async function load() {
-      const [vRes, sRes] = await Promise.all([
-        supabase
-          .from('vendors')
-          .select('id, name, type, status, expiration_date, created_at')
-          .eq('id', id)
-          .eq('clerk_user_id', user!.id)
-          .single(),
-        supabase
-          .from('submissions')
-          .select('id, status, issues_count, risk_score, analysis_result, created_at')
-          .eq('vendor_id', id)
-          .eq('clerk_user_id', user!.id)
-          .order('created_at', { ascending: false }),
-      ])
-
-      if (vRes.error || !vRes.data) {
-        setNotFound(true)
-      } else {
-        setVendor(vRes.data as Vendor)
-        setSubmissions((sRes.data ?? []) as Submission[])
-      }
-      setLoading(false)
-    }
-
-    load()
-  }, [id, isLoaded, user])
+    loadData()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, user, loadData, refreshKey])
 
   function showToast(msg: string) {
     if (timerRef.current) clearTimeout(timerRef.current)
@@ -574,13 +594,21 @@ export default function VendorProfile() {
   )
 
   const statusInfo = vendorStatusInfo(vendor.status)
-  const uploadHref = `/upload?vendorId=${vendor.id}&vendorName=${encodeURIComponent(vendor.name)}`
   const latestSub  = submissions[0] ?? null
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: T.bg, fontFamily: 'Inter, -apple-system, sans-serif', color: T.primary }}>
       <Toast message={toastMsg} visible={toastVisible} />
       <Sidebar />
+
+      {showUploadModal && (
+        <COIUploadModal
+          vendorId={vendor.id}
+          vendorName={vendor.name}
+          onClose={() => setShowUploadModal(false)}
+          onSuccess={() => setRefreshKey(k => k + 1)}
+        />
+      )}
 
       <main style={{ marginLeft: 240, flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
 
@@ -633,12 +661,14 @@ export default function VendorProfile() {
               </div>
             </div>
 
-            <Link href={uploadHref} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0, background: T.orange, color: '#fff', textDecoration: 'none', border: 'none', borderRadius: 9, padding: '11px 20px', fontSize: 13, fontWeight: 600, boxShadow: '0 2px 14px rgba(217,119,6,0.28)', transition: 'background 0.15s, transform 0.1s' }}
+            <button
+              onClick={() => setShowUploadModal(true)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0, background: T.orange, color: '#fff', border: 'none', borderRadius: 9, padding: '11px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 2px 14px rgba(217,119,6,0.28)', transition: 'background 0.15s, transform 0.1s' }}
               onMouseEnter={e => { e.currentTarget.style.background = T.orangeHover; e.currentTarget.style.transform = 'translateY(-1px)' }}
               onMouseLeave={e => { e.currentTarget.style.background = T.orange; e.currentTarget.style.transform = 'translateY(0)' }}
             >
               <Upload size={14} /> Upload New COI
-            </Link>
+            </button>
           </div>
 
           {/* Tabs */}
@@ -657,7 +687,7 @@ export default function VendorProfile() {
           </div>
 
           {activeTab === 'overview'  && <OverviewTab  latestSub={latestSub} showToast={showToast} />}
-          {activeTab === 'documents' && <DocumentsTab vendor={vendor} submissions={submissions} showToast={showToast} />}
+          {activeTab === 'documents' && <DocumentsTab vendor={vendor} submissions={submissions} showToast={showToast} onUploadClick={() => setShowUploadModal(true)} />}
           {activeTab === 'history'   && <HistoryTab   submissions={submissions} />}
           {activeTab === 'notes'     && <NotesTab />}
         </div>

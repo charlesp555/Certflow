@@ -119,24 +119,52 @@ function FieldInput({
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+const DEFAULT_REQS: Requirement[] = [
+  { id: 1, coverage: 'General Liability',    enabled: true, amount: '$1,000,000', notes: 'Per occurrence limit'   },
+  { id: 2, coverage: 'Auto Liability',       enabled: true, amount: '$1,000,000', notes: 'Combined single limit'  },
+  { id: 3, coverage: 'Workers Compensation', enabled: true, amount: 'Statutory',  notes: 'Required in all states' },
+  { id: 4, coverage: 'Additional Insured',   enabled: true, amount: 'Required',   notes: 'Must name your company' },
+  { id: 5, coverage: 'Waiver of Subrogation',enabled: true, amount: 'Required',   notes: 'Must be included'       },
+]
+
 export default function RequirementsPage() {
-  const [reqs, setReqs] = useState<Requirement[]>([
-    { id: 1, coverage: 'General Liability',      enabled: true, amount: '$1,000,000', notes: 'Per occurrence limit'       },
-    { id: 2, coverage: 'Auto Liability',          enabled: true, amount: '$1,000,000', notes: 'Combined single limit'      },
-    { id: 3, coverage: 'Workers Compensation',    enabled: true, amount: 'Statutory',  notes: 'Required in all states'     },
-    { id: 4, coverage: 'Additional Insured',      enabled: true, amount: 'Required',   notes: 'Must name your company'     },
-    { id: 5, coverage: 'Waiver of Subrogation',   enabled: true, amount: 'Required',   notes: 'Must be included'           },
-  ])
-
-  const [overrides, setOverrides] = useState<Override[]>([
-    { id: 1, vendor: 'ABC Plumbing LLC',       overrideType: 'Additional Insured', customReq: 'Must include property address' },
-    { id: 2, vendor: 'Pinnacle Roofing Inc.',  overrideType: 'Minimum GL',         customReq: '$2,000,000'                    },
-  ])
-
+  const [reqs, setReqs] = useState<Requirement[]>(DEFAULT_REQS)
+  const [overrides, setOverrides] = useState<Override[]>([])
   const [editingOverride, setEditingOverride] = useState<number | null>(null)
   const [toastMsg, setToastMsg]               = useState('')
   const [toastVisible, setToastVisible]       = useState(false)
+  const [saving, setSaving]                   = useState(false)
+  const [loading, setLoading]                 = useState(true)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    fetch('/api/requirements')
+      .then(r => r.json())
+      .then(({ requirements }) => {
+        if (Array.isArray(requirements) && requirements.length > 0) {
+          setReqs(requirements)
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function saveRequirements() {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/requirements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requirements: reqs }),
+      })
+      if (!res.ok) throw new Error('Failed to save')
+      showToast('Requirements saved')
+    } catch {
+      showToast('Save failed — try again')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   function showToast(msg: string) {
     if (timerRef.current) clearTimeout(timerRef.current)
@@ -225,19 +253,23 @@ export default function RequirementsPage() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button
-              onClick={() => showToast('Requirements saved')}
+              onClick={saveRequirements}
+              disabled={saving || loading}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 7,
-                background: T.orange, color: '#fff', border: 'none',
+                background: saving || loading ? T.orangeHover : T.orange,
+                color: '#fff', border: 'none',
                 borderRadius: 8, padding: '8px 16px',
-                fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                fontSize: 13, fontWeight: 600,
+                cursor: saving || loading ? 'not-allowed' : 'pointer',
+                opacity: saving || loading ? 0.7 : 1,
                 boxShadow: '0 2px 12px rgba(217,119,6,0.25)',
                 transition: 'background 0.15s, transform 0.1s',
               }}
-              onMouseEnter={e => { e.currentTarget.style.background = T.orangeHover; e.currentTarget.style.transform = 'translateY(-1px)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = T.orange; e.currentTarget.style.transform = 'translateY(0)' }}
+              onMouseEnter={e => { if (!saving && !loading) { e.currentTarget.style.background = T.orangeHover; e.currentTarget.style.transform = 'translateY(-1px)' } }}
+              onMouseLeave={e => { e.currentTarget.style.background = saving || loading ? T.orangeHover : T.orange; e.currentTarget.style.transform = 'translateY(0)' }}
             >
-              <Check size={14} /> Save Requirements
+              <Check size={14} /> {saving ? 'Saving…' : loading ? 'Loading…' : 'Save Requirements'}
             </button>
 
             <button style={{
