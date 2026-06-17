@@ -1,11 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import Link from 'next/link'
-import {
-  Bell, User, ChevronDown, Check, X,
-  CheckCircle2, Plus, Trash2, Pencil, Zap,
-} from 'lucide-react'
+import { Bell, Check, CheckCircle2, Zap, SlidersHorizontal } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import { UserButton } from '@clerk/nextjs'
 
@@ -33,13 +29,6 @@ interface Requirement {
   enabled: boolean
   amount: string
   notes: string
-}
-
-interface Override {
-  id: number
-  vendor: string
-  overrideType: string
-  customReq: string
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -127,14 +116,114 @@ const DEFAULT_REQS: Requirement[] = [
   { id: 5, coverage: 'Waiver of Subrogation',enabled: true, amount: 'Required',   notes: 'Must be included'       },
 ]
 
+const TEMPLATES = [
+  {
+    name: 'Plumbing & HVAC',
+    desc: 'Standard limits for plumbing, HVAC, and mechanical trade work',
+    presets: [
+      { id: 1, enabled: true,  amount: '$1,000,000', notes: 'Per occurrence, trade contractor standard' },
+      { id: 2, enabled: true,  amount: '$1,000,000', notes: 'Combined single limit'                     },
+      { id: 3, enabled: true,  amount: 'Statutory',  notes: 'Required for all field workers'            },
+      { id: 4, enabled: true,  amount: 'Required',   notes: 'Must name your company'                    },
+      { id: 5, enabled: true,  amount: 'Required',   notes: 'Must be included'                          },
+    ],
+  },
+  {
+    name: 'Electrical',
+    desc: 'Higher GL limits for the elevated risk of electrical work',
+    presets: [
+      { id: 1, enabled: true,  amount: '$2,000,000', notes: 'Higher limit for electrical risk'          },
+      { id: 2, enabled: true,  amount: '$1,000,000', notes: 'Combined single limit'                     },
+      { id: 3, enabled: true,  amount: 'Statutory',  notes: 'Required for all field workers'            },
+      { id: 4, enabled: true,  amount: 'Required',   notes: 'Must name your company'                    },
+      { id: 5, enabled: true,  amount: 'Required',   notes: 'Must be included'                          },
+    ],
+  },
+  {
+    name: 'General Contractor',
+    desc: 'Maximum limits for GC work with subcontractors and structural scope',
+    presets: [
+      { id: 1, enabled: true,  amount: '$5,000,000', notes: 'Per occurrence, GC aggregate required'     },
+      { id: 2, enabled: true,  amount: '$2,000,000', notes: 'Combined single limit'                     },
+      { id: 3, enabled: true,  amount: 'Statutory',  notes: 'Required for all workers and subs'         },
+      { id: 4, enabled: true,  amount: 'Required',   notes: 'Must name your company and owner'          },
+      { id: 5, enabled: true,  amount: 'Required',   notes: 'Must be included'                          },
+    ],
+  },
+  {
+    name: 'Roofing',
+    desc: 'Elevated limits for the high structural and fall-hazard risk of roofing',
+    presets: [
+      { id: 1, enabled: true,  amount: '$2,000,000', notes: 'Structural and fall liability'             },
+      { id: 2, enabled: true,  amount: '$1,000,000', notes: 'Combined single limit'                     },
+      { id: 3, enabled: true,  amount: 'Statutory',  notes: 'High injury rate — required'               },
+      { id: 4, enabled: true,  amount: 'Required',   notes: 'Must name your company'                    },
+      { id: 5, enabled: true,  amount: 'Required',   notes: 'Must be included'                          },
+    ],
+  },
+  {
+    name: 'Snow Removal',
+    desc: 'Higher limits for seasonal slip-and-fall and property damage exposure',
+    presets: [
+      { id: 1, enabled: true,  amount: '$1,000,000', notes: 'Slip-and-fall and plowing damage'          },
+      { id: 2, enabled: true,  amount: '$1,000,000', notes: 'Plow trucks and salt spreaders'            },
+      { id: 3, enabled: true,  amount: 'Statutory',  notes: 'Required for all field workers'            },
+      { id: 4, enabled: true,  amount: 'Required',   notes: 'Must name your company'                    },
+      { id: 5, enabled: true,  amount: 'Required',   notes: 'Must be included'                          },
+    ],
+  },
+  {
+    name: 'Pest Control',
+    desc: 'Standard limits covering chemical application and treatment liability',
+    presets: [
+      { id: 1, enabled: true,  amount: '$1,000,000', notes: 'Chemical application liability'            },
+      { id: 2, enabled: true,  amount: '$1,000,000', notes: 'Chemical transport vehicles'               },
+      { id: 3, enabled: true,  amount: 'Statutory',  notes: 'Required for all field workers'            },
+      { id: 4, enabled: true,  amount: 'Required',   notes: 'Must name your company'                    },
+      { id: 5, enabled: true,  amount: 'Required',   notes: 'Must be included'                          },
+    ],
+  },
+  {
+    name: 'Landscaping',
+    desc: 'Lower limits for routine grounds maintenance and exterior work',
+    presets: [
+      { id: 1, enabled: true,  amount: '$500,000',   notes: 'Per occurrence'                            },
+      { id: 2, enabled: true,  amount: '$500,000',   notes: 'Combined single limit'                     },
+      { id: 3, enabled: true,  amount: 'Statutory',  notes: 'Required for all field workers'            },
+      { id: 4, enabled: true,  amount: 'Required',   notes: 'Must name your company'                    },
+      { id: 5, enabled: false, amount: 'Required',   notes: 'Recommended but not required'              },
+    ],
+  },
+  {
+    name: 'Cleaning / Janitorial',
+    desc: 'Standard limits for routine cleaning, janitorial, and housekeeping vendors',
+    presets: [
+      { id: 1, enabled: true,  amount: '$500,000',   notes: 'Property damage and slip-and-fall'         },
+      { id: 2, enabled: true,  amount: '$500,000',   notes: 'Combined single limit'                     },
+      { id: 3, enabled: true,  amount: 'Statutory',  notes: 'Required for all workers'                  },
+      { id: 4, enabled: true,  amount: 'Required',   notes: 'Must name your company'                    },
+      { id: 5, enabled: false, amount: 'Required',   notes: 'Recommended but not required'              },
+    ],
+  },
+  {
+    name: 'General Maintenance',
+    desc: 'Standard limits for general repair, handyman, and maintenance vendors',
+    presets: [
+      { id: 1, enabled: true,  amount: '$1,000,000', notes: 'Per occurrence, general work'              },
+      { id: 2, enabled: true,  amount: '$500,000',   notes: 'Combined single limit'                     },
+      { id: 3, enabled: true,  amount: 'Statutory',  notes: 'Required for all field workers'            },
+      { id: 4, enabled: true,  amount: 'Required',   notes: 'Must name your company'                    },
+      { id: 5, enabled: false, amount: 'Required',   notes: 'Recommended but not required'              },
+    ],
+  },
+]
+
 export default function RequirementsPage() {
   const [reqs, setReqs] = useState<Requirement[]>(DEFAULT_REQS)
-  const [overrides, setOverrides] = useState<Override[]>([])
-  const [editingOverride, setEditingOverride] = useState<number | null>(null)
-  const [toastMsg, setToastMsg]               = useState('')
-  const [toastVisible, setToastVisible]       = useState(false)
-  const [saving, setSaving]                   = useState(false)
-  const [loading, setLoading]                 = useState(true)
+  const [toastMsg, setToastMsg]     = useState('')
+  const [toastVisible, setToastVisible] = useState(false)
+  const [saving, setSaving]         = useState(false)
+  const [loading, setLoading]       = useState(true)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -179,49 +268,12 @@ export default function RequirementsPage() {
     setReqs(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r))
   }
 
-  function removeOverride(id: number) {
-    setOverrides(prev => prev.filter(o => o.id !== id))
-  }
-
-  function addOverride() {
-    const newId = Date.now()
-    setOverrides(prev => [...prev, { id: newId, vendor: '', overrideType: '', customReq: '' }])
-    setEditingOverride(newId)
-  }
-
-  function updateOverride(id: number, patch: Partial<Override>) {
-    setOverrides(prev => prev.map(o => o.id === id ? { ...o, ...patch } : o))
-  }
-
-  const TEMPLATES = [
-    {
-      name: 'Plumbing & HVAC',
-      desc: 'Standard requirements for trade contractors',
-      changes: { 1: '$1,000,000', 2: '$1,000,000' },
-    },
-    {
-      name: 'Electrical',
-      desc: 'Higher liability for electrical work',
-      changes: { 1: '$2,000,000', 2: '$1,000,000' },
-    },
-    {
-      name: 'Landscaping',
-      desc: 'Lower requirements for exterior vendors',
-      changes: { 1: '$500,000', 2: '$500,000' },
-    },
-    {
-      name: 'General Contractor',
-      desc: 'Maximum requirements for GC work',
-      changes: { 1: '$5,000,000', 2: '$2,000,000' },
-    },
-  ]
-
   function applyTemplate(template: typeof TEMPLATES[number]) {
     setReqs(prev => prev.map(r => {
-      const change = (template.changes as Record<number, string>)[r.id]
-      return change ? { ...r, amount: change, enabled: true } : r
+      const preset = template.presets.find(p => p.id === r.id)
+      return preset ? { ...r, ...preset } : r
     }))
-    showToast(`"${template.name}" template applied`)
+    showToast(`"${template.name}" values pre-filled — review above and click Save Requirements`)
   }
 
   return (
@@ -247,7 +299,7 @@ export default function RequirementsPage() {
               Requirements
             </h1>
             <p style={{ fontSize: 12, color: T.secondary, margin: 0 }}>
-              Set your minimum insurance standards for all vendors
+              Set the minimum insurance standards checked on every COI you analyze
             </p>
           </div>
 
@@ -344,23 +396,16 @@ export default function RequirementsPage() {
                   onMouseEnter={e => (e.currentTarget.style.background = '#1a1a2e')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
-                  {/* Coverage name */}
                   <span style={{ fontSize: 14, fontWeight: 600, color: T.primary }}>
                     {req.coverage}
                   </span>
-
-                  {/* Toggle */}
                   <Toggle on={req.enabled} onChange={v => updateReq(req.id, { enabled: v })} />
-
-                  {/* Amount */}
                   <FieldInput
                     value={req.amount}
                     onChange={v => updateReq(req.id, { amount: v })}
                     placeholder="e.g. $1,000,000"
                     width={140}
                   />
-
-                  {/* Notes */}
                   <FieldInput
                     value={req.notes}
                     onChange={v => updateReq(req.id, { notes: v })}
@@ -379,20 +424,22 @@ export default function RequirementsPage() {
                 Industry Templates
               </h2>
               <p style={{ fontSize: 13, color: T.secondary, margin: 0 }}>
-                Quick-apply requirement sets by vendor type
+                Pre-fill the requirements above with suggested starting values for a vendor type — then review and click Save Requirements to apply.
               </p>
             </div>
 
             <div style={{
-              display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14,
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+              gap: 12,
             }}>
               {TEMPLATES.map(tmpl => (
                 <div
                   key={tmpl.name}
                   style={{
                     background: T.card, border: `1px solid ${T.border}`,
-                    borderRadius: 12, padding: '20px 18px',
-                    display: 'flex', flexDirection: 'column', gap: 12,
+                    borderRadius: 12, padding: '18px 16px',
+                    display: 'flex', flexDirection: 'column', gap: 10,
                     transition: 'border-color 0.2s, transform 0.2s, box-shadow 0.2s',
                   }}
                   onMouseEnter={e => {
@@ -407,17 +454,18 @@ export default function RequirementsPage() {
                   }}
                 >
                   <div style={{
-                    width: 34, height: 34, borderRadius: 9,
+                    width: 32, height: 32, borderRadius: 8,
                     background: 'rgba(217,119,6,0.10)', border: '1px solid rgba(217,119,6,0.20)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
                   }}>
-                    <Zap size={16} color={T.orange} />
+                    <Zap size={15} color={T.orange} />
                   </div>
-                  <div>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: T.primary, margin: '0 0 5px' }}>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: T.primary, margin: '0 0 4px' }}>
                       {tmpl.name}
                     </p>
-                    <p style={{ fontSize: 12, color: T.secondary, margin: 0, lineHeight: 1.5 }}>
+                    <p style={{ fontSize: 11, color: T.secondary, margin: 0, lineHeight: 1.5 }}>
                       {tmpl.desc}
                     </p>
                   </div>
@@ -427,22 +475,22 @@ export default function RequirementsPage() {
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                       background: 'none', color: T.orange,
                       border: `1px solid rgba(217,119,6,0.35)`,
-                      borderRadius: 7, padding: '8px 12px',
-                      fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                      marginTop: 'auto',
+                      borderRadius: 7, padding: '7px 10px',
+                      fontSize: 11, fontWeight: 600, cursor: 'pointer',
                       transition: 'background 0.15s, border-color 0.15s',
+                      whiteSpace: 'nowrap',
                     }}
                     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.10)'; e.currentTarget.style.borderColor = T.orange }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = 'rgba(217,119,6,0.35)' }}
                   >
-                    <Zap size={12} /> Apply Template
+                    <Zap size={11} /> Pre-fill Values
                   </button>
                 </div>
               ))}
             </div>
           </section>
 
-          {/* ── Vendor Overrides ── */}
+          {/* ── Vendor-Specific Overrides — Coming Soon ── */}
           <section>
             <div style={{ marginBottom: 16 }}>
               <h2 style={{ fontSize: 15, fontWeight: 700, color: T.primary, margin: '0 0 4px' }}>
@@ -455,150 +503,24 @@ export default function RequirementsPage() {
 
             <div style={{
               background: T.card, border: `1px solid ${T.border}`,
-              borderRadius: 12, overflow: 'hidden',
+              borderRadius: 12, padding: 24,
             }}>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ borderBottom: `1px solid ${T.border}` }}>
-                      {['Vendor', 'Override Type', 'Custom Requirement', 'Actions'].map(col => (
-                        <th key={col} style={{
-                          textAlign: 'left', padding: '12px 16px',
-                          fontSize: 10, color: T.muted, fontWeight: 600,
-                          textTransform: 'uppercase', letterSpacing: '0.07em',
-                          whiteSpace: 'nowrap',
-                        }}>
-                          {col}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {overrides.length === 0 && (
-                      <tr>
-                        <td colSpan={4} style={{ padding: '32px 16px', textAlign: 'center', color: T.muted, fontSize: 13 }}>
-                          No overrides yet. Add one below.
-                        </td>
-                      </tr>
-                    )}
-                    {overrides.map((ov, i) => (
-                      <tr
-                        key={ov.id}
-                        style={{
-                          borderBottom: i < overrides.length - 1 ? `1px solid ${T.border}` : 'none',
-                          transition: 'background 0.15s',
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#1a1a2e')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                      >
-                        {/* Vendor */}
-                        <td style={{ padding: '12px 16px' }}>
-                          {editingOverride === ov.id ? (
-                            <FieldInput value={ov.vendor} onChange={v => updateOverride(ov.id, { vendor: v })} placeholder="Vendor name" width={160} />
-                          ) : (
-                            <span style={{ fontSize: 13, fontWeight: 600, color: T.primary }}>{ov.vendor || '—'}</span>
-                          )}
-                        </td>
-                        {/* Override type */}
-                        <td style={{ padding: '12px 16px' }}>
-                          {editingOverride === ov.id ? (
-                            <FieldInput value={ov.overrideType} onChange={v => updateOverride(ov.id, { overrideType: v })} placeholder="e.g. Minimum GL" width={140} />
-                          ) : (
-                            <span style={{
-                              background: 'rgba(217,119,6,0.08)', color: T.orange,
-                              border: '1px solid rgba(217,119,6,0.20)',
-                              borderRadius: 6, padding: '3px 10px',
-                              fontSize: 11, fontWeight: 600,
-                            }}>
-                              {ov.overrideType || '—'}
-                            </span>
-                          )}
-                        </td>
-                        {/* Custom req */}
-                        <td style={{ padding: '12px 16px' }}>
-                          {editingOverride === ov.id ? (
-                            <FieldInput value={ov.customReq} onChange={v => updateOverride(ov.id, { customReq: v })} placeholder="Requirement detail" width={200} />
-                          ) : (
-                            <span style={{ fontSize: 13, color: T.secondary }}>{ov.customReq || '—'}</span>
-                          )}
-                        </td>
-                        {/* Actions */}
-                        <td style={{ padding: '12px 16px' }}>
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            {editingOverride === ov.id ? (
-                              <button
-                                onClick={() => { setEditingOverride(null); showToast('Override saved') }}
-                                style={{
-                                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                                  background: 'rgba(34,197,94,0.10)', color: T.green,
-                                  border: '1px solid rgba(34,197,94,0.25)',
-                                  borderRadius: 6, padding: '6px 12px',
-                                  fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                                  transition: 'all 0.15s',
-                                }}
-                                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(34,197,94,0.18)')}
-                                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(34,197,94,0.10)')}
-                              >
-                                <Check size={12} /> Save
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => setEditingOverride(ov.id)}
-                                style={{
-                                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                                  background: 'rgba(255,255,255,0.04)', color: T.secondary,
-                                  border: `1px solid ${T.border}`,
-                                  borderRadius: 6, padding: '6px 12px',
-                                  fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                                  transition: 'all 0.15s',
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = T.primary; e.currentTarget.style.borderColor = T.borderAccent }}
-                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = T.secondary; e.currentTarget.style.borderColor = T.border }}
-                              >
-                                <Pencil size={12} /> Edit
-                              </button>
-                            )}
-                            <button
-                              onClick={() => removeOverride(ov.id)}
-                              style={{
-                                display: 'inline-flex', alignItems: 'center', gap: 5,
-                                background: 'rgba(239,68,68,0.07)', color: '#ef4444',
-                                border: '1px solid rgba(239,68,68,0.20)',
-                                borderRadius: 6, padding: '6px 12px',
-                                fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                                transition: 'all 0.15s',
-                              }}
-                              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.14)')}
-                              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.07)')}
-                            >
-                              <Trash2 size={12} /> Remove
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                <SlidersHorizontal size={15} color={T.muted} />
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: 0 }}>
+                  Per-Vendor Requirements
+                </h3>
+                <span style={{
+                  fontSize: 11, fontWeight: 600, color: T.muted,
+                  background: 'rgba(255,255,255,0.05)', border: `1px solid ${T.border}`,
+                  borderRadius: 20, padding: '2px 9px',
+                }}>
+                  Coming Soon
+                </span>
               </div>
-
-              {/* Add override */}
-              <div style={{ padding: '14px 16px', borderTop: `1px solid ${T.border}` }}>
-                <button
-                  onClick={addOverride}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 7,
-                    background: 'none', color: T.orange,
-                    border: `1px solid rgba(217,119,6,0.35)`,
-                    borderRadius: 8, padding: '8px 16px',
-                    fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                    transition: 'background 0.15s, border-color 0.15s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.08)'; e.currentTarget.style.borderColor = T.orange }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = 'rgba(217,119,6,0.35)' }}
-                >
-                  <Plus size={14} /> Add Override
-                </button>
-              </div>
+              <p style={{ fontSize: 13, color: T.secondary, margin: 0, lineHeight: 1.7 }}>
+                Vendor-specific overrides are coming soon. You&apos;ll be able to set higher or lower requirements for individual vendors — for example, requiring a $2M GL limit from a specific roofing contractor while keeping the default at $1M for everyone else.
+              </p>
             </div>
           </section>
 

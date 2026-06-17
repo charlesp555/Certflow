@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Bell, User, Check, CheckCircle2, Building2, Puzzle, CreditCard } from 'lucide-react'
+import { Bell, User, Check, CheckCircle2 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import { UserButton, useUser } from '@clerk/nextjs'
 import { supabase } from '@/lib/supabase'
@@ -22,7 +22,7 @@ const T = {
   muted: '#4b5063',
 }
 
-type TabKey = 'company' | 'notifications' | 'integrations' | 'billing'
+type TabKey = 'company' | 'notifications'
 
 // ── Shared components ─────────────────────────────────────────────────────────
 
@@ -42,29 +42,6 @@ function Toast({ message, visible }: { message: string; visible: boolean }) {
       <CheckCircle2 size={16} color={T.green} />
       <span style={{ fontSize: 13, fontWeight: 600, color: T.primary }}>{message}</span>
     </div>
-  )
-}
-
-function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      onClick={() => onChange(!on)}
-      style={{
-        width: 42, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
-        background: on ? T.green : T.border,
-        position: 'relative', flexShrink: 0, padding: 0,
-        transition: 'background 0.2s',
-      }}
-    >
-      <div style={{
-        position: 'absolute', top: 4,
-        left: on ? 22 : 4,
-        width: 16, height: 16, borderRadius: '50%',
-        background: '#fff',
-        transition: 'left 0.2s',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
-      }} />
-    </button>
   )
 }
 
@@ -107,45 +84,6 @@ function OrangeBtn({ onClick, children }: { onClick?: () => void; children: Reac
       }}
       onMouseEnter={e => { e.currentTarget.style.background = T.orangeHover; e.currentTarget.style.transform = 'translateY(-1px)' }}
       onMouseLeave={e => { e.currentTarget.style.background = T.orange; e.currentTarget.style.transform = 'translateY(0)' }}
-    >
-      {children}
-    </button>
-  )
-}
-
-function OutlineBtn({ onClick, children }: { onClick?: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 7,
-        background: 'none', color: T.orange,
-        border: `1px solid rgba(217,119,6,0.35)`,
-        borderRadius: 8, padding: '9px 16px',
-        fontSize: 13, fontWeight: 600, cursor: 'pointer',
-        transition: 'background 0.15s, border-color 0.15s',
-      }}
-      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.08)'; e.currentTarget.style.borderColor = T.orange }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = 'rgba(217,119,6,0.35)' }}
-    >
-      {children}
-    </button>
-  )
-}
-
-function GhostBtn({ onClick, children }: { onClick?: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 5,
-        background: 'rgba(255,255,255,0.04)', color: T.secondary,
-        border: `1px solid ${T.border}`, borderRadius: 6,
-        padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-        transition: 'all 0.15s',
-      }}
-      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.09)'; e.currentTarget.style.color = T.primary; e.currentTarget.style.borderColor = T.borderAccent }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = T.secondary; e.currentTarget.style.borderColor = T.border }}
     >
       {children}
     </button>
@@ -314,278 +252,22 @@ function CompanyTab({ userId, showToast }: { userId: string | null; showToast: (
 
 // ── Notifications Tab ─────────────────────────────────────────────────────────
 
-function NotificationsTab({ showToast }: { showToast: (m: string) => void }) {
-  const [prefs, setPrefs] = useState([
-    { id: 1, label: 'COI Upload Complete',      desc: 'Notify when a new COI is successfully processed',         on: true  },
-    { id: 2, label: 'Issues Found',             desc: 'Alert when compliance gaps are detected in a COI',        on: true  },
-    { id: 3, label: 'Expiring Soon (30 days)',  desc: 'Warn when a policy expires within 30 days',               on: true  },
-    { id: 4, label: 'Expiring Soon (60 days)',  desc: 'Early warning when a policy expires within 60 days',      on: false },
-    { id: 5, label: 'Vendor Compliant',         desc: 'Notify when a vendor resolves all compliance issues',     on: false },
-    { id: 6, label: 'Weekly Summary Email',     desc: 'Receive a weekly digest of your portfolio compliance',    on: true  },
-    { id: 7, label: 'Monthly Report',           desc: 'Full monthly compliance report delivered to your inbox',  on: true  },
-  ])
-
-  function toggle(id: number) {
-    setPrefs(prev => prev.map(p => p.id === id ? { ...p, on: !p.on } : p))
-  }
-
+function NotificationsTab() {
   return (
     <SectionCard>
-      <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: '0 0 6px' }}>
-        Notification Preferences
-      </h3>
-      <p style={{ fontSize: 13, color: T.secondary, margin: '0 0 22px' }}>
-        Choose what triggers an alert or email.
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <Bell size={15} color={T.muted} />
+        <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: 0 }}>Notification Preferences</h3>
+        <span style={{
+          fontSize: 11, fontWeight: 600, color: T.muted,
+          background: 'rgba(255,255,255,0.05)', border: `1px solid ${T.border}`,
+          borderRadius: 20, padding: '2px 9px',
+        }}>Coming Soon</span>
+      </div>
+      <p style={{ fontSize: 13, color: T.secondary, margin: 0, lineHeight: 1.7 }}>
+        Notification preferences are coming soon. You&apos;ll be able to control email alerts for COI uploads, compliance issues, and expiration warnings here.
       </p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-        {prefs.map((p, i) => (
-          <div
-            key={p.id}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '14px 0',
-              borderBottom: i < prefs.length - 1 ? `1px solid ${T.border}` : 'none',
-            }}
-          >
-            <div style={{ flex: 1, paddingRight: 24 }}>
-              <p style={{ fontSize: 14, fontWeight: 600, color: T.primary, margin: '0 0 3px' }}>{p.label}</p>
-              <p style={{ fontSize: 12, color: T.muted, margin: 0 }}>{p.desc}</p>
-            </div>
-            <Toggle on={p.on} onChange={() => toggle(p.id)} />
-          </div>
-        ))}
-      </div>
-      <div style={{ marginTop: 22, paddingTop: 20, borderTop: `1px solid ${T.border}` }}>
-        <OrangeBtn onClick={() => showToast('Notification preferences saved')}>
-          <Check size={14} /> Save Preferences
-        </OrangeBtn>
-      </div>
     </SectionCard>
-  )
-}
-
-// ── Integrations Tab ──────────────────────────────────────────────────────────
-
-function IntegrationsTab({ showToast }: { showToast: (m: string) => void }) {
-  const INTEGRATIONS = [
-    { name: 'Buildium',   desc: 'Sync vendor data from Buildium',   icon: Building2 },
-    { name: 'AppFolio',   desc: 'Import vendors from AppFolio',     icon: Building2 },
-    { name: 'QuickBooks', desc: 'Sync vendor payments',             icon: CreditCard },
-    { name: 'Zapier',     desc: 'Connect to 5,000+ apps',          icon: Puzzle     },
-  ]
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        {INTEGRATIONS.map(({ name, desc, icon: Icon }) => (
-          <div
-            key={name}
-            style={{
-              background: T.card, border: `1px solid ${T.border}`,
-              borderRadius: 12, padding: '22px 20px',
-              display: 'flex', flexDirection: 'column', gap: 14,
-              transition: 'border-color 0.2s, transform 0.2s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderAccent; e.currentTarget.style.transform = 'translateY(-2px)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.transform = 'translateY(0)' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: 10, flexShrink: 0,
-                background: 'rgba(255,255,255,0.05)', border: `1px solid ${T.border}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Icon size={18} color={T.secondary} />
-              </div>
-              <div>
-                <p style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: '0 0 2px' }}>{name}</p>
-                <p style={{ fontSize: 12, color: T.muted, margin: 0 }}>{desc}</p>
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{
-                fontSize: 11, fontWeight: 600, color: T.muted,
-                background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border}`,
-                borderRadius: 20, padding: '2px 10px',
-              }}>
-                Not connected
-              </span>
-              <OutlineBtn onClick={() => showToast(`${name} — Coming soon`)}>
-                Connect
-              </OutlineBtn>
-            </div>
-          </div>
-        ))}
-      </div>
-      <div style={{
-        background: T.surface, border: `1px solid ${T.border}`,
-        borderRadius: 10, padding: '14px 18px',
-        display: 'flex', alignItems: 'center', gap: 10,
-      }}>
-        <Puzzle size={14} color={T.muted} />
-        <p style={{ fontSize: 13, color: T.muted, margin: 0 }}>
-          Integrations coming soon.{' '}
-          <button
-            onClick={() => showToast('Added to waitlist!')}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: T.orange, fontSize: 13, fontWeight: 600, padding: 0,
-              textDecoration: 'underline',
-            }}
-          >
-            Join the waitlist
-          </button>
-          {' '}to be notified when they launch.
-        </p>
-      </div>
-    </div>
-  )
-}
-
-// ── Billing Tab ───────────────────────────────────────────────────────────────
-
-function BillingTab({ showToast }: { showToast: (m: string) => void }) {
-  function ProgressBar({ used, total, color }: { used: number; total: number; color: string }) {
-    const pct = Math.round((used / total) * 100)
-    return (
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-          <span style={{ fontSize: 12, color: T.secondary }}>
-            {used} of {total} used
-          </span>
-          <span style={{ fontSize: 12, fontWeight: 600, color }}>{pct}%</span>
-        </div>
-        <div style={{
-          width: '100%', height: 6, borderRadius: 3,
-          background: 'rgba(255,255,255,0.06)',
-          overflow: 'hidden',
-        }}>
-          <div style={{
-            width: `${pct}%`, height: '100%',
-            background: color, borderRadius: 3,
-            transition: 'width 0.6s ease',
-          }} />
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-
-      {/* Current plan */}
-      <SectionCard>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20 }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: 0 }}>
-                Current Plan
-              </h3>
-              <span style={{
-                background: 'rgba(217,119,6,0.10)', color: T.orange,
-                border: '1px solid rgba(217,119,6,0.25)',
-                borderRadius: 20, padding: '2px 10px',
-                fontSize: 11, fontWeight: 700,
-              }}>
-                PRO
-              </span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
-                <span style={{ fontSize: 32, fontWeight: 800, color: T.primary, letterSpacing: '-1px', lineHeight: 1 }}>$49</span>
-                <span style={{ fontSize: 14, color: T.muted }}>/month</span>
-              </div>
-              <p style={{ fontSize: 13, color: T.secondary, margin: 0 }}>
-                Next billing date: <span style={{ color: T.primary, fontWeight: 500 }}>Jul 01, 2026</span>
-              </p>
-              <p style={{ fontSize: 13, color: T.secondary, margin: 0 }}>
-                Payment method: <span style={{ color: T.primary, fontWeight: 500 }}>Visa ending 4242</span>
-              </p>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 10, flexShrink: 0, flexWrap: 'wrap' }}>
-            <OutlineBtn onClick={() => showToast('Redirecting to plan selection…')}>
-              Change Plan
-            </OutlineBtn>
-            <GhostBtn onClick={() => showToast('Redirecting to payment update…')}>
-              <CreditCard size={13} /> Update Payment
-            </GhostBtn>
-          </div>
-        </div>
-      </SectionCard>
-
-      {/* Usage */}
-      <SectionCard>
-        <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: '0 0 20px' }}>
-          Usage This Month
-        </h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div>
-            <p style={{ fontSize: 13, fontWeight: 600, color: T.primary, margin: '0 0 8px' }}>COI Verifications</p>
-            <ProgressBar used={18} total={50} color={T.orange} />
-          </div>
-          <div>
-            <p style={{ fontSize: 13, fontWeight: 600, color: T.primary, margin: '0 0 8px' }}>Vendors</p>
-            <ProgressBar used={8} total={50} color={T.green} />
-          </div>
-          <div>
-            <p style={{ fontSize: 13, fontWeight: 600, color: T.primary, margin: '0 0 8px' }}>Team Members</p>
-            <ProgressBar used={3} total={5} color={T.green} />
-          </div>
-        </div>
-      </SectionCard>
-
-      {/* Plan comparison */}
-      <SectionCard>
-        <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: '0 0 18px' }}>
-          Plan Comparison
-        </h3>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: `1px solid ${T.border}` }}>
-              {['Feature', 'Pro (Current)', 'Business'].map((col, i) => (
-                <th key={col} style={{
-                  textAlign: i === 0 ? 'left' : 'center',
-                  padding: '0 12px 10px',
-                  fontSize: 11, color: i === 2 ? T.orange : T.muted,
-                  fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em',
-                }}>{col}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              ['Vendors',          '50',           'Unlimited'],
-              ['COI Verifications','50/mo',        'Unlimited'],
-              ['Team Members',     '5',            'Unlimited'],
-              ['Custom Requirements', '—',         '✓'],
-              ['API Access',       '—',            '✓'],
-              ['Dedicated Support','—',            '✓'],
-              ['SLA Guarantee',    '—',            '✓'],
-            ].map(([feature, pro, biz], i, arr) => (
-              <tr
-                key={feature}
-                style={{
-                  borderBottom: i < arr.length - 1 ? `1px solid ${T.border}` : 'none',
-                  transition: 'background 0.12s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#1a1a2e')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-              >
-                <td style={{ padding: '11px 12px', fontSize: 13, color: T.secondary }}>{feature}</td>
-                <td style={{ padding: '11px 12px', fontSize: 13, color: T.secondary, textAlign: 'center' }}>{pro}</td>
-                <td style={{ padding: '11px 12px', fontSize: 13, color: biz === '✓' ? T.green : T.secondary, textAlign: 'center', fontWeight: biz === '✓' ? 700 : 400 }}>{biz}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div style={{ marginTop: 18, paddingTop: 18, borderTop: `1px solid ${T.border}` }}>
-          <OrangeBtn onClick={() => showToast('Redirecting to Business plan…')}>
-            Upgrade to Business →
-          </OrangeBtn>
-        </div>
-      </SectionCard>
-    </div>
   )
 }
 
@@ -610,8 +292,6 @@ export default function SettingsPage() {
   const TABS: { key: TabKey; label: string }[] = [
     { key: 'company',       label: 'Company'       },
     { key: 'notifications', label: 'Notifications' },
-    { key: 'integrations',  label: 'Integrations'  },
-    { key: 'billing',       label: 'Billing'       },
   ]
 
   return (
@@ -692,10 +372,8 @@ export default function SettingsPage() {
           </div>
 
           {/* Tab content */}
-          {activeTab === 'company'       && <CompanyTab       userId={user?.id ?? null} showToast={showToast} />}
-          {activeTab === 'notifications' && <NotificationsTab showToast={showToast} />}
-          {activeTab === 'integrations'  && <IntegrationsTab  showToast={showToast} />}
-          {activeTab === 'billing'       && <BillingTab       showToast={showToast} />}
+          {activeTab === 'company'       && <CompanyTab userId={user?.id ?? null} showToast={showToast} />}
+          {activeTab === 'notifications' && <NotificationsTab />}
         </div>
       </main>
     </div>

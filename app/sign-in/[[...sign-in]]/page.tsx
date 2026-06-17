@@ -95,6 +95,11 @@ export default function SignInPage() {
                 borderColor: '#2a2a3a',
                 color: '#f8f8f8',
               },
+              otpCodeFieldInput: {
+                backgroundColor: '#1a1a24',
+                borderColor: '#2a2a3a',
+                color: '#f8f8f8',
+              },
               formFieldLabel: { color: '#d1d5db' },
               socialButtonsBlockButton: {
                 backgroundColor: 'transparent',
