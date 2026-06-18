@@ -262,14 +262,21 @@ function OverviewTab({ latestSub, showToast }: { latestSub: Submission | null; s
       </div>
 
       {/* Action Required */}
-      {flags.length > 0 && (
+      {(missingCt > 0 || flags.length > 0) && (() => {
+        // Total = failed requirements + freeform flags (flags won't duplicate requirementsCheck after prompt fix)
+        const totalIssues = missingCt + flags.length
+        const primaryIssue = flags.length > 0
+          ? flags[0]
+          : `${rows.filter(r => !r.ok)[0]?.type ?? 'A requirement'} does not meet the minimum`
+        const otherCount = totalIssues - 1
+        return (
         <div style={{ background: 'rgba(217,119,6,0.05)', border: '1px solid rgba(217,119,6,0.20)', borderRadius: 12, padding: '20px 24px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
             <AlertTriangle size={18} color={T.orange} style={{ flexShrink: 0, marginTop: 2 }} />
             <div>
               <p style={{ fontSize: 13, fontWeight: 700, color: T.orange, margin: '0 0 5px' }}>Action Required</p>
               <p style={{ fontSize: 13, color: T.secondary, lineHeight: 1.65, margin: 0 }}>
-                {flags[0]}{flags.length > 1 ? ` and ${flags.length - 1} other issue${flags.length > 2 ? 's' : ''}.` : '.'}
+                {primaryIssue}{otherCount > 0 ? ` and ${otherCount} other issue${otherCount !== 1 ? 's' : ''}.` : '.'}
               </p>
             </div>
           </div>
@@ -282,7 +289,8 @@ function OverviewTab({ latestSub, showToast }: { latestSub: Submission | null; s
             Send Request to Vendor →
           </button>
         </div>
-      )}
+        )
+      })()}
     </div>
   )
 }

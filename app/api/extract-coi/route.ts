@@ -37,10 +37,9 @@ function buildRequirementsPrompt(requirements: Requirement[]): string {
   const enabled = requirements.filter(r => r.enabled)
   if (enabled.length === 0) return ''
 
-  const lines = enabled.map(r => {
-    const note = r.notes ? ` (${r.notes})` : ''
-    return `  - ${r.coverage}: minimum ${r.amount}${note}`
-  })
+  // Notes are user-facing labels — omit them from the AI prompt to avoid
+  // ambiguous instructions (e.g. "Must name your company") that cause false fails.
+  const lines = enabled.map(r => `  - ${r.coverage}: minimum ${r.amount}`)
 
   return `\n\nUSER REQUIREMENTS — compare each against the COI and produce a requirementsCheck entry for each:\n${lines.join('\n')}`
 }
@@ -89,9 +88,19 @@ export async function POST(request: NextRequest) {
 For each requirement:
 - Extract the actual coverage amount/status from the COI
 - For monetary minimums: compare numerically (e.g. $1,000,000 vs $2,000,000 = FAIL)
-- For "Required" items (Additional Insured, Waiver of Subrogation): check if present on the COI
+- For "Required" items: check if present anywhere on the COI
 - Set passed: true only if the COI meets or exceeds the requirement
 - Write a concise reason explaining the result
+
+CRITICAL — Additional Insured and Waiver of Subrogation detection:
+- Search the ENTIRE document: checkboxes, endorsements, AND the Description of Operations / Special Conditions section
+- If the language appears ANYWHERE on the COI, set passed: true and set the corresponding top-level boolean to true
+- Presence of the endorsement language anywhere is sufficient to pass — do not require it to name a specific company
+
+CRITICAL — flags array:
+- Include ONLY actual insurance compliance failures: insufficient coverage limits, expired policy, a required coverage type that is completely absent
+- Do NOT flag redacted fields, illegible text, or missing administrative information (producer name, insured address, etc.) — these are document quality notes, not compliance failures
+- Do NOT duplicate issues already captured in requirementsCheck
 
 Set overallStatus to:
 - "COMPLIANT" if all requirements pass and policy is not expired
@@ -113,7 +122,7 @@ ${JSON.stringify({
   certificateHolder: 'name',
   producer: 'insurance agency name',
   requirementsCheck: requirementsCheckStructure,
-  flags: ['any compliance issues not already captured in requirementsCheck'],
+  flags: ['only real compliance failures not already in requirementsCheck — empty array if none'],
   overallStatus: 'COMPLIANT',
 })}`
 
