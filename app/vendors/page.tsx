@@ -5,6 +5,7 @@ import Link from 'next/link'
 import {
   Bell, ChevronDown, Search, Upload,
   Eye, X, Building2, Lock, Trash2, AlertTriangle,
+  ArrowUp, ArrowDown, ArrowUpDown,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import COIUploadModal from '../components/COIUploadModal'
@@ -21,6 +22,7 @@ type Vendor = {
   type: string
   status: VendorStatus
   expiration: string
+  expirationRaw: string | null
   issues: number
   lastUploaded: string
 }
@@ -34,6 +36,9 @@ type VendorRow = {
   created_at: string | null
   submissions: Array<{ issues_count: number | null; created_at: string | null }> | null
 }
+
+type SortKey = 'name' | 'status' | 'expiration'
+type SortDir = 'asc' | 'desc'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -67,6 +72,7 @@ function rowToVendor(row: VendorRow): Vendor {
     type: row.type ?? '—',
     status: mapStatus(row.status),
     expiration: formatDate(row.expiration_date),
+    expirationRaw: row.expiration_date ?? null,
     issues: latest?.issues_count ?? 0,
     lastUploaded: latest ? formatDate(latest.created_at) : formatDate(row.created_at),
   }
@@ -81,6 +87,13 @@ const MODAL_TYPES = ['Plumbing', 'Electrical', 'HVAC', 'Roofing', 'Janitorial', 
 const MODAL_STATUSES = ['Pending Review', 'Compliant', 'Issues Found', 'Expiring Soon']
 
 const FREE_VENDOR_LIMIT = 3
+
+const STATUS_ORDER: Record<VendorStatus, number> = {
+  'Issues Found':   0,
+  'Expiring Soon':  1,
+  'Pending Review': 2,
+  'Compliant':      3,
+}
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
@@ -421,6 +434,51 @@ function FilterSelect({ value, onChange, options }: { value: string; onChange: (
   )
 }
 
+// ─── Sortable Column Header ───────────────────────────────────────────────────
+
+function SortableHeader({
+  label,
+  colKey,
+  activeSortKey,
+  sortDir,
+  onSort,
+}: {
+  label: string
+  colKey: SortKey | null
+  activeSortKey: SortKey | null
+  sortDir: SortDir
+  onSort: (key: SortKey) => void
+}) {
+  const isActive = colKey !== null && activeSortKey === colKey
+  return (
+    <th
+      onClick={colKey ? () => onSort(colKey) : undefined}
+      style={{
+        textAlign: 'left', padding: '14px 16px',
+        fontSize: 11, fontWeight: 600,
+        color: isActive ? '#D97706' : '#8a8599',
+        textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap',
+        cursor: colKey ? 'pointer' : 'default',
+        userSelect: 'none',
+        transition: 'color 0.15s',
+      }}
+      onMouseEnter={colKey ? e => { if (!isActive) e.currentTarget.style.color = '#c8c4bc' } : undefined}
+      onMouseLeave={colKey ? e => { e.currentTarget.style.color = isActive ? '#D97706' : '#8a8599' } : undefined}
+    >
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+        {label}
+        {colKey && (
+          isActive
+            ? (sortDir === 'asc'
+              ? <ArrowUp size={11} color="#D97706" />
+              : <ArrowDown size={11} color="#D97706" />)
+            : <ArrowUpDown size={11} color="#3a3a4a" />
+        )}
+      </span>
+    </th>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function VendorsPage() {
@@ -434,6 +492,8 @@ export default function VendorsPage() {
   const [filterStatus, setFilterStatus] = useState('All')
   const [filterType, setFilterType] = useState('All')
   const [filterExp, setFilterExp] = useState('All')
+  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
@@ -477,6 +537,15 @@ export default function VendorsPage() {
     }
   }
 
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
+
   const handleDelete = async () => {
     if (!deleteTarget || !user?.id) return
     setDeleting(true)
@@ -513,12 +582,38 @@ export default function VendorsPage() {
     fetchVendors()
   }
 
-  const filtered = vendors.filter(v => {
-    if (search && !v.name.toLowerCase().includes(search.toLowerCase())) return false
-    if (filterStatus !== 'All' && v.status !== filterStatus) return false
-    if (filterType !== 'All' && v.type !== filterType) return false
-    return true
-  })
+  const now = new Date()
+  const filtered = vendors
+    .filter(v => {
+      if (search && !v.name.toLowerCase().includes(search.toLowerCase())) return false
+      if (filterStatus !== 'All' && v.status !== filterStatus) return false
+      if (filterType !== 'All' && v.type !== filterType) return false
+      if (filterExp !== 'All' && v.expirationRaw) {
+        const exp = new Date(v.expirationRaw)
+        if (filterExp === 'This Month') {
+          if (exp.getMonth() !== now.getMonth() || exp.getFullYear() !== now.getFullYear()) return false
+        } else if (filterExp === 'Next 30 Days') {
+          const cutoff = new Date(now); cutoff.setDate(cutoff.getDate() + 30)
+          if (exp < now || exp > cutoff) return false
+        } else if (filterExp === 'Next 90 Days') {
+          const cutoff = new Date(now); cutoff.setDate(cutoff.getDate() + 90)
+          if (exp < now || exp > cutoff) return false
+        }
+      }
+      return true
+    })
+    .sort((a, b) => {
+      if (!sortKey) return 0
+      const dir = sortDir === 'asc' ? 1 : -1
+      if (sortKey === 'name') return dir * a.name.localeCompare(b.name)
+      if (sortKey === 'status') return dir * (STATUS_ORDER[a.status] - STATUS_ORDER[b.status])
+      if (sortKey === 'expiration') {
+        const aTime = a.expirationRaw ? new Date(a.expirationRaw).getTime() : Infinity
+        const bTime = b.expirationRaw ? new Date(b.expirationRaw).getTime() : Infinity
+        return dir * (aTime - bTime)
+      }
+      return 0
+    })
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a0f', fontFamily: 'Inter, -apple-system, sans-serif' }}>
@@ -626,15 +721,13 @@ export default function VendorsPage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid #1e1e2e' }}>
-                        {['Vendor Name', 'Type', 'Status', 'Expiration Date', 'Issues', 'Last Uploaded', 'Actions'].map(col => (
-                          <th key={col} style={{
-                            textAlign: 'left', padding: '14px 16px',
-                            fontSize: 11, color: '#8a8599', fontWeight: 600,
-                            textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap',
-                          }}>
-                            {col}
-                          </th>
-                        ))}
+                        <SortableHeader label="Vendor Name"    colKey="name"       activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                        <SortableHeader label="Type"           colKey={null}        activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                        <SortableHeader label="Status"         colKey="status"     activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                        <SortableHeader label="Expiration Date" colKey="expiration" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                        <SortableHeader label="Issues"         colKey={null}        activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                        <SortableHeader label="Last Uploaded"  colKey={null}        activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                        <SortableHeader label="Actions"        colKey={null}        activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       </tr>
                     </thead>
                     <tbody>
@@ -759,6 +852,19 @@ export default function VendorsPage() {
                   <span style={{ fontSize: 13, color: '#8a8599' }}>
                     Showing {filtered.length} of {vendors.length} vendor{vendors.length !== 1 ? 's' : ''}
                   </span>
+                  {sortKey && (
+                    <button
+                      onClick={() => { setSortKey(null); setSortDir('asc') }}
+                      style={{
+                        fontSize: 12, color: '#8a8599', background: 'transparent',
+                        border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#f0ede8')}
+                      onMouseLeave={e => (e.currentTarget.style.color = '#8a8599')}
+                    >
+                      <X size={11} /> Clear sort
+                    </button>
+                  )}
                 </div>
               </>
             )}
