@@ -171,6 +171,38 @@ ${JSON.stringify({
     const cleanJson = content.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     const coiData = JSON.parse(cleanJson)
 
+    // Server-side expiration check — the model cannot know today's date, so we
+    // override isExpired, daysUntilExpiration, and overallStatus from real wall-clock time.
+    const rawExpiry = coiData.expirationDate as string | null | undefined
+    if (rawExpiry) {
+      const parts = rawExpiry.split('/')
+      const month = Number(parts[0])
+      const day   = Number(parts[1])
+      const year  = Number(parts[2])
+      const validParse =
+        parts.length === 3 &&
+        Number.isInteger(month) && month >= 1  && month <= 12 &&
+        Number.isInteger(day)   && day   >= 1  && day   <= 31 &&
+        Number.isInteger(year)  && year  >= 1000 && year <= 9999
+      if (validParse) {
+        const expiry = new Date(year, month - 1, day)
+        const today  = new Date()
+        today.setHours(0, 0, 0, 0)
+        const diffDays = Math.ceil((expiry.getTime() - today.getTime()) / 86_400_000)
+        coiData.daysUntilExpiration = diffDays
+        coiData.isExpired           = diffDays < 0
+        if (diffDays < 0) {
+          coiData.overallStatus = 'EXPIRED'
+        } else if (diffDays <= 30 && coiData.overallStatus === 'COMPLIANT') {
+          coiData.overallStatus = 'EXPIRING'
+        }
+      } else {
+        console.warn('[extract-coi] Could not parse expirationDate — leaving model values untouched. Raw value:', rawExpiry)
+      }
+    } else {
+      console.warn('[extract-coi] expirationDate is missing or empty — leaving model values untouched.')
+    }
+
     // Save to Supabase — failure is non-fatal; analysis is always returned
     try {
       await saveToSupabase(coiData, vendorNameFromForm, vendorIdFromForm, userId)
