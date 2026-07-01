@@ -249,6 +249,31 @@ ${JSON.stringify({
   }
 }
 
+// Converts the engine's MM/DD/YYYY date strings to ISO (YYYY-MM-DD) for the
+// `date` columns added in migration 004 (submissions.effective_date /
+// expiration_date). Mirrors the exact same explicit month/day/year split and
+// validation already used above for the server-side expiration override —
+// reused here rather than duplicated logic that could drift out of sync
+// with it. Fails safe: an unparseable or missing date becomes NULL, with a
+// warning logged, same defensive pattern as the expiration-override logic.
+function parseMMDDYYYYToISO(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const parts = raw.split('/')
+  const month = Number(parts[0])
+  const day   = Number(parts[1])
+  const year  = Number(parts[2])
+  const validParse =
+    parts.length === 3 &&
+    Number.isInteger(month) && month >= 1  && month <= 12 &&
+    Number.isInteger(day)   && day   >= 1  && day   <= 31 &&
+    Number.isInteger(year)  && year  >= 1000 && year <= 9999
+  if (!validParse) {
+    console.warn(`[extract-coi] Could not parse date for storage — leaving column null. Raw value: ${raw}`)
+    return null
+  }
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
 async function saveToSupabase(
   coiData: Record<string, unknown>,
   vendorName: string | null,
@@ -264,6 +289,7 @@ async function saveToSupabase(
     ? (coiData.requirementsCheck as Array<{ passed: boolean }>)
     : []
   const failedReqs = requirementsCheck.filter(r => !r.passed).length
+  const passedReqs = requirementsCheck.filter(r => r.passed).length
   const issuesCount = flags.length + failedReqs
 
   // Risk score based on requirements compliance
@@ -327,5 +353,24 @@ async function saveToSupabase(
     issues_count: issuesCount,
     risk_score: riskScore,
     analysis_result: coiData,
+
+    // Migration 004 structured columns — promoted from coiData above,
+    // additive alongside the existing fields; nothing above this comment
+    // changed.
+    overall_status: overallStatus || null,
+    is_expired: (coiData.isExpired as boolean | undefined) ?? null,
+    passed_requirements_count: passedReqs,
+    failed_requirements_count: failedReqs,
+    requirements_check: requirementsCheck,
+    coverages: coiData.coverages ?? null,
+    flags,
+    additional_insured: (coiData.additionalInsured as boolean | undefined) ?? null,
+    waiver_of_subrogation: (coiData.waiverOfSubrogation as boolean | undefined) ?? null,
+    effective_date: parseMMDDYYYYToISO(coiData.effectiveDate as string | null | undefined),
+    expiration_date: parseMMDDYYYYToISO(coiData.expirationDate as string | null | undefined),
+    days_until_expiration: (coiData.daysUntilExpiration as number | undefined) ?? null,
+    producer: (coiData.producer as string | undefined) ?? null,
+    certificate_holder: (coiData.certificateHolder as string | undefined) ?? null,
+    insured_name: (coiData.insuredName as string | undefined) ?? null,
   })
 }
