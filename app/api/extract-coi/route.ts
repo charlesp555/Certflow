@@ -51,9 +51,7 @@ export async function POST(request: NextRequest) {
     && new URL(request.url).searchParams.get('test') === '1'
 
   try {
-    console.log(`[extract-coi] HANDLER ENTERED — content-type=${request.headers.get('content-type')?.slice(0, 60)}`)
     const formData = await request.formData()
-    console.log('[extract-coi] formData parsed OK')
     const file = formData.get('file') as File
     const vendorNameFromForm = (formData.get('vendor_name') as string | null) || null
     const vendorIdFromForm = (formData.get('vendor_id') as string | null) || null
@@ -62,10 +60,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
     }
 
-    console.log(`[extract-coi] file="${file.name}" size=${file.size}b vendor="${vendorNameFromForm ?? vendorIdFromForm ?? 'none'}" testRun=${isTestRun}`)
-
     const { userId } = await auth()
-    console.log(`[extract-coi] auth userId=${userId ?? 'null'}`)
 
     // Fetch this user's saved requirements (or defaults)
     const requirements = userId
