@@ -69,7 +69,7 @@ function rowToVendor(row: VendorRow): Vendor {
   return {
     id: row.id,
     name: row.name,
-    type: row.type ?? '—',
+    type: row.type ?? UNTYPED,
     status: mapStatus(row.status),
     expiration: formatDate(row.expiration_date),
     expirationRaw: row.expiration_date ?? null,
@@ -80,9 +80,15 @@ function rowToVendor(row: VendorRow): Vendor {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const VENDOR_TYPES = ['All', 'Plumbing', 'Electrical', 'HVAC', 'Roofing', 'Janitorial', 'General Contractor', 'Flooring']
+// Sentinel shown for vendors with no `type` set (e.g. auto-created via the
+// COI-upload path, which doesn't collect a type). Kept as a real string value
+// — rather than '—' — so it's both an unambiguous label and a matchable
+// filter option, instead of silently sitting outside every specific filter.
+const UNTYPED = 'Untyped'
+
+const VENDOR_TYPES = ['All', 'Plumbing', 'Electrical', 'HVAC', 'Roofing', 'Janitorial', 'General Contractor', 'Flooring', UNTYPED]
 const STATUS_OPTIONS: (VendorStatus | 'All')[] = ['All', 'Compliant', 'Issues Found', 'Expiring Soon', 'Pending Review']
-const EXPIRATION_OPTIONS = ['All', 'This Month', 'Next 30 Days', 'Next 90 Days']
+const EXPIRATION_OPTIONS = ['All', 'This Month', 'Next 30 Days', 'Next 90 Days', 'Expired']
 const MODAL_TYPES = ['Plumbing', 'Electrical', 'HVAC', 'Roofing', 'Janitorial', 'General Contractor', 'Flooring']
 const MODAL_STATUSES = ['Pending Review', 'Compliant', 'Issues Found', 'Expiring Soon']
 
@@ -583,6 +589,7 @@ export default function VendorsPage() {
   }
 
   const now = new Date()
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const filtered = vendors
     .filter(v => {
       if (search && !v.name.toLowerCase().includes(search.toLowerCase())) return false
@@ -598,6 +605,8 @@ export default function VendorsPage() {
         } else if (filterExp === 'Next 90 Days') {
           const cutoff = new Date(now); cutoff.setDate(cutoff.getDate() + 90)
           if (exp < now || exp > cutoff) return false
+        } else if (filterExp === 'Expired') {
+          if (exp >= todayMidnight) return false
         }
       }
       return true
@@ -751,7 +760,15 @@ export default function VendorsPage() {
                               </span>
                             </Link>
                           </td>
-                          <td style={{ padding: '14px 16px', fontSize: 13, color: '#8a8599', whiteSpace: 'nowrap' }}>{vendor.type}</td>
+                          <td style={{ padding: '14px 16px', fontSize: 13, whiteSpace: 'nowrap' }}>
+                            {vendor.type === UNTYPED ? (
+                              <span style={{ color: '#D97706', fontStyle: 'italic' }} title="Set this vendor's type from its profile page">
+                                Untyped
+                              </span>
+                            ) : (
+                              <span style={{ color: '#8a8599' }}>{vendor.type}</span>
+                            )}
+                          </td>
                           <td style={{ padding: '14px 16px' }}><StatusBadge status={vendor.status} /></td>
                           <td style={{ padding: '14px 16px', fontSize: 13, color: '#8a8599', whiteSpace: 'nowrap' }}>{vendor.expiration}</td>
                           <td style={{ padding: '14px 16px', textAlign: 'center' }}>

@@ -81,6 +81,10 @@ type Vendor = {
   created_at: string | null
 }
 
+// Trade options a vendor can be categorized under — matches the list used by
+// the vendors list page's type filter (app/vendors/page.tsx).
+const VENDOR_TYPE_OPTIONS = ['Plumbing', 'Electrical', 'HVAC', 'Roofing', 'Janitorial', 'General Contractor', 'Flooring']
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function vendorStatusInfo(status: string | null) {
@@ -530,6 +534,8 @@ export default function VendorProfile() {
   const [toastVisible,  setToastVisible]  = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [refreshKey,    setRefreshKey]    = useState(0)
+  const [editingType,   setEditingType]  = useState(false)
+  const [savingType,    setSavingType]   = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
@@ -571,6 +577,24 @@ export default function VendorProfile() {
     setToastMsg(msg)
     setToastVisible(true)
     timerRef.current = setTimeout(() => setToastVisible(false), 3000)
+  }
+
+  async function handleSetType(newType: string) {
+    if (!user || !vendor) return
+    setSavingType(true)
+    const { error } = await supabase
+      .from('vendors')
+      .update({ type: newType })
+      .eq('id', vendor.id)
+      .eq('clerk_user_id', user.id)
+    setSavingType(false)
+    if (error) {
+      showToast('Failed to update vendor type')
+      return
+    }
+    setVendor(v => (v ? { ...v, type: newType } : v))
+    setEditingType(false)
+    showToast('Vendor type updated')
   }
 
   const TABS: { key: Tab; label: string }[] = [
@@ -652,10 +676,47 @@ export default function VendorProfile() {
                 {vendor.name}
               </h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                {vendor.type && (
-                  <span style={{ background: 'rgba(255,255,255,0.05)', color: T.secondary, border: `1px solid ${T.border}`, borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 500 }}>
-                    {vendor.type}
+                {editingType ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <select
+                      autoFocus
+                      defaultValue={vendor.type ?? ''}
+                      disabled={savingType}
+                      onChange={e => e.target.value && handleSetType(e.target.value)}
+                      onBlur={() => setEditingType(false)}
+                      style={{ background: T.card, color: T.primary, border: `1px solid ${T.borderAccent}`, borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 500, outline: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+                    >
+                      <option value="" disabled>Select type…</option>
+                      {VENDOR_TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <button
+                      onClick={() => setEditingType(false)}
+                      title="Cancel"
+                      style={{ background: 'none', border: 'none', color: T.muted, cursor: 'pointer', padding: 2, display: 'flex' }}
+                    >
+                      <X size={13} />
+                    </button>
                   </span>
+                ) : vendor.type ? (
+                  <button
+                    onClick={() => setEditingType(true)}
+                    title="Change vendor type"
+                    style={{ background: 'rgba(255,255,255,0.05)', color: T.secondary, border: `1px solid ${T.border}`, borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'border-color 0.15s, color 0.15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderAccent; e.currentTarget.style.color = T.primary }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.secondary }}
+                  >
+                    {vendor.type}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setEditingType(true)}
+                    title="Set this vendor's type"
+                    style={{ background: 'rgba(217,119,6,0.08)', color: T.orange, border: '1px dashed rgba(217,119,6,0.35)', borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 600, fontStyle: 'italic', cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.14)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.08)' }}
+                  >
+                    Untyped — set type
+                  </button>
                 )}
                 <span style={{ background: statusInfo.bg, color: statusInfo.color, border: `1px solid ${statusInfo.border}`, borderRadius: 6, padding: '4px 12px', fontSize: 12, fontWeight: 600 }}>
                   {statusInfo.label}

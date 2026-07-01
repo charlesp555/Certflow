@@ -45,8 +45,15 @@ function buildRequirementsPrompt(requirements: Requirement[]): string {
 }
 
 export async function POST(request: NextRequest) {
+  const t0 = Date.now()
+  // ?test=1 (dev only) — skips DB save so the regression suite can test pure analysis output
+  const isTestRun = process.env.NODE_ENV === 'development'
+    && new URL(request.url).searchParams.get('test') === '1'
+
   try {
+    console.log(`[extract-coi] HANDLER ENTERED — content-type=${request.headers.get('content-type')?.slice(0, 60)}`)
     const formData = await request.formData()
+    console.log('[extract-coi] formData parsed OK')
     const file = formData.get('file') as File
     const vendorNameFromForm = (formData.get('vendor_name') as string | null) || null
     const vendorIdFromForm = (formData.get('vendor_id') as string | null) || null
@@ -55,7 +62,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
     }
 
+    console.log(`[extract-coi] file="${file.name}" size=${file.size}b vendor="${vendorNameFromForm ?? vendorIdFromForm ?? 'none'}" testRun=${isTestRun}`)
+
     const { userId } = await auth()
+    console.log(`[extract-coi] auth userId=${userId ?? 'null'}`)
 
     // Fetch this user's saved requirements (or defaults)
     const requirements = userId
@@ -159,17 +169,31 @@ ${JSON.stringify({
       }),
     })
 
+    console.log(`[extract-coi] Anthropic responded ${response.status} after ${Date.now() - t0}ms`)
     const responseText = await response.text()
 
     if (!response.ok) {
-      console.error('Anthropic API error:', responseText)
+      console.error('[extract-coi] Anthropic API error:', responseText.slice(0, 500))
       return NextResponse.json({ error: `API error: ${response.status} - ${responseText}` }, { status: 500 })
     }
 
-    const data = JSON.parse(responseText)
-    const content = data.content[0]
-    const cleanJson = content.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    const coiData = JSON.parse(cleanJson)
+    // Parse Anthropic response — wrapped separately so a malformed body produces a clear error
+    let coiData: Record<string, unknown>
+    try {
+      const envelope = JSON.parse(responseText)
+      const block    = envelope.content?.[0]
+      if (!block || block.type !== 'text') {
+        throw new Error(`Unexpected content block: type=${block?.type ?? 'missing'} — full envelope: ${JSON.stringify(envelope).slice(0, 300)}`)
+      }
+      const cleanJson = block.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+      coiData = JSON.parse(cleanJson)
+      console.log(`[extract-coi] parsed OK — overallStatus=${coiData.overallStatus} expiry=${coiData.expirationDate}`)
+    } catch (parseErr) {
+      const msg = parseErr instanceof Error ? parseErr.message : String(parseErr)
+      console.error('[extract-coi] PARSE FAILED:', msg)
+      console.error('[extract-coi] raw response (first 600 chars):', responseText.slice(0, 600))
+      throw parseErr
+    }
 
     // Server-side expiration check — the model cannot know today's date, so we
     // override isExpired, daysUntilExpiration, and overallStatus from real wall-clock time.
@@ -196,6 +220,7 @@ ${JSON.stringify({
         } else if (diffDays <= 30 && coiData.overallStatus === 'COMPLIANT') {
           coiData.overallStatus = 'EXPIRING'
         }
+        console.log(`[extract-coi] expiry check: diffDays=${diffDays} isExpired=${coiData.isExpired} overallStatus=${coiData.overallStatus}`)
       } else {
         console.warn('[extract-coi] Could not parse expirationDate — leaving model values untouched. Raw value:', rawExpiry)
       }
@@ -203,16 +228,25 @@ ${JSON.stringify({
       console.warn('[extract-coi] expirationDate is missing or empty — leaving model values untouched.')
     }
 
-    // Save to Supabase — failure is non-fatal; analysis is always returned
-    try {
-      await saveToSupabase(coiData, vendorNameFromForm, vendorIdFromForm, userId)
-    } catch (dbErr) {
-      console.error('Supabase save error:', dbErr)
+    // Save to Supabase — skipped in test mode; failure is non-fatal otherwise
+    if (isTestRun) {
+      console.log('[extract-coi] test mode — skipping DB save')
+    } else {
+      try {
+        await saveToSupabase(coiData, vendorNameFromForm, vendorIdFromForm, userId)
+      } catch (dbErr) {
+        const msg = dbErr instanceof Error ? dbErr.message : String(dbErr)
+        console.error('[extract-coi] DB save error:', msg)
+      }
     }
 
+    console.log(`[extract-coi] done in ${Date.now() - t0}ms`)
     return NextResponse.json({ success: true, data: coiData })
   } catch (error) {
-    console.error('COI extraction error:', error)
+    const msg   = error instanceof Error ? error.message : String(error)
+    const stack = error instanceof Error ? (error.stack ?? '') : ''
+    console.error(`[extract-coi] FATAL after ${Date.now() - t0}ms: ${msg}`)
+    if (stack) console.error(stack)
     return NextResponse.json(
       { error: 'Failed to extract COI data' },
       { status: 500 }

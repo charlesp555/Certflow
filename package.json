@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:engine": "node scripts/test-engine.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.4.3",
