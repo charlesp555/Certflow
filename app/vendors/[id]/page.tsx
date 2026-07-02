@@ -145,9 +145,42 @@ function findingRecommendation(category: 'endorsement' | 'limit'): string {
   return category === 'endorsement' ? 'Request endorsement' : 'Request updated COI'
 }
 
+// Builds a mailto: link pre-filled from the failed requirements already on
+// the page (requirements_check, passed=false) — no re-parsing of
+// analysis_result, no backend, no stored vendor email. The "to" address is
+// deliberately left blank: vendors has no email column, so the PM fills in
+// the recipient themselves in whatever mail client opens.
+function buildFindingsMailto(vendorName: string, failedReqs: RequirementCheck[]): string {
+  const subject = `Certificate of Insurance — Action Required for ${vendorName}`
+
+  const lines = failedReqs.map(r => `- ${r.coverage}: required ${r.minimum || '—'}, actual ${r.actual || '—'}`)
+
+  const body = [
+    `Hi ${vendorName},`,
+    '',
+    'Our recent verification of your Certificate of Insurance found the following issue(s):',
+    '',
+    ...lines,
+    '',
+    'Please provide an updated Certificate of Insurance addressing the above.',
+    '',
+    'Thanks,',
+  ].join('\n')
+
+  return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+}
+
 function fmtDate(iso: string | null): string {
   if (!iso) return '—'
   try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }
+  catch { return '—' }
+}
+
+// Long-form date for the Verification History list (e.g. "July 2, 2026"),
+// distinct from the short-form fmtDate used elsewhere on this page.
+function fmtDateLong(iso: string | null): string {
+  if (!iso) return '—'
+  try { return new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) }
   catch { return '—' }
 }
 
@@ -340,7 +373,7 @@ function VerifiedRequirements({ sub }: { sub: Submission }) {
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
 
-function OverviewTab({ latestSub, showToast }: { latestSub: Submission | null; showToast: (m: string) => void }) {
+function OverviewTab({ latestSub, vendorName }: { latestSub: Submission | null; vendorName: string }) {
   if (!latestSub) {
     return (
       <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 40, textAlign: 'center' }}>
@@ -354,7 +387,8 @@ function OverviewTab({ latestSub, showToast }: { latestSub: Submission | null; s
   }
 
   const failedCount = latestSub.failed_requirements_count
-  const firstFailed = latestSub.requirements_check?.find(r => !r.passed) ?? null
+  const failedReqs  = latestSub.requirements_check?.filter(r => !r.passed) ?? []
+  const firstFailed = failedReqs[0] ?? null
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -364,7 +398,10 @@ function OverviewTab({ latestSub, showToast }: { latestSub: Submission | null; s
 
       {/* Action Required — kept from the previous layout, now driven by the
           structured failed_requirements_count column instead of re-parsing
-          analysis_result.flags. */}
+          analysis_result.flags. The button opens a mailto: draft pre-filled
+          from the failed requirements already on the page — there's no
+          vendor email on file and no email service wired up, so this only
+          opens the PM's own mail client with the recipient left blank. */}
       {failedCount !== null && failedCount > 0 && (
         <div style={{ background: 'rgba(217,119,6,0.05)', border: '1px solid rgba(217,119,6,0.20)', borderRadius: 12, padding: '20px 24px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
@@ -377,14 +414,14 @@ function OverviewTab({ latestSub, showToast }: { latestSub: Submission | null; s
               </p>
             </div>
           </div>
-          <button
-            onClick={() => showToast('Request sent to vendor')}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0, background: T.orange, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 2px 12px rgba(217,119,6,0.28)', transition: 'background 0.15s, transform 0.1s' }}
+          <a
+            href={buildFindingsMailto(vendorName, failedReqs)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0, background: T.orange, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', textDecoration: 'none', boxShadow: '0 2px 12px rgba(217,119,6,0.28)', transition: 'background 0.15s, transform 0.1s' }}
             onMouseEnter={e => { e.currentTarget.style.background = T.orangeHover; e.currentTarget.style.transform = 'translateY(-1px)' }}
             onMouseLeave={e => { e.currentTarget.style.background = T.orange; e.currentTarget.style.transform = 'translateY(0)' }}
           >
             Send Request to Vendor →
-          </button>
+          </a>
         </div>
       )}
 
@@ -494,48 +531,80 @@ function DocumentsTab({ vendor, submissions, showToast, onUploadClick }: { vendo
 
 // ── History Tab ───────────────────────────────────────────────────────────────
 
-function HistoryTab({ submissions }: { submissions: Submission[] }) {
+// ── Verification History Tab ─────────────────────────────────────────────────
+// Read-only, newest-first list — one row per submissions row (each row IS a
+// verification). Reads only the structured columns already loaded with
+// `submissions` (overall_status, passed/failed_requirements_count,
+// created_at) — no analysis_result parsing, no engine/route.ts changes.
+
+function VerificationHistoryTab({ submissions }: { submissions: Submission[] }) {
   if (submissions.length === 0) {
     return (
       <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 40, textAlign: 'center' }}>
         <Clock size={32} color={T.muted} style={{ marginBottom: 12 }} />
-        <p style={{ fontSize: 14, color: T.secondary, margin: 0 }}>No submission history yet.</p>
+        <p style={{ fontSize: 14, color: T.secondary, margin: 0 }}>No verifications yet.</p>
       </div>
     )
   }
 
   return (
     <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 28 }}>
-      <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: '0 0 28px' }}>Submission History</h3>
+      <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: '0 0 28px' }}>Verification History</h3>
       <div style={{ position: 'relative' }}>
         <div style={{ position: 'absolute', left: 11, top: 14, bottom: 14, width: 1, background: T.border }} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
           {submissions.map((sub, i) => {
-            const ok     = sub.status === 'Compliant'
-            const issues = sub.issues_count ?? (sub.analysis_result?.flags?.length ?? 0)
-            const detail = issues > 0 ? `${issues} issue${issues !== 1 ? 's' : ''} detected` : 'All requirements met'
+            // Pre-backfill rows (very old) have overall_status still NULL —
+            // fall back to a muted "details unavailable" row instead of
+            // guessing at status/counts or showing a false "0/0".
+            const unavailable = sub.overall_status === null
+            const info   = overallStatusInfo(sub.overall_status)
+            const passed = sub.passed_requirements_count
+            const failed = sub.failed_requirements_count
+            const hasCounts = passed !== null && failed !== null
+            const total  = hasCounts ? (passed as number) + (failed as number) : 0
+            const dotColor = unavailable ? T.muted : info.color
+
             return (
               <div key={sub.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 18, paddingBottom: i < submissions.length - 1 ? 24 : 0 }}>
-                <div style={{ width: 23, height: 23, borderRadius: '50%', flexShrink: 0, zIndex: 1, background: ok ? 'rgba(34,197,94,0.12)' : 'rgba(217,119,6,0.12)', border: `2px solid ${ok ? T.green : T.orange}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {ok ? <Check size={11} color={T.green} strokeWidth={2.5} /> : <AlertTriangle size={10} color={T.orange} />}
+                <div style={{ width: 23, height: 23, borderRadius: '50%', flexShrink: 0, zIndex: 1, background: unavailable ? 'rgba(75,80,99,0.12)' : info.bg, border: `2px solid ${dotColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {unavailable
+                    ? <Clock size={10} color={T.muted} />
+                    : sub.overall_status === 'COMPLIANT'
+                      ? <Check size={11} color={T.green} strokeWidth={2.5} />
+                      : <AlertTriangle size={10} color={dotColor} />}
                 </div>
                 <div style={{ flex: 1, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, transition: 'border-color 0.15s' }}
                   onMouseEnter={e => (e.currentTarget.style.borderColor = T.borderAccent)}
                   onMouseLeave={e => (e.currentTarget.style.borderColor = T.border)}
                 >
                   <div>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: T.primary, margin: '0 0 4px' }}>COI uploaded</p>
-                    <p style={{ fontSize: 12, color: T.secondary, margin: 0 }}>{detail}</p>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
-                    <span style={{ background: ok ? 'rgba(34,197,94,0.09)' : 'rgba(217,119,6,0.09)', color: ok ? T.green : T.orange, border: `1px solid ${ok ? 'rgba(34,197,94,0.22)' : 'rgba(217,119,6,0.22)'}`, borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}>
-                      {sub.status || 'Pending Review'}
-                    </span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <Clock size={12} color={T.muted} />
-                      <span style={{ fontSize: 12, color: T.muted }}>{fmtDate(sub.created_at)}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                      {!unavailable && (
+                        <span style={{ background: info.bg, color: info.color, border: `1px solid ${info.border}`, borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}>
+                          {info.label}
+                        </span>
+                      )}
+                      <span style={{ fontSize: 13, fontWeight: 600, color: T.primary }}>{fmtDateLong(sub.created_at)}</span>
                     </div>
+                    {unavailable ? (
+                      <p style={{ fontSize: 12, color: T.muted, fontStyle: 'italic', margin: 0 }}>Details unavailable for this submission</p>
+                    ) : (
+                      <p style={{ fontSize: 12, color: T.secondary, margin: 0 }}>
+                        {hasCounts ? `Verified ${passed} / ${total} Requirements` : 'Requirements data unavailable'}
+                        {' · '}
+                        {failed !== null ? `${failed} Finding${failed !== 1 ? 's' : ''}` : '— Findings'}
+                      </p>
+                    )}
                   </div>
+                  <Link
+                    href={`/report/${sub.id}`}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0, fontSize: 12, fontWeight: 600, color: T.orange, textDecoration: 'none', whiteSpace: 'nowrap', transition: 'color 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = T.orangeHover)}
+                    onMouseLeave={e => (e.currentTarget.style.color = T.orange)}
+                  >
+                    View Verification →
+                  </Link>
                 </div>
               </div>
             )
@@ -698,7 +767,7 @@ export default function VendorProfile() {
   const TABS: { key: Tab; label: string }[] = [
     { key: 'overview',  label: 'Overview'  },
     { key: 'documents', label: 'Documents' },
-    { key: 'history',   label: 'History'   },
+    { key: 'history',   label: 'Verification History' },
     { key: 'notes',     label: 'Notes'     },
   ]
 
@@ -853,9 +922,9 @@ export default function VendorProfile() {
             })}
           </div>
 
-          {activeTab === 'overview'  && <OverviewTab  latestSub={latestSub} showToast={showToast} />}
+          {activeTab === 'overview'  && <OverviewTab  latestSub={latestSub} vendorName={vendor.name} />}
           {activeTab === 'documents' && <DocumentsTab vendor={vendor} submissions={submissions} showToast={showToast} onUploadClick={() => setShowUploadModal(true)} />}
-          {activeTab === 'history'   && <HistoryTab   submissions={submissions} />}
+          {activeTab === 'history'   && <VerificationHistoryTab submissions={submissions} />}
           {activeTab === 'notes'     && <NotesTab />}
         </div>
       </main>

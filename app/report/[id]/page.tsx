@@ -70,16 +70,6 @@ function statusInfo(status: string | null | undefined) {
   }
 }
 
-function computeConfidence(ar: AnalysisResult): number {
-  let pts = 0
-  if (ar.insuredName)                  pts += 20
-  if (ar.effectiveDate)                pts += 20
-  if (ar.expirationDate)               pts += 20
-  if (ar.coverages && ar.coverages.length > 0) pts += 20
-  if (ar.certificateHolder)            pts += 20
-  return Math.max(pts, 60)
-}
-
 function generateSummary(ar: AnalysisResult, vendorName: string): string {
   const flags = ar.flags ?? []
   switch (ar.overallStatus) {
@@ -180,10 +170,6 @@ export default function ReportDetailPage() {
   const policyPeriod = ar?.effectiveDate && ar?.expirationDate
     ? `${ar.effectiveDate} – ${ar.expirationDate}`
     : ar?.expirationDate ?? '—'
-
-  const confidence      = ar ? computeConfidence(ar) : 0
-  const confidenceLabel = confidence >= 90 ? 'High' : confidence >= 75 ? 'Medium' : 'Low'
-  const confidenceColor = confidence >= 90 ? '#22c55e' : confidence >= 75 ? '#f59e0b' : '#ef4444'
 
   const summary = ar ? generateSummary(ar, vendorName) : ''
   const flags   = ar?.flags ?? []
@@ -375,23 +361,6 @@ export default function ReportDetailPage() {
                   <div style={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 12, padding: 20 }}>
                     <h3 style={{ fontSize: 14, fontWeight: 700, color: '#f0ede8', margin: '0 0 12px' }}>Summary</h3>
                     <p style={{ fontSize: 13, color: '#c4bfd8', lineHeight: 1.7, margin: 0 }}>{summary}</p>
-                  </div>
-
-                  {/* AI Confidence */}
-                  <div style={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 12, padding: 20 }}>
-                    <h3 style={{ fontSize: 14, fontWeight: 700, color: '#f0ede8', margin: '0 0 14px' }}>AI Confidence</h3>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <span style={{ fontSize: 13, color: '#8a8599' }}>Extraction accuracy</span>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: confidenceColor }}>
-                        {confidenceLabel} ({confidence}%)
-                      </span>
-                    </div>
-                    <div style={{ height: 8, background: '#1e1e2e', borderRadius: 100, overflow: 'hidden' }}>
-                      <div style={{ width: `${confidence}%`, height: '100%', background: confidenceColor, borderRadius: 100, transition: 'width 0.5s ease' }} />
-                    </div>
-                    <div style={{ fontSize: 12, color: '#8a8599', marginTop: 8 }}>
-                      Based on document clarity and data completeness
-                    </div>
                   </div>
 
                   {/* Recommendations / Flags */}
