@@ -6,7 +6,8 @@ import Link from 'next/link'
 import {
   Bell, ArrowLeft, Upload, FileText,
   Check, X, AlertTriangle, Eye, Clock,
-  CheckCircle2, XCircle, MessageSquare, Shield,
+  CheckCircle2, MessageSquare,
+  ChevronDown, ChevronRight,
 } from 'lucide-react'
 import Sidebar from '../../components/Sidebar'
 import COIUploadModal from '../../components/COIUploadModal'
@@ -70,6 +71,19 @@ type Submission = {
   risk_score: number | null
   analysis_result: AnalysisResult | null
   created_at: string | null
+
+  // Migration 004/005 structured verification columns — promoted from
+  // analysis_result so the Findings display can read them directly instead
+  // of re-parsing the jsonb blob. NULL on very old, pre-backfill rows.
+  overall_status: string | null
+  requirements_check: RequirementCheck[] | null
+  passed_requirements_count: number | null
+  failed_requirements_count: number | null
+  is_expired: boolean | null
+  effective_date: string | null
+  expiration_date: string | null
+  additional_insured: boolean | null
+  waiver_of_subrogation: boolean | null
 }
 
 type Vendor = {
@@ -97,16 +111,44 @@ function vendorStatusInfo(status: string | null) {
   }
 }
 
+// overall_status is the 4-value structured status (COMPLIANT / EXPIRING /
+// EXPIRED / NON_COMPLIANT) written by migration 004/005 — distinct from the
+// 2-value `vendor.status` handled by vendorStatusInfo above.
+function overallStatusInfo(status: string | null) {
+  switch (status) {
+    case 'COMPLIANT':     return { label: 'Compliant',     color: T.green,  bg: 'rgba(34,197,94,0.09)',   border: 'rgba(34,197,94,0.22)'  }
+    case 'EXPIRING':      return { label: 'Expiring Soon',  color: T.amber,  bg: 'rgba(251,191,36,0.09)',  border: 'rgba(251,191,36,0.22)' }
+    case 'EXPIRED':       return { label: 'Expired',        color: T.red,    bg: 'rgba(239,68,68,0.09)',   border: 'rgba(239,68,68,0.22)'  }
+    case 'NON_COMPLIANT': return { label: 'Non-Compliant',  color: T.orange, bg: 'rgba(217,119,6,0.09)',   border: 'rgba(217,119,6,0.22)'  }
+    default:               return { label: 'Pending Review', color: T.blue,  bg: 'rgba(139,140,248,0.09)', border: 'rgba(139,140,248,0.22)' }
+  }
+}
+
+// Simple, non-engine severity/recommendation rule for a failed requirement:
+// coverage-LIMIT failures (General Liability, Auto Liability, Workers
+// Compensation) are treated as RED/higher-severity; endorsement-style
+// failures (Additional Insured, Waiver of Subrogation) as ORANGE. Anything
+// else (a custom user-defined requirement) defaults to the limit bucket.
+const ENDORSEMENT_COVERAGES = new Set(['Additional Insured', 'Waiver of Subrogation'])
+
+function findingCategory(coverage: string): 'endorsement' | 'limit' {
+  return ENDORSEMENT_COVERAGES.has(coverage) ? 'endorsement' : 'limit'
+}
+
+function findingStyle(category: 'endorsement' | 'limit') {
+  return category === 'endorsement'
+    ? { color: T.orange, bg: 'rgba(217,119,6,0.06)',  border: 'rgba(217,119,6,0.22)'  }
+    : { color: T.red,    bg: 'rgba(239,68,68,0.06)',  border: 'rgba(239,68,68,0.22)'  }
+}
+
+function findingRecommendation(category: 'endorsement' | 'limit'): string {
+  return category === 'endorsement' ? 'Request endorsement' : 'Request updated COI'
+}
+
 function fmtDate(iso: string | null): string {
   if (!iso) return '—'
   try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }
   catch { return '—' }
-}
-
-function valueOk(v: string | null | undefined): boolean {
-  if (!v) return false
-  const n = v.toLowerCase().trim()
-  return n !== '' && n !== 'n/a' && n !== '$0' && n !== '0' && n !== 'none' && n !== 'not listed' && n !== 'not included'
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -130,64 +172,175 @@ function Toast({ message, visible }: { message: string; visible: boolean }) {
   )
 }
 
-// ── CoverageBadge ─────────────────────────────────────────────────────────────
+// ── Verification Summary ─────────────────────────────────────────────────────
+// Top section of the Findings display — reads only the structured columns
+// (no analysis_result parsing). All four values fall back to '—' when the
+// row predates the migration 005 backfill and the columns are still NULL.
 
-function CoverageBadge({ ok }: { ok: boolean }) {
-  return ok ? (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(34,197,94,0.09)', color: T.green, border: '1px solid rgba(34,197,94,0.22)', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
-      <Check size={10} strokeWidth={2.5} /> Compliant
-    </span>
-  ) : (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(239,68,68,0.09)', color: T.red, border: '1px solid rgba(239,68,68,0.22)', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
-      <X size={10} strokeWidth={2.5} /> Missing
-    </span>
+function StatTile({ label, value, valueColor }: { label: string; value: React.ReactNode; valueColor?: string }) {
+  return (
+    <div>
+      <p style={{ fontSize: 10, color: T.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 8px' }}>{label}</p>
+      <p style={{ fontSize: 20, fontWeight: 700, color: valueColor ?? T.primary, margin: 0 }}>{value}</p>
+    </div>
+  )
+}
+
+function VerificationSummary({ sub }: { sub: Submission }) {
+  const info   = overallStatusInfo(sub.overall_status)
+  const passed = sub.passed_requirements_count
+  const failed = sub.failed_requirements_count
+  const hasCounts = passed !== null && failed !== null
+  const total  = hasCounts ? (passed as number) + (failed as number) : 0
+
+  return (
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 24 }}>
+      <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: '0 0 20px' }}>Verification Summary</h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
+        <StatTile
+          label="Overall Status"
+          value={
+            <span style={{ display: 'inline-block', background: info.bg, color: info.color, border: `1px solid ${info.border}`, borderRadius: 6, padding: '3px 10px', fontSize: 13, fontWeight: 600 }}>
+              {info.label}
+            </span>
+          }
+        />
+        <StatTile label="Verified" value={fmtDate(sub.created_at)} />
+        <StatTile label="Requirements Passed" value={hasCounts ? `${passed}/${total}` : '—'} />
+        <StatTile
+          label="Open Findings"
+          value={failed !== null ? failed : '—'}
+          valueColor={failed !== null && failed > 0 ? T.red : T.green}
+        />
+      </div>
+    </div>
+  )
+}
+
+// ── Open Findings ─────────────────────────────────────────────────────────────
+// The priority content: every failed requirement, shown expanded. `reason`
+// is the engine's own explanation of the failure (already computed, stored
+// verbatim in requirements_check) — reused here as the Impact line rather
+// than inventing new copy. Severity color and recommendation follow the
+// simple front-end-only rule in findingCategory/findingStyle above.
+
+function OpenFindings({ sub }: { sub: Submission }) {
+  if (sub.requirements_check === null) {
+    return (
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 24 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: '0 0 8px' }}>Open Findings</h3>
+        <p style={{ fontSize: 13, color: T.muted, margin: 0 }}>
+          Findings data isn&apos;t available for this older submission.
+        </p>
+      </div>
+    )
+  }
+
+  const failed = sub.requirements_check.filter(r => !r.passed)
+
+  if (failed.length === 0) {
+    return (
+      <div style={{ background: 'rgba(34,197,94,0.05)', border: '1px solid rgba(34,197,94,0.20)', borderRadius: 12, padding: '24px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <CheckCircle2 size={20} color={T.green} style={{ flexShrink: 0 }} />
+        <div>
+          <p style={{ fontSize: 14, fontWeight: 700, color: T.green, margin: '0 0 3px' }}>All requirements met</p>
+          <p style={{ fontSize: 13, color: T.secondary, margin: 0 }}>No open findings on this verification.</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: '0 0 12px' }}>Open Findings ({failed.length})</h3>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {failed.map((req, i) => {
+          const category = findingCategory(req.coverage)
+          const style    = findingStyle(category)
+          return (
+            <div key={i} style={{ background: style.bg, border: `1px solid ${style.border}`, borderRadius: 12, padding: '18px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 12 }}>
+                <AlertTriangle size={15} color={style.color} style={{ flexShrink: 0 }} />
+                <span style={{ fontSize: 14, fontWeight: 700, color: T.primary }}>{req.coverage}</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div>
+                  <p style={{ fontSize: 10, color: T.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 4px' }}>Required</p>
+                  <p style={{ fontSize: 13, color: T.primary, margin: 0 }}>{req.minimum || '—'}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: 10, color: T.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 4px' }}>Actual</p>
+                  <p style={{ fontSize: 13, color: style.color, fontWeight: 600, margin: 0 }}>{req.actual || '—'}</p>
+                </div>
+              </div>
+              <p style={{ fontSize: 13, color: T.secondary, lineHeight: 1.6, margin: '0 0 10px' }}>
+                <span style={{ fontWeight: 600, color: T.secondary }}>Impact: </span>{req.reason || 'Does not meet the requirement.'}
+              </p>
+              <p style={{ fontSize: 13, color: style.color, fontWeight: 600, margin: 0 }}>
+                → {findingRecommendation(category)}
+              </p>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Verified Requirements ─────────────────────────────────────────────────────
+// Collapsed by default — the passed requirements are confirmatory detail,
+// not the priority content.
+
+function VerifiedRequirements({ sub }: { sub: Submission }) {
+  const [open, setOpen] = useState(false)
+
+  if (sub.requirements_check === null) return null
+
+  const passed = sub.requirements_check.filter(r => r.passed)
+  if (passed.length === 0) return null
+
+  return (
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, overflow: 'hidden' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: 'inherit' }}
+      >
+        <span style={{ fontSize: 14, fontWeight: 700, color: T.primary }}>Verified Requirements ({passed.length})</span>
+        {open ? <ChevronDown size={16} color={T.secondary} /> : <ChevronRight size={16} color={T.secondary} />}
+      </button>
+      {open && (
+        <div style={{ borderTop: `1px solid ${T.border}` }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: 'left', padding: '10px 20px', fontSize: 10, color: T.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', borderBottom: `1px solid ${T.border}` }}>Coverage</th>
+                <th style={{ textAlign: 'left', padding: '10px 20px', fontSize: 10, color: T.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', borderBottom: `1px solid ${T.border}` }}>Required</th>
+                <th style={{ textAlign: 'left', padding: '10px 20px', fontSize: 10, color: T.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', borderBottom: `1px solid ${T.border}` }}>Actual</th>
+                <th style={{ textAlign: 'right', padding: '10px 20px', fontSize: 10, color: T.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', borderBottom: `1px solid ${T.border}` }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {passed.map((req, i) => (
+                <tr key={i}>
+                  <td style={{ padding: '12px 20px', fontSize: 13, fontWeight: 600, color: T.primary, borderBottom: i < passed.length - 1 ? `1px solid ${T.border}` : 'none' }}>{req.coverage}</td>
+                  <td style={{ padding: '12px 20px', fontSize: 12, color: T.secondary, borderBottom: i < passed.length - 1 ? `1px solid ${T.border}` : 'none' }}>{req.minimum || '—'}</td>
+                  <td style={{ padding: '12px 20px', fontSize: 12, color: T.secondary, borderBottom: i < passed.length - 1 ? `1px solid ${T.border}` : 'none' }}>{req.actual || '—'}</td>
+                  <td style={{ padding: '12px 20px', textAlign: 'right', borderBottom: i < passed.length - 1 ? `1px solid ${T.border}` : 'none' }}>
+                    <Check size={14} color={T.green} strokeWidth={2.5} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   )
 }
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
 
 function OverviewTab({ latestSub, showToast }: { latestSub: Submission | null; showToast: (m: string) => void }) {
-  const ar = latestSub?.analysis_result ?? null
-
-  type CovRow = { type: string; actual: string; ok: boolean }
-  const rows: CovRow[] = []
-
-  const reqCheck = ar?.requirementsCheck ?? []
-
-  if (reqCheck.length > 0) {
-    for (const req of reqCheck) {
-      rows.push({ type: req.coverage, actual: req.actual || '—', ok: req.passed })
-    }
-  } else {
-    // Fallback for older submissions without requirementsCheck
-    if (ar?.coverages) {
-      for (const c of ar.coverages) {
-        const display = [c.eachOccurrence, c.aggregate]
-          .filter(v => v && !['$0', 'N/A', 'n/a', '0', 'None'].includes(v))
-          .join(' / ') || '—'
-        rows.push({ type: c.type, actual: display, ok: valueOk(c.eachOccurrence) || valueOk(c.aggregate) })
-      }
-    }
-    rows.push({ type: 'Additional Insured',    actual: ar?.additionalInsured    ? 'Included' : 'Missing', ok: ar?.additionalInsured    ?? false })
-    rows.push({ type: 'Waiver of Subrogation', actual: ar?.waiverOfSubrogation  ? 'Included' : 'Missing', ok: ar?.waiverOfSubrogation  ?? false })
-  }
-
-  const flags      = ar?.flags ?? []
-  const missingCt  = rows.filter(r => !r.ok).length
-  const metCt      = rows.length - missingCt
-
-  let summaryText = 'No COI has been uploaded yet. Upload a COI to see the compliance summary for this vendor.'
-  if (latestSub) {
-    if (missingCt === 0) {
-      summaryText = `${ar?.insuredName || 'This vendor'} is fully compliant. All coverage requirements are in place.`
-    } else {
-      const failedNames = rows.filter(r => !r.ok).map(r => r.type)
-      const preview     = failedNames.slice(0, 2).join(', ')
-      const more        = failedNames.length > 2 ? ` (and ${failedNames.length - 2} more)` : ''
-      summaryText = `${ar?.insuredName || 'This vendor'} has ${missingCt} unmet requirement${missingCt !== 1 ? 's' : ''}. ${preview}${more}.`
-    }
-  }
-
   if (!latestSub) {
     return (
       <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 40, textAlign: 'center' }}>
@@ -200,87 +353,27 @@ function OverviewTab({ latestSub, showToast }: { latestSub: Submission | null; s
     )
   }
 
+  const failedCount = latestSub.failed_requirements_count
+  const firstFailed = latestSub.requirements_check?.find(r => !r.passed) ?? null
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+      <VerificationSummary sub={latestSub} />
 
-        {/* Coverage table */}
-        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 24, transition: 'border-color 0.2s' }}
-          onMouseEnter={e => (e.currentTarget.style.borderColor = T.borderAccent)}
-          onMouseLeave={e => (e.currentTarget.style.borderColor = T.border)}
-        >
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: '0 0 18px' }}>Insurance Summary</h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <colgroup>
-              <col style={{ width: '38%' }} />
-              <col />
-              <col style={{ width: '116px' }} />
-            </colgroup>
-            <thead>
-              <tr>
-                <th style={{ textAlign: 'left', padding: '0 10px 10px', fontSize: 10, color: T.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', borderBottom: `1px solid ${T.border}` }}>Coverage Type</th>
-                <th style={{ textAlign: 'left', padding: '0 10px 10px', fontSize: 10, color: T.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', borderBottom: `1px solid ${T.border}` }}>Actual</th>
-                <th style={{ textAlign: 'right', padding: '0 10px 10px', fontSize: 10, color: T.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', borderBottom: `1px solid ${T.border}` }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, i) => (
-                <tr key={i} style={{ transition: 'background 0.12s' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#1a1a2e')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <td style={{ padding: '12px 10px', fontSize: 13, fontWeight: 600, color: T.primary, borderBottom: i < rows.length - 1 ? `1px solid ${T.border}` : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.type}</td>
-                  <td style={{ padding: '12px 10px', fontSize: 12, color: row.ok ? T.secondary : T.red, fontWeight: row.ok ? 400 : 600, borderBottom: i < rows.length - 1 ? `1px solid ${T.border}` : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.actual}</td>
-                  <td style={{ padding: '12px 10px', borderBottom: i < rows.length - 1 ? `1px solid ${T.border}` : 'none', textAlign: 'right' }}><CoverageBadge ok={row.ok} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <OpenFindings sub={latestSub} />
 
-        {/* Plain-English summary */}
-        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 24, display: 'flex', flexDirection: 'column', transition: 'border-color 0.2s' }}
-          onMouseEnter={e => (e.currentTarget.style.borderColor = T.borderAccent)}
-          onMouseLeave={e => (e.currentTarget.style.borderColor = T.border)}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 16 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 7, flexShrink: 0, background: 'rgba(217,119,6,0.10)', border: '1px solid rgba(217,119,6,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Shield size={13} color={T.orange} />
-            </div>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: 0 }}>Plain-English Summary</h3>
-          </div>
-          <p style={{ fontSize: 14, color: T.secondary, lineHeight: 1.8, flex: 1, margin: 0 }}>{summaryText}</p>
-          <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <CheckCircle2 size={13} color={T.green} />
-              <span style={{ fontSize: 12, color: T.secondary }}>{metCt} of {rows.length} requirements met</span>
-            </div>
-            {missingCt > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <XCircle size={13} color={T.red} />
-                <span style={{ fontSize: 12, color: T.secondary }}>{missingCt} item{missingCt !== 1 ? 's' : ''} missing or non-compliant</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Action Required */}
-      {(missingCt > 0 || flags.length > 0) && (() => {
-        // Total = failed requirements + freeform flags (flags won't duplicate requirementsCheck after prompt fix)
-        const totalIssues = missingCt + flags.length
-        const primaryIssue = flags.length > 0
-          ? flags[0]
-          : `${rows.filter(r => !r.ok)[0]?.type ?? 'A requirement'} does not meet the minimum`
-        const otherCount = totalIssues - 1
-        return (
+      {/* Action Required — kept from the previous layout, now driven by the
+          structured failed_requirements_count column instead of re-parsing
+          analysis_result.flags. */}
+      {failedCount !== null && failedCount > 0 && (
         <div style={{ background: 'rgba(217,119,6,0.05)', border: '1px solid rgba(217,119,6,0.20)', borderRadius: 12, padding: '20px 24px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
             <AlertTriangle size={18} color={T.orange} style={{ flexShrink: 0, marginTop: 2 }} />
             <div>
               <p style={{ fontSize: 13, fontWeight: 700, color: T.orange, margin: '0 0 5px' }}>Action Required</p>
               <p style={{ fontSize: 13, color: T.secondary, lineHeight: 1.65, margin: 0 }}>
-                {primaryIssue}{otherCount > 0 ? ` and ${otherCount} other issue${otherCount !== 1 ? 's' : ''}.` : '.'}
+                {firstFailed ? `${firstFailed.coverage} does not meet the minimum` : 'A requirement does not meet the minimum'}
+                {failedCount > 1 ? ` and ${failedCount - 1} other issue${failedCount - 1 !== 1 ? 's' : ''}.` : '.'}
               </p>
             </div>
           </div>
@@ -293,8 +386,9 @@ function OverviewTab({ latestSub, showToast }: { latestSub: Submission | null; s
             Send Request to Vendor →
           </button>
         </div>
-        )
-      })()}
+      )}
+
+      <VerifiedRequirements sub={latestSub} />
     </div>
   )
 }
@@ -551,7 +645,11 @@ export default function VendorProfile() {
         .single(),
       supabase
         .from('submissions')
-        .select('id, status, issues_count, risk_score, analysis_result, created_at')
+        .select(`
+          id, status, issues_count, risk_score, analysis_result, created_at,
+          overall_status, requirements_check, passed_requirements_count, failed_requirements_count,
+          is_expired, effective_date, expiration_date, additional_insured, waiver_of_subrogation
+        `)
         .eq('vendor_id', id)
         .eq('clerk_user_id', user.id)
         .order('created_at', { ascending: false }),
