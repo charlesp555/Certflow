@@ -273,7 +273,30 @@ export default function RequirementsPage() {
       const preset = template.presets.find(p => p.id === r.id)
       return preset ? { ...r, ...preset } : r
     }))
-    showToast(`"${template.name}" values pre-filled — review above and click Save Requirements`)
+    showToast(`"${template.name}" template applied — review above and click Save Requirements`)
+  }
+
+  // Abbreviates an actual template preset amount (e.g. "$2,000,000" → "$2M")
+  // for the compact card summary — purely a display reformat of the real
+  // value already set on that preset, never a different number.
+  function abbreviateAmount(amount: string): string {
+    const m = amount.match(/^\$([\d,]+)$/)
+    if (!m) return amount
+    const num = Number(m[1].replace(/,/g, ''))
+    if (num !== 0 && num % 1_000_000 === 0) return `$${num / 1_000_000}M`
+    if (num !== 0 && num % 1_000 === 0)     return `$${num / 1_000}K`
+    return amount
+  }
+
+  // Summarizes the actual GL / Auto / WC limits this template sets (ids 1-3
+  // in DEFAULT_REQS order), pulled directly from tmpl.presets.
+  function templateLimitsSummary(template: typeof TEMPLATES[number]): string {
+    const labels: Record<number, string> = { 1: 'GL', 2: 'Auto', 3: 'WC' }
+    return [1, 2, 3]
+      .map(id => template.presets.find(p => p.id === id))
+      .filter((p): p is typeof template.presets[number] => !!p)
+      .map(p => `${labels[p.id]} ${abbreviateAmount(p.amount)}`)
+      .join(' · ')
   }
 
   return (
@@ -348,6 +371,10 @@ export default function RequirementsPage() {
 
         {/* ── Content ── */}
         <div style={{ padding: 28, flex: 1, display: 'flex', flexDirection: 'column', gap: 28 }}>
+
+          <p style={{ fontSize: 13, color: T.secondary, margin: 0, lineHeight: 1.7, maxWidth: 720 }}>
+            These standards define the minimum insurance coverage every vendor must carry. Every Certificate of Insurance you upload is automatically verified against these requirements to determine its compliance status.
+          </p>
 
           {/* ── Default Requirements ── */}
           <section>
@@ -465,8 +492,11 @@ export default function RequirementsPage() {
                     <p style={{ fontSize: 13, fontWeight: 700, color: T.primary, margin: '0 0 4px' }}>
                       {tmpl.name}
                     </p>
-                    <p style={{ fontSize: 11, color: T.secondary, margin: 0, lineHeight: 1.5 }}>
+                    <p style={{ fontSize: 11, color: T.secondary, margin: '0 0 6px', lineHeight: 1.5 }}>
                       {tmpl.desc}
+                    </p>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: T.orange, margin: 0, letterSpacing: '0.01em' }}>
+                      {templateLimitsSummary(tmpl)}
                     </p>
                   </div>
                   <button
@@ -483,7 +513,7 @@ export default function RequirementsPage() {
                     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.10)'; e.currentTarget.style.borderColor = T.orange }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = 'rgba(217,119,6,0.35)' }}
                   >
-                    <Zap size={11} /> Pre-fill Values
+                    <Zap size={11} /> Apply Template
                   </button>
                 </div>
               ))}
