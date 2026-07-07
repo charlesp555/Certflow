@@ -212,6 +212,18 @@ ${JSON.stringify({
         coiData.isExpired           = diffDays < 0
         if (diffDays < 0) {
           coiData.overallStatus = 'EXPIRED'
+          // Reconcile per-requirement results with the wall-clock expiry.
+          // The model can't know today's date, so a lapsed policy would
+          // otherwise still show every requirement as passed — contradicting
+          // the EXPIRED status and reporting zero findings.
+          if (Array.isArray(coiData.requirementsCheck)) {
+            for (const rc of coiData.requirementsCheck as Array<{ coverage?: string; passed?: boolean; reason?: string; actual?: string }>) {
+              if (rc?.passed) {
+                rc.passed = false
+                rc.reason = `${rc.coverage ?? 'Coverage'} policy expired ${rawExpiry}`
+              }
+            }
+          }
         } else if (diffDays <= 30 && coiData.overallStatus === 'COMPLIANT') {
           coiData.overallStatus = 'EXPIRING'
         }
