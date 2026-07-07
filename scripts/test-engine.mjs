@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Covira COI verification regression suite.
- * Sends each of the 5 known test COIs to the local /api/extract-coi endpoint
+ * Sends each of the 11 known test COIs to the local /api/extract-coi endpoint
  * and asserts structured output against a fixed answer key.
  *
  * ─── BEFORE EVERY RUN ────────────────────────────────────────────────────────
@@ -183,6 +183,132 @@ const TESTS = [
       ]
     },
   },
+
+  // ── Hand-validated COIs (COI-1 … COI-6) ─────────────────────────────────────
+  // Six additional fixtures whose answers were verified by hand. Requirements
+  // for all six are the DEFAULT set: GL $1M occ / $2M agg, Auto $1M CSL,
+  // WC Statutory, Additional Insured required, Waiver of Subrogation required.
+
+  {
+    id:   6,
+    name: 'COI-1 — AI/WoS boxes blank, empty description',
+    file: 'coi-1.pdf',
+    // GL/Auto/WC all meet limits, but neither Additional Insured nor Waiver of
+    // Subrogation appears anywhere (boxes blank, Description of Operations empty),
+    // so those two requirements must FAIL and the cert is NON_COMPLIANT.
+    assert(data) {
+      const gl     = findReq(data, 'general')
+      const auto   = findReq(data, 'auto')
+      const wc     = findReq(data, 'workers')
+      const ai     = findReq(data, 'additional')
+      const waiver = findReq(data, 'waiver')
+      return [
+        mk('overallStatus = NON_COMPLIANT',       'NON_COMPLIANT', data.overallStatus,       data.overallStatus === 'NON_COMPLIANT'),
+        mk('GL passed = true',                    true,            gl?.passed,               gl?.passed === true),
+        mk('Auto Liability passed = true',        true,            auto?.passed,             auto?.passed === true),
+        mk('Workers Comp passed = true',          true,            wc?.passed,               wc?.passed === true),
+        mk('additionalInsured = false',           false,           data.additionalInsured,   data.additionalInsured === false),
+        mk('waiverOfSubrogation = false',         false,           data.waiverOfSubrogation, data.waiverOfSubrogation === false),
+        mk('Additional Insured req failed',       false,           ai?.passed,               ai?.passed === false),
+        mk('Waiver of Subrogation req failed',    false,           waiver?.passed,           waiver?.passed === false),
+      ]
+    },
+  },
+  {
+    id:   7,
+    name: 'COI-2 — GL expired 01/01/2026, Auto/WC current',
+    file: 'coi-2.pdf',
+    // Guards Bug #1: the server-side expiry override must reconcile every
+    // requirement with wall-clock time. A lapsed GL policy would otherwise leave
+    // Auto/WC (and AI/Waiver) showing as passed, contradicting the EXPIRED verdict.
+    // Expect: EXPIRED, and all 5 requirements failed with expiry-worded reasons.
+    assert(data) {
+      const reqs        = Array.isArray(data.requirementsCheck) ? data.requirementsCheck : []
+      const failedCount = reqs.filter(r => !r.passed).length
+      const expiryReasons = reqs.filter(r => /expir/i.test(r.reason ?? '')).length
+      return [
+        mk('overallStatus = EXPIRED',             'EXPIRED', data.overallStatus, data.overallStatus === 'EXPIRED'),
+        mk('isExpired = true',                    true,      data.isExpired,     data.isExpired === true),
+        mk('all 5 requirements failed',           5,         failedCount,        failedCount === 5),
+        mk('all 5 reasons cite expiry',           5,         expiryReasons,      expiryReasons === 5),
+      ]
+    },
+  },
+  {
+    id:   8,
+    name: 'COI-3 — GL $500k occ, Auto split limits (no CSL)',
+    file: 'coi-3.pdf',
+    // GL per-occurrence is only $500k (< $1M) and Auto carries split limits with
+    // no combined single limit, so both fail → NON_COMPLIANT.
+    assert(data) {
+      const gl   = findReq(data, 'general')
+      const auto = findReq(data, 'auto')
+      return [
+        mk('overallStatus = NON_COMPLIANT',       'NON_COMPLIANT', data.overallStatus, data.overallStatus === 'NON_COMPLIANT'),
+        mk('GL passed = false',                   false,           gl?.passed,         gl?.passed === false),
+        mk('GL actual contains $500,000',         '$500,000',      gl?.actual,         /500[,.]?000/.test(gl?.actual ?? '')),
+        mk('Auto Liability passed = false',       false,           auto?.passed,       auto?.passed === false),
+      ]
+    },
+  },
+  {
+    id:   9,
+    name: 'COI-4 — all compliant, ISO-format dates',
+    file: 'coi-4.pdf',
+    // Guards Bug #2: an ISO expiration date of 2026-12-31 must read as Dec 31,
+    // not Dec 30. new Date("2026-12-31") is UTC midnight, which renders as the
+    // prior day in negative-offset timezones — the off-by-one this asserts against.
+    assert(data) {
+      const failedCount = Array.isArray(data.requirementsCheck)
+        ? data.requirementsCheck.filter(r => !r.passed).length
+        : -1
+      const exp        = String(data.expirationDate ?? '')
+      const readsDec31 = /12[/\-]31[/\-]2026|2026[/\-]12[/\-]31|dec[a-z]*\.?\s*31,?\s*2026/i.test(exp)
+      const notDec30   = !/12[/\-]30[/\-]2026|2026[/\-]12[/\-]30|dec[a-z]*\.?\s*30/i.test(exp)
+      return [
+        mk('overallStatus = COMPLIANT',           'COMPLIANT',   data.overallStatus, data.overallStatus === 'COMPLIANT'),
+        mk('zero failed requirements',            0,             failedCount,        failedCount === 0),
+        mk('expiration reads Dec 31 2026',        'Dec 31 2026', exp,                readsDec31),
+        mk('expiration NOT Dec 30 (off-by-one)',  'not Dec 30',  exp,                notDec30),
+      ]
+    },
+  },
+  {
+    id:   10,
+    name: 'COI-5 — WC E.L. limits present, Per Statute box unchecked',
+    file: 'coi-5.pdf',
+    // Workers Comp shows Employers Liability limits but the "Per Statute" box is
+    // left unchecked. The E.L. limits evidence statutory coverage, so WC still
+    // passes and the cert is fully COMPLIANT (5/5).
+    assert(data) {
+      const wc          = findReq(data, 'workers')
+      const failedCount = Array.isArray(data.requirementsCheck)
+        ? data.requirementsCheck.filter(r => !r.passed).length
+        : -1
+      return [
+        mk('overallStatus = COMPLIANT',           'COMPLIANT', data.overallStatus, data.overallStatus === 'COMPLIANT'),
+        mk('Workers Comp passed = true',          true,        wc?.passed,         wc?.passed === true),
+        mk('zero failed requirements',            0,           failedCount,        failedCount === 0),
+      ]
+    },
+  },
+  {
+    id:   11,
+    name: 'COI-6 — GL $500k occ + $5M umbrella',
+    file: 'coi-6.pdf',
+    // The $5M umbrella must NOT be stacked onto the $500k GL to satisfy the $1M
+    // requirement. GL is read on its own primary limit ($500k) and fails →
+    // NON_COMPLIANT. The actual must show $500,000, not the umbrella's $5,000,000.
+    assert(data) {
+      const gl = findReq(data, 'general')
+      const actual = gl?.actual ?? ''
+      return [
+        mk('overallStatus = NON_COMPLIANT',       'NON_COMPLIANT', data.overallStatus, data.overallStatus === 'NON_COMPLIANT'),
+        mk('GL passed = false',                   false,           gl?.passed,         gl?.passed === false),
+        mk('GL actual $500k (umbrella not stacked)','$500,000',    actual,             /500[,.]?000/.test(actual) && !/5[,.]?000[,.]?000/.test(actual)),
+      ]
+    },
+  },
 ]
 
 // ── HTTP call ─────────────────────────────────────────────────────────────────
@@ -252,7 +378,7 @@ async function main() {
   console.log(BOLD(`  Covira COI Engine — Regression Test Suite`))
   console.log(`  Endpoint: ${BASE}/api/extract-coi`)
   console.log(`${HR}\n`)
-  console.log('  Sending all 5 COIs in parallel…\n')
+  console.log(`  Sending all ${TESTS.length} COIs in parallel…\n`)
 
   // Parallel execution: total wall time ~10 s, well within the 60 s token window.
   const outcomes = await Promise.all(TESTS.map(runOne))
