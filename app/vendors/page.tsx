@@ -52,10 +52,22 @@ function mapStatus(dbStatus: string | null): VendorStatus {
   }
 }
 
+// Date-only strings (Postgres `date` columns arrive as "2026-01-01") must be
+// parsed as LOCAL midnight — new Date("2026-01-01") is UTC midnight per the
+// ECMAScript spec, which renders as the previous day in timezones behind UTC.
+// Full timestamps (created_at) fall through untouched.
+function parsePlainDate(value: string): Date {
+  const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]))
+  const us = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (us) return new Date(Number(us[3]), Number(us[1]) - 1, Number(us[2]))
+  return new Date(value)
+}
+
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return '—'
   try {
-    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    return parsePlainDate(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   } catch {
     return '—'
   }
@@ -596,7 +608,7 @@ export default function VendorsPage() {
       if (filterStatus !== 'All' && v.status !== filterStatus) return false
       if (filterType !== 'All' && v.type !== filterType) return false
       if (filterExp !== 'All' && v.expirationRaw) {
-        const exp = new Date(v.expirationRaw)
+        const exp = parsePlainDate(v.expirationRaw)
         if (filterExp === 'This Month') {
           if (exp.getMonth() !== now.getMonth() || exp.getFullYear() !== now.getFullYear()) return false
         } else if (filterExp === 'Next 30 Days') {
@@ -617,8 +629,8 @@ export default function VendorsPage() {
       if (sortKey === 'name') return dir * a.name.localeCompare(b.name)
       if (sortKey === 'status') return dir * (STATUS_ORDER[a.status] - STATUS_ORDER[b.status])
       if (sortKey === 'expiration') {
-        const aTime = a.expirationRaw ? new Date(a.expirationRaw).getTime() : Infinity
-        const bTime = b.expirationRaw ? new Date(b.expirationRaw).getTime() : Infinity
+        const aTime = a.expirationRaw ? parsePlainDate(a.expirationRaw).getTime() : Infinity
+        const bTime = b.expirationRaw ? parsePlainDate(b.expirationRaw).getTime() : Infinity
         return dir * (aTime - bTime)
       }
       return 0

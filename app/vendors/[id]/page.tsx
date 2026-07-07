@@ -170,9 +170,22 @@ function buildFindingsMailto(vendorName: string, failedReqs: RequirementCheck[])
   return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
 }
 
+// Date-only strings (Postgres `date` columns arrive as "2026-01-01") must be
+// parsed as LOCAL midnight — new Date("2026-01-01") is UTC midnight per the
+// ECMAScript spec, which toLocaleDateString renders as the previous day in
+// timezones behind UTC. Full timestamps (created_at) fall through untouched,
+// where local-time conversion is the correct behavior.
+function parsePlainDate(value: string): Date {
+  const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]))
+  const us = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (us) return new Date(Number(us[3]), Number(us[1]) - 1, Number(us[2]))
+  return new Date(value)
+}
+
 function fmtDate(iso: string | null): string {
   if (!iso) return '—'
-  try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }
+  try { return parsePlainDate(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }
   catch { return '—' }
 }
 
@@ -180,7 +193,7 @@ function fmtDate(iso: string | null): string {
 // distinct from the short-form fmtDate used elsewhere on this page.
 function fmtDateLong(iso: string | null): string {
   if (!iso) return '—'
-  try { return new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) }
+  try { return parsePlainDate(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) }
   catch { return '—' }
 }
 
