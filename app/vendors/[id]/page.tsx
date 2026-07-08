@@ -1081,13 +1081,13 @@ export default function VendorProfile() {
 
           {activeTab === 'overview'  && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <OverviewTab latestSub={latestSub} vendorName={vendor.name} vendorEmail={vendor.vendor_email} vendorContactName={vendor.vendor_contact_name} />
               <VendorContactCard
                 vendor={vendor}
                 userId={user!.id}
                 onSaved={(email, contactName) => setVendor(v => (v ? { ...v, vendor_email: email, vendor_contact_name: contactName } : v))}
                 showToast={showToast}
               />
-              <OverviewTab latestSub={latestSub} vendorName={vendor.name} vendorEmail={vendor.vendor_email} vendorContactName={vendor.vendor_contact_name} />
             </div>
           )}
           {activeTab === 'documents' && <DocumentsTab vendor={vendor} submissions={submissions} showToast={showToast} onUploadClick={() => setShowUploadModal(true)} />}
