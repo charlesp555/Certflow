@@ -93,6 +93,12 @@ type Vendor = {
   status: string | null
   expiration_date: string | null
   created_at: string | null
+
+  // Optional vendor contact (migration 006). Nullable — most vendors won't
+  // have these filled in. Used only to pre-fill the copy-to-clipboard request
+  // message; no email is ever sent from the app.
+  vendor_email: string | null
+  vendor_contact_name: string | null
 }
 
 // Trade options a vendor can be categorized under — matches the list used by
@@ -145,18 +151,46 @@ function findingRecommendation(category: 'endorsement' | 'limit'): string {
   return category === 'endorsement' ? 'Request endorsement' : 'Request updated COI'
 }
 
-// Builds a mailto: link pre-filled from the failed requirements already on
-// the page (requirements_check, passed=false) — no re-parsing of
-// analysis_result, no backend, no stored vendor email. The "to" address is
-// deliberately left blank: vendors has no email column, so the PM fills in
-// the recipient themselves in whatever mail client opens.
-function buildFindingsMailto(vendorName: string, failedReqs: RequirementCheck[]): string {
-  const subject = `Certificate of Insurance — Action Required for ${vendorName}`
+// Builds a plain-text request message pre-filled from the failed requirements
+// already on the page (requirements_check, passed=false) — no re-parsing of
+// analysis_result, no backend, no email service. The PM copies this to the
+// clipboard and pastes it into whatever mail client they use (desktop or
+// webmail), so we don't depend on a mailto: handler being registered.
+//
+// Optional vendor contact (migration 006): if an email is stored we prepend a
+// "To: <email>" line so the PM can paste it straight into the recipient field;
+// if a contact name is stored the greeting uses it, otherwise it falls back to
+// the vendor name. With neither stored, the output is identical to before.
+function buildFindingsMessage(
+  vendorName: string,
+  failedReqs: RequirementCheck[],
+  contact?: { email?: string | null; contactName?: string | null },
+): string {
+  const email        = contact?.email?.trim()
+  const greetingName = contact?.contactName?.trim() || vendorName
+  // Use the finding's `reason` (the same text shown as "Impact:" on the page),
+  // not the raw `actual` limit. On an expired cert every requirement is flipped
+  // to failed while its `actual` still holds the healthy value, so "actual $X"
+  // would nonsensically list compliant coverage as the problem — the reason
+  // says "policy expired 01/01/2026".
+  //
+  // Expiry-reconciliation reasons already lead with the coverage name
+  // ("General Liability policy expired ..."), so they read cleanly on their
+  // own. LLM-written limit reasons often don't ("Combined Single Limit of
+  // $500,000 is below ..."), so for those we keep a minimal coverage prefix to
+  // avoid losing context — without duplicating the name when it's already there.
+  const lines = failedReqs.map(r => {
+    const reason   = r.reason?.trim() || 'does not meet the requirement'
+    const coverage = r.coverage?.trim()
+    const alreadyNamed = coverage && reason.toLowerCase().startsWith(coverage.toLowerCase())
+    return coverage && !alreadyNamed ? `- ${coverage} ${reason}` : `- ${reason}`
+  })
 
-  const lines = failedReqs.map(r => `- ${r.coverage}: required ${r.minimum || '—'}, actual ${r.actual || '—'}`)
-
-  const body = [
-    `Hi ${vendorName},`,
+  return [
+    ...(email ? [`To: ${email}`, ''] : []),
+    `Certificate of Insurance — Action Required for ${vendorName}`,
+    '',
+    `Hi ${greetingName},`,
     '',
     'Our recent verification of your Certificate of Insurance found the following issue(s):',
     '',
@@ -166,8 +200,6 @@ function buildFindingsMailto(vendorName: string, failedReqs: RequirementCheck[])
     '',
     'Thanks,',
   ].join('\n')
-
-  return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
 }
 
 // Date-only strings (Postgres `date` columns arrive as "2026-01-01") must be
@@ -384,9 +416,128 @@ function VerifiedRequirements({ sub }: { sub: Submission }) {
   )
 }
 
+// Copy-to-clipboard button for the Action Required box. The message is built
+// from the failed requirements already on the page. Confirmation ("Copied!")
+// only shows after navigator.clipboard.writeText actually resolves — a failed
+// write shows a fallback instead, so we never claim success that didn't happen.
+function CopyRequestButton({ vendorName, failedReqs, contact }: { vendorName: string; failedReqs: RequirementCheck[]; contact?: { email?: string | null; contactName?: string | null } }) {
+  const [state, setState] = useState<'idle' | 'copied' | 'error'>('idle')
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(buildFindingsMessage(vendorName, failedReqs, contact))
+      setState('copied')
+    } catch {
+      setState('error')
+    }
+    setTimeout(() => setState('idle'), 2000)
+  }
+
+  const label = state === 'copied' ? 'Copied!' : state === 'error' ? 'Copy failed — try again' : 'Copy Request for Vendor'
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0, background: state === 'copied' ? T.green : T.orange, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 2px 12px rgba(217,119,6,0.28)', transition: 'background 0.15s, transform 0.1s' }}
+      onMouseEnter={e => { if (state === 'idle') { e.currentTarget.style.background = T.orangeHover } ; e.currentTarget.style.transform = 'translateY(-1px)' }}
+      onMouseLeave={e => { if (state === 'idle') { e.currentTarget.style.background = T.orange } ; e.currentTarget.style.transform = 'translateY(0)' }}
+    >
+      {state === 'copied' ? <Check size={15} strokeWidth={2.5} /> : <MessageSquare size={15} />}
+      {label}
+    </button>
+  )
+}
+
+// Minimal vendor-contact editor (migration 006). Deliberately capped at email
+// + contact name to avoid CRM creep — no address/phone/notes. Writes are
+// scoped by clerk_user_id like every other vendor write. Empty inputs are
+// persisted as NULL. These two fields feed the copy-to-clipboard request
+// message; nothing here sends email.
+function VendorContactCard({ vendor, userId, onSaved, showToast }: { vendor: Vendor; userId: string; onSaved: (email: string | null, contactName: string | null) => void; showToast: (m: string) => void }) {
+  const [email,       setEmail]       = useState(vendor.vendor_email ?? '')
+  const [contactName, setContactName] = useState(vendor.vendor_contact_name ?? '')
+  const [saving,      setSaving]      = useState(false)
+
+  const dirty = email.trim() !== (vendor.vendor_email ?? '').trim()
+    || contactName.trim() !== (vendor.vendor_contact_name ?? '').trim()
+
+  async function handleSave() {
+    const nextEmail       = email.trim() || null
+    const nextContactName = contactName.trim() || null
+    setSaving(true)
+    const { error } = await supabase
+      .from('vendors')
+      .update({ vendor_email: nextEmail, vendor_contact_name: nextContactName })
+      .eq('id', vendor.id)
+      .eq('clerk_user_id', userId)
+    setSaving(false)
+    if (error) {
+      showToast('Failed to save vendor contact')
+      return
+    }
+    onSaved(nextEmail, nextContactName)
+    showToast('Vendor contact saved')
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', background: T.bg, color: T.primary, border: `1px solid ${T.border}`, borderRadius: 8,
+    padding: '9px 12px', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+  }
+  const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: T.secondary, margin: '0 0 6px' }
+
+  return (
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: '20px 24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <MessageSquare size={15} color={T.muted} />
+        <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: 0 }}>Vendor Contact</h3>
+      </div>
+      <p style={{ fontSize: 12, color: T.muted, margin: '0 0 16px', lineHeight: 1.5 }}>
+        Optional. Used to pre-fill the copied request message — no email is sent from CertFlow.
+      </p>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+          <p style={labelStyle}>Contact name</p>
+          <input
+            type="text"
+            value={contactName}
+            onChange={e => setContactName(e.target.value)}
+            placeholder="e.g. Jane Doe"
+            style={inputStyle}
+            onFocus={e => (e.currentTarget.style.borderColor = T.borderAccent)}
+            onBlur={e => (e.currentTarget.style.borderColor = T.border)}
+          />
+        </div>
+        <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+          <p style={labelStyle}>Email</p>
+          <input
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="e.g. insurance@vendor.com"
+            style={inputStyle}
+            onFocus={e => (e.currentTarget.style.borderColor = T.borderAccent)}
+            onBlur={e => (e.currentTarget.style.borderColor = T.border)}
+          />
+        </div>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving || !dirty}
+          style={{ background: dirty ? T.orange : 'rgba(255,255,255,0.06)', color: dirty ? '#fff' : T.muted, border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: saving || !dirty ? 'default' : 'pointer', transition: 'background 0.15s' }}
+        >
+          {saving ? 'Saving…' : 'Save Contact'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Overview Tab ──────────────────────────────────────────────────────────────
 
-function OverviewTab({ latestSub, vendorName }: { latestSub: Submission | null; vendorName: string }) {
+function OverviewTab({ latestSub, vendorName, vendorEmail, vendorContactName }: { latestSub: Submission | null; vendorName: string; vendorEmail: string | null; vendorContactName: string | null }) {
   if (!latestSub) {
     return (
       <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 40, textAlign: 'center' }}>
@@ -409,12 +560,12 @@ function OverviewTab({ latestSub, vendorName }: { latestSub: Submission | null; 
 
       <OpenFindings sub={latestSub} />
 
-      {/* Action Required — kept from the previous layout, now driven by the
+      {/* Action Required — kept from the previous layout, driven by the
           structured failed_requirements_count column instead of re-parsing
-          analysis_result.flags. The button opens a mailto: draft pre-filled
-          from the failed requirements already on the page — there's no
-          vendor email on file and no email service wired up, so this only
-          opens the PM's own mail client with the recipient left blank. */}
+          analysis_result.flags. The button copies a request message (pre-filled
+          from the failed requirements already on the page) to the clipboard —
+          there's no vendor email on file and no email service wired up, so the
+          PM pastes it into their own mail client, desktop or webmail. */}
       {failedCount !== null && failedCount > 0 && (
         <div style={{ background: 'rgba(217,119,6,0.05)', border: '1px solid rgba(217,119,6,0.20)', borderRadius: 12, padding: '20px 24px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
@@ -427,14 +578,7 @@ function OverviewTab({ latestSub, vendorName }: { latestSub: Submission | null; 
               </p>
             </div>
           </div>
-          <a
-            href={buildFindingsMailto(vendorName, failedReqs)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0, background: T.orange, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', textDecoration: 'none', boxShadow: '0 2px 12px rgba(217,119,6,0.28)', transition: 'background 0.15s, transform 0.1s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = T.orangeHover; e.currentTarget.style.transform = 'translateY(-1px)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = T.orange; e.currentTarget.style.transform = 'translateY(0)' }}
-          >
-            Send Request to Vendor →
-          </a>
+          <CopyRequestButton vendorName={vendorName} failedReqs={failedReqs} contact={{ email: vendorEmail, contactName: vendorContactName }} />
         </div>
       )}
 
@@ -721,7 +865,7 @@ export default function VendorProfile() {
     const [vRes, sRes] = await Promise.all([
       supabase
         .from('vendors')
-        .select('id, name, type, status, expiration_date, created_at')
+        .select('id, name, type, status, expiration_date, created_at, vendor_email, vendor_contact_name')
         .eq('id', id)
         .eq('clerk_user_id', user.id)
         .single(),
@@ -935,7 +1079,17 @@ export default function VendorProfile() {
             })}
           </div>
 
-          {activeTab === 'overview'  && <OverviewTab  latestSub={latestSub} vendorName={vendor.name} />}
+          {activeTab === 'overview'  && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <VendorContactCard
+                vendor={vendor}
+                userId={user!.id}
+                onSaved={(email, contactName) => setVendor(v => (v ? { ...v, vendor_email: email, vendor_contact_name: contactName } : v))}
+                showToast={showToast}
+              />
+              <OverviewTab latestSub={latestSub} vendorName={vendor.name} vendorEmail={vendor.vendor_email} vendorContactName={vendor.vendor_contact_name} />
+            </div>
+          )}
           {activeTab === 'documents' && <DocumentsTab vendor={vendor} submissions={submissions} showToast={showToast} onUploadClick={() => setShowUploadModal(true)} />}
           {activeTab === 'history'   && <VerificationHistoryTab submissions={submissions} />}
           {activeTab === 'notes'     && <NotesTab />}
