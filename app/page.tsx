@@ -1,12 +1,7 @@
 'use client'
-import { useState, useRef, useEffect } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ElementType, type ReactNode } from 'react'
 import Link from 'next/link'
-import {
-  Shield, Menu, X, Check, Users, AlertTriangle, Clock,
-  CheckCircle2, ArrowRight, Upload, Zap, FileText,
-  LayoutDashboard, BarChart2, Bell, Settings, Folder,
-  Link2, ClipboardList, ChevronDown, PlayCircle,
-} from 'lucide-react'
+import { Menu, X } from 'lucide-react'
 
 const T = {
   bg:            '#0a0a0f',
@@ -24,143 +19,904 @@ const T = {
   textMuted:     '#4b5063',
 }
 
-// Donut chart constants — r=38, viewBox 100×100
-const R = 38
-const C_CIRC = 2 * Math.PI * R // ≈ 238.76
+// ── Hero evidence artifact data (Design Bible §Illustration & imagery) ──────
+// Plausibility test: real-sounding trade LLC, real address format, real limit
+// figures ($1M/$2M GL), real policy-number shapes, real date formats.
+// "ABC Plumbing at 123 Main St" is banned. Hoisted to module scope so the
+// static JSX isn't rebuilt per render (react-best-practices).
+const CERT = {
+  producer:    'Hartwell & Boyd Insurance Agency',
+  insured:     'Calloway Mechanical Services LLC',
+  insuredAddr: '4820 Industrial Pkwy, Ste 210, Cleveland, OH 44135',
+  issued:      '06/30/2026',
+}
 
-const SIDEBAR = [
-  { Icon: LayoutDashboard, label: 'Dashboard',    active: true  },
-  { Icon: Users,           label: 'Vendors'                     },
-  { Icon: Upload,          label: 'Submissions'                 },
-  { Icon: BarChart2,       label: 'Reports'                     },
-  { Icon: Bell,            label: 'Alerts',       badge: '2'    },
-  { Icon: ClipboardList,   label: 'Requirements'                },
-  { Icon: Folder,          label: 'Documents'                   },
-  { Icon: Link2,           label: 'Integrations'                },
-  { Icon: Settings,        label: 'Settings'                    },
+// Stage 1 scan rows — each line resolves to its verification state as the
+// scan head passes it. Verified lines get the orange stamp (§Color: orange is
+// the moment something becomes verified, nothing else); failed lines carry
+// --attention with the reason recorded as a datum (the expired date, the
+// absence). Index order must match the .resolve-N keyframe timings in CSS.
+type ScanRow = { coverage: string; policy?: string; detail: string; status: string; state: 'verified' | 'attention' }
+const SCAN_ROWS: ScanRow[] = [
+  { coverage: 'General Liability',    policy: 'GLP-7734921-02', detail: '$1,000,000 / $2,000,000', status: 'Verified',           state: 'verified'  },
+  { coverage: 'Auto Liability',       policy: 'CA-8812305-01',  detail: '$1,000,000 CSL',          status: 'Verified',           state: 'verified'  },
+  { coverage: 'Additional Insured',   policy: 'CG 20 10 04 13', detail: 'Endorsement attached',    status: 'Verified',           state: 'verified'  },
+  { coverage: 'Workers Compensation',                           detail: 'Not on certificate',      status: 'Missing',            state: 'attention' },
+  { coverage: 'Umbrella Liability',   policy: 'UMB-4471186-03', detail: '$5,000,000',              status: 'Expired 01/15/2026', state: 'attention' },
 ]
 
-const SUBMISSIONS = [
-  { vendor: 'ABC Plumbing LLC',      date: 'May 20, 2025', status: 'Issues Found', sColor: '#D97706', sBg: 'rgba(217,119,6,0.13)', issues: 2 },
-  { vendor: 'Summit Electric Co.',   date: 'May 19, 2025', status: 'Compliant',    sColor: '#22c55e', sBg: 'rgba(34,197,94,0.10)',  issues: 0 },
-  { vendor: 'Bluewater HVAC',        date: 'May 18, 2025', status: 'Compliant',    sColor: '#22c55e', sBg: 'rgba(34,197,94,0.10)',  issues: 0 },
-  { vendor: 'Pinnacle Roofing Inc.', date: 'May 16, 2025', status: 'Issues Found', sColor: '#D97706', sBg: 'rgba(217,119,6,0.13)', issues: 1 },
+// ── Audit trail section data (Design Bible §The signature: the ledger voice —
+// ledger-set data IS verification). The trail SHOWS the workflow as a
+// timestamped record: received → reviewed → per-coverage resolution → vendor
+// notified → replacement → resolved. The 09:03 → 10:47 gap is deliberate:
+// a plausible real-world resolution time, not marketing seconds. Continues
+// the Calloway Mechanical story from the hero artifact (same vendor, same
+// missing Workers Comp, here resolved). ──────────────────────────────────────
+const AUDIT_TAGS = [
+  'General Liability',
+  'Additional Insured',
+  'Waiver of Subrogation',
+  'Workers Comp',
+  'Policy expiration',
 ]
+
+// `milestone` marks the two entries the scroll-sync watches: reaching the
+// Missing entry emphasizes the card's open finding; reaching the final
+// Verified entry resolves the card. Watched via IntersectionObserver.
+type AuditEntry = { time: string; event?: string; detail?: string; coverage?: string; status?: 'Verified' | 'Missing'; milestone?: 'emphasize' | 'resolve' }
+const AUDIT_TRAIL: AuditEntry[] = [
+  { time: '09:03:04', event: 'Certificate received',             detail: 'Calloway Mechanical Services' },
+  { time: '09:03:07', event: 'Coverage reviewed',                detail: 'Against your requirements' },
+  { time: '09:03:09', coverage: 'General Liability',    status: 'Verified' },
+  { time: '09:03:09', coverage: 'Additional Insured',   status: 'Verified' },
+  { time: '09:03:11', coverage: 'Workers Compensation', status: 'Missing',  milestone: 'emphasize' },
+  { time: '09:03:12', event: 'Vendor notified',                  detail: 'Replacement certificate requested' },
+  { time: '10:47:22', event: 'Replacement certificate received', detail: 'Calloway Mechanical Services' },
+  { time: '10:47:29', coverage: 'Workers Compensation', status: 'Verified', milestone: 'resolve' },
+]
+
+// Right evidence panel — a Verification Summary record card on graphite
+// (§Components: cards exist only for discrete records; graphite surface,
+// seam border, 8px radius, no shadow). Deliberately NOT warm paper: the
+// document surface belongs to the hero's certificate; this section shows the
+// verdict view, so the two evidence artifacts stay visually distinct.
+// MID-STORY state on purpose — Workers Comp Missing, 2/3 passed, 1 open
+// finding — matching the trail before the 10:47 replacement arrives. The
+// tension is the point; Part 2's scroll-sync resolves it (WC → Verified,
+// 2/3 → 3/3, 1 → 0).
+// (Verdict-row values are computed from scroll state inside AuditSection —
+// mid-story until the reader reaches the 10:47:29 resolve milestone.)
+const SUMMARY_REQS: { name: string; status: 'Verified' | 'Missing' }[] = [
+  { name: 'General Liability',    status: 'Verified' },
+  { name: 'Additional Insured',   status: 'Verified' },
+  { name: 'Workers Compensation', status: 'Missing'  },
+]
+
+// ── Compliance cycle stations (§Copywriting: consequence framing; the loop
+// concept in Covira's ledger language — stations are numbered because the
+// sequence is real and it returns to 01, which is the point). Station names
+// are RECORDED (process states), descriptions are SAID. The only color is
+// --attention on the caught gap (§Color: with its reason); nothing in the
+// cycle is a verified state, so nothing here earns orange. ───────────────────
+const CYCLE_STATIONS: { index: string; name: string; desc: string; flag?: boolean }[] = [
+  { index: '01', name: 'Requirements set',     desc: 'Your coverage minimums, defined once.' },
+  { index: '02', name: 'Certificate received', desc: 'Every vendor COI read against them.' },
+  { index: '03', name: 'Gaps flagged',         desc: 'Missing or expired coverage caught.', flag: true },
+  { index: '04', name: 'Vendor notified',      desc: 'Replacement requested automatically.' },
+  { index: '05', name: 'Renewal tracked',      desc: 'Before each policy expires, the cycle runs again.' },
+]
+
+// ── Pricing plans (honest beta framing: Stripe is not live — plans are
+// shown for transparency, every CTA joins the free beta; nothing implies a
+// working paid checkout). Prices and vendor caps are DATA → rendered in the
+// evidence face with tabular figures. `recommended` is OUR recommendation,
+// stated as such — not "MOST POPULAR" (ban #6: implied crowd data we don't
+// have; §Copywriting: claims require receipts). ──────────────────────────────
+type Plan = { name: string; price: string; cap: string; features: string[]; recommended?: boolean }
+const PLANS: Plan[] = [
+  { name: 'Free',     price: '$0',   cap: 'Up to 3 vendors',   features: ['COI verification', 'Vendor database', 'Email support'] },
+  { name: 'Starter',  price: '$49',  cap: 'Up to 25 vendors',  features: ['COI verification', 'Vendor database', 'Basic reporting', 'Email support'] },
+  { name: 'Pro',      price: '$99',  cap: 'Up to 100 vendors', features: ['Everything in Starter', 'Expiration tracking', 'Advanced reporting', 'Priority support', 'Export data'], recommended: true },
+  { name: 'Business', price: '$149', cap: 'Up to 250 vendors', features: ['Everything in Pro', 'Team access', 'Custom requirements', 'API access', 'Dedicated support'] },
+]
+
+// ── Two-voice typography components (Design Bible §Typography) ──────────────
+// The reusable form of the two-voice rule. Prefer these over ad-hoc font-family
+// declarations so the said/recorded split stays enforceable across the page.
+//   <Said>     — Schibsted Grotesk. Everything the brand SAYS: headlines, body,
+//                labels, buttons. Use `variant="headline"` for display type
+//                (600 weight, tight tracking/leading) or the default for body.
+//   <Recorded> — IBM Plex Mono, tabular figures. Everything the system RECORDS:
+//                policy numbers, dates, dollar limits, statuses, timestamps,
+//                vendor IDs. This is the ledger voice — it IS the verification.
+type VoiceProps = {
+  as?: ElementType
+  className?: string
+  style?: CSSProperties
+  children: ReactNode
+}
+
+function Said({ as: Tag = 'span', variant, className = '', style, children }: VoiceProps & { variant?: 'headline' | 'body' }) {
+  const base = variant === 'headline' ? 'voice-headline' : variant === 'body' ? 'voice-body' : 'voice'
+  return <Tag className={`${base}${className ? ` ${className}` : ''}`} style={style}>{children}</Tag>
+}
+
+function Recorded({ as: Tag = 'span', className = '', style, children }: VoiceProps) {
+  return <Tag className={`evidence${className ? ` ${className}` : ''}`} style={style}>{children}</Tag>
+}
+
+// ── The verification stamp (Design Bible §Iconography) ──────────────────────
+// A drawn brand asset, deliberately distinct from a generic checkmark: an
+// elongated auditor's tick with a heavier 2.6 stroke, squared terminals, and a
+// mitered joint. Motion is applied by the parent (the scan cycle's resolve
+// keyframes carry the Bible's stamp shape: 1.06 → 1.0, ~160ms, stops dead).
+function VerifiedMark() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <path
+        d="M2 9.5 6.2 13.5 14.5 2.5"
+        fill="none" stroke="var(--verified)"
+        strokeWidth="2.6" strokeLinecap="square" strokeLinejoin="miter"
+      />
+    </svg>
+  )
+}
+
+// The failed-verification mark — same drawn family as VerifiedMark
+// (§Iconography: single family, squared terminals, heavier stroke), set in
+// --attention. Used only beside a stated reason, never decoratively (§Color).
+function FailMark() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <path
+        d="M3 3 13 13 M13 3 3 13"
+        fill="none" stroke="var(--attention)"
+        strokeWidth="2.6" strokeLinecap="square"
+      />
+    </svg>
+  )
+}
+
+// ── Audit trail section — scroll-synced verification ────────────────────────────
+// Own component so milestone state updates re-render only this section, not
+// the whole page (react-best-practices: re-render scope).
+function AuditSection() {
+  // One-way latches: once the reader has reached a milestone it stays
+  // reached — the audit happened; certainty does not un-settle (§Emotional
+  // goals: certainty is the terminal state). Scrolling back up never
+  // un-verifies the card.
+  const [emphasized, setEmphasized] = useState(false)
+  const [resolved, setResolved] = useState(false)
+  const emphasizeRef = useRef<HTMLDivElement | null>(null)
+  const resolveRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    // Reduced motion: rest at the resolved end state, statically (§Motion:
+    // prefers-reduced-motion fully respected — the state change itself is
+    // the JS side; the global CSS rule kills the animations).
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setEmphasized(true)
+      setResolved(true)
+      return
+    }
+    // IntersectionObserver only — no scroll listeners, no snapping, the
+    // native scroll is never touched. A milestone fires when its trail
+    // entry crosses 75% of the viewport, then is unobserved (latch).
+    const pairs: Array<[Element | null, () => void]> = [
+      [emphasizeRef.current, () => setEmphasized(true)],
+      [resolveRef.current, () => setResolved(true)],
+    ]
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue
+        const pair = pairs.find(([el]) => el === entry.target)
+        if (pair) { pair[1](); observer.unobserve(entry.target) }
+      }
+    }, { rootMargin: '0px 0px -25% 0px' })
+    for (const [el] of pairs) { if (el) observer.observe(el) }
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <>
+      {/* ── THE AUDIT TRAIL — replaces the trust bar + red/green comparison ──
+          The two-column pain/solution card pattern is the generic SaaS
+          default (frontend-design: a choice you'd make for any brief fails
+          the brief). Instead the workflow is SHOWN as evidence: a timestamped
+          audit trail in the ledger voice (§The signature — marketing copy
+          talks ABOUT verification; ledger-set data IS verification). Flat
+          carbon, hairline seam transition (§Section transitions: structural,
+          not decorative). No green (ban #8): resolution is stamped orange.
+          The old trust-bar chips live on here as squared audit tags. */}
+      <section style={{ background: 'var(--carbon)', borderTop: '1px solid var(--seam)', padding: 'clamp(72px, 9vw, 112px) 24px' }}>
+        <div style={{ maxWidth: 'var(--content-max)', margin: '0 auto' }}>
+
+          <Said as="h2" variant="headline" style={{ fontSize: 'clamp(25px, 3.2vw, 39px)', color: 'var(--ink-primary)', marginBottom: 14 }}>
+            This is what verification looks like.
+          </Said>
+          <Said as="p" variant="body" style={{ color: 'var(--ink-secondary)', marginBottom: 24 }}>
+            Every certificate is read, checked against your requirements, and resolved — before work begins.
+          </Said>
+
+          {/* Audit tags — the checks every certificate is read against */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 56 }}>
+            {AUDIT_TAGS.map(tag => (
+              <Recorded key={tag} className="audit-tag">{tag}</Recorded>
+            ))}
+          </div>
+
+          {/* Two panels, one story: the trail (left) narrates the
+              verification; the summary card (right) shows the verdict as it
+              stands MID-STORY — Workers Comp missing, 2/3 passed, 1 open
+              finding. The unresolved state is deliberate (§Emotional goals:
+              discomfort before relief); Part 2's scroll-sync resolves it as
+              the reader reaches the 10:47 entries. Trail entries hang from
+              the seam spine over the sanctioned ledger-grid texture;
+              timestamps and statuses are RECORDED, event descriptions are
+              SAID. Verified rows get the drawn stamp; Missing gets no mark —
+              absence is the state. */}
+          <div className="audit-grid">
+
+            {/* LEFT — the trail */}
+            <div className="ledger-grid-bg" style={{ borderLeft: '1px solid var(--seam)', padding: '4px 0 4px clamp(20px, 3vw, 36px)' }}>
+              {AUDIT_TRAIL.map((e, i) => (
+                <div
+                  key={i}
+                  ref={e.milestone === 'emphasize' ? emphasizeRef : e.milestone === 'resolve' ? resolveRef : undefined}
+                  className="audit-row"
+                >
+                  <Recorded style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-secondary)' }}>{e.time}</Recorded>
+                  {e.status ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                      <Said style={{ fontSize: 'var(--text-base)', fontWeight: 500, color: 'var(--ink-primary)' }}>{e.coverage} —</Said>
+                      <Recorded style={{ fontSize: 'var(--text-xs)', color: e.status === 'Verified' ? 'var(--verified)' : 'var(--attention)' }}>
+                        {e.status}
+                      </Recorded>
+                      {e.status === 'Verified' ? <span style={{ alignSelf: 'center', display: 'inline-flex' }}><VerifiedMark /></span> : null}
+                    </span>
+                  ) : (
+                    <div>
+                      <Said as="p" style={{ fontSize: 'var(--text-base)', fontWeight: 500, color: 'var(--ink-primary)' }}>{e.event}</Said>
+                      {e.detail ? (
+                        <Said as="p" style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-secondary)', marginTop: 3 }}>{e.detail}</Said>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* RIGHT — Verification Summary record card (§Components: a card
+                for a discrete record — graphite, seam border, 8px radius, no
+                shadow, no hover lift). NOT warm paper: the document surface
+                is the hero's; this is the verdict view. Starts MID-STORY
+                (agrees with the trail at 09:03:11) and resolves when the
+                reader reaches the 10:47:29 entry. Pinned by .panel-pin —
+                position: sticky bounded to this grid row, released when the
+                trail ends; the reader's scroll is never touched. */}
+            <div className="panel-pin" style={{ background: 'var(--graphite)', border: '1px solid var(--seam)', borderRadius: 'var(--radius)', padding: 24 }}>
+              <div style={{ paddingBottom: 14, borderBottom: '1px solid var(--seam)' }}>
+                <Recorded as="p" style={{ fontSize: 11, letterSpacing: '0.08em', color: 'var(--ink-secondary)' }}>VERIFICATION SUMMARY</Recorded>
+                <Recorded as="p" style={{ fontSize: 14, color: 'var(--ink-primary)', marginTop: 6 }}>Calloway Mechanical Services</Recorded>
+              </div>
+
+              {/* Verdict rows — labels are SAID, values are RECORDED. On
+                  resolve the values re-mount (key changes) and settle into
+                  place at datum scale — once, then rest. "Verified" earns
+                  orange only at that moment (§Color). Tabular figures keep
+                  2/3 → 3/3 and 1 → 0 from shifting layout. */}
+              <div style={{ padding: '6px 0', borderBottom: '1px solid var(--seam)' }}>
+                {[
+                  { label: 'Overall Status',      value: resolved ? 'Verified' : 'In Progress', color: resolved ? 'var(--verified)' : 'var(--ink-primary)' },
+                  { label: 'Requirements Passed', value: resolved ? '3 / 3' : '2 / 3',          color: 'var(--ink-primary)' },
+                  { label: 'Open Findings',       value: resolved ? '0' : '1',                  color: 'var(--ink-primary)' },
+                ].map(s => (
+                  <div key={s.label} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, padding: '8px 0' }}>
+                    <Said style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-secondary)' }}>{s.label}</Said>
+                    <Recorded
+                      key={`${s.label}-${resolved}`}
+                      className={resolved ? 'settle-datum' : undefined}
+                      style={{ fontSize: 'var(--text-xs)', color: s.color }}
+                    >
+                      {s.value}
+                    </Recorded>
+                  </div>
+                ))}
+              </div>
+
+              {/* Requirement list — Verified gets the drawn stamp; Missing
+                  gets no mark and carries --attention. The WC row is the key
+                  moment: on resolve it re-mounts with the .stamp shape
+                  (1.06 → 1.0, 160ms, stops dead — a stamp meeting paper).
+                  On the emphasize milestone the Missing datum re-settles
+                  once so the open finding registers as the trail names it. */}
+              <div style={{ paddingTop: 6 }}>
+                {SUMMARY_REQS.map(r => {
+                  const isWC = r.name === 'Workers Compensation'
+                  const status = isWC && resolved ? 'Verified' : r.status
+                  return (
+                    <div key={r.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '9px 0' }}>
+                      <Said style={{ fontSize: 14, color: 'var(--ink-primary)' }}>{r.name}</Said>
+                      {status === 'Verified' ? (
+                        <span className={isWC ? 'status-cell stamp' : 'status-cell'}>
+                          <VerifiedMark />
+                          <Recorded style={{ fontSize: 'var(--text-xs)', color: 'var(--verified)', whiteSpace: 'nowrap' }}>
+                            Verified
+                          </Recorded>
+                        </span>
+                      ) : (
+                        <Recorded
+                          key={emphasized ? 'missing-noted' : 'missing'}
+                          className={emphasized ? 'settle-datum' : undefined}
+                          style={{ fontSize: 'var(--text-xs)', color: 'var(--attention)', whiteSpace: 'nowrap' }}
+                        >
+                          Missing
+                        </Recorded>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </>
+  )
+}
+
+// ── Compliance cycle — radial loop with a traveling reading head ─────────────
+// Own component (react-best-practices: re-render scope) so the run/resolved
+// phase state stays local. The head starts traveling when the stage is ~35%
+// visible — otherwise the first revolution (the demonstration) would play
+// off-screen. IntersectionObserver only; the scroll is never touched.
+function CycleSection() {
+  const stageRef = useRef<HTMLDivElement | null>(null)
+  const [phase, setPhase] = useState<'idle' | 'running' | 'resolved'>('idle')
+
+  useEffect(() => {
+    // Reduced motion: the finished board, statically — all stations
+    // recorded, gap flagged, no traveling point (§Motion).
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setPhase('resolved')
+      return
+    }
+    const el = stageRef.current
+    if (!el) return
+    const io = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) { setPhase('running'); io.disconnect(); break }
+      }
+    }, { threshold: 0.35 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
+  return (
+    <>
+      {/* ── THE COMPLIANCE CYCLE — radial rebuild. The previous vertical
+          list read as a second timeline and didn't say "loop"; the ring
+          does. Covira's version of a cycle diagram: seam ring, mono
+          stations, quiet mono center — no orb, no gradient track, no
+          cards, no arrows (§Components; §Background ban list). Orange
+          appears ONLY as the traveling reading head (verification in
+          motion); red only on the caught gap (§Color). Stations are
+          fixed; only the head moves. id="how-it-works" preserved. */}
+      <section id="how-it-works" style={{ background: 'var(--carbon)', borderTop: '1px solid var(--seam)', padding: 'clamp(72px, 9vw, 112px) 24px' }}>
+        <div style={{ maxWidth: 'var(--content-max)', margin: '0 auto' }}>
+
+          <Said as="h2" variant="headline" style={{ fontSize: 'clamp(25px, 3.2vw, 39px)', color: 'var(--ink-primary)', marginBottom: 14 }}>
+            Compliance is a cycle, not a checkbox.
+          </Said>
+          <Said as="p" variant="body" style={{ color: 'var(--ink-secondary)', marginBottom: 40 }}>
+            Every renewal, every new vendor, every expiring policy — Covira reads it again.
+          </Said>
+
+          {/* Desktop: the radial stage */}
+          <div
+            ref={stageRef}
+            className={`cycle-stage ledger-grid-bg${phase === 'running' ? ' is-running' : ''}${phase === 'resolved' ? ' is-resolved' : ''}`}
+          >
+            <div className="cycle-ring" aria-hidden="true" />
+            <div className="cycle-orbit" aria-hidden="true"><span className="cycle-point" /></div>
+            <Recorded className="cycle-center">CONTINUOUS VERIFICATION</Recorded>
+            {CYCLE_STATIONS.map((st, i) => (
+              <div key={st.index} className={`cycle-st st-${i + 1}`}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                  <Recorded style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-secondary)' }}>{st.index}</Recorded>
+                  <Recorded style={{ fontSize: 13.5, color: 'var(--ink-primary)' }}>{st.name}</Recorded>
+                  {st.flag ? <span className="cycle-flag"><FailMark /></span> : null}
+                </span>
+                <Said as="p" style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--ink-secondary)', margin: '3px 0 0' }}>
+                  {st.desc}
+                </Said>
+              </div>
+            ))}
+          </div>
+
+          {/* Mobile: the compact ledger list (static — the radial stage
+              needs width the small screens don't have) */}
+          <div className="cycle-list ledger-grid-bg">
+            {CYCLE_STATIONS.map(st => (
+              <div key={st.index} className="cycle-station">
+                <Recorded style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-secondary)' }}>{st.index}</Recorded>
+                <div>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                    <Recorded style={{ fontSize: 13.5, color: 'var(--ink-primary)' }}>{st.name}</Recorded>
+                    {st.flag ? <FailMark /> : null}
+                  </span>
+                  <Said as="p" style={{ fontSize: 14.5, lineHeight: 1.55, color: 'var(--ink-secondary)', margin: '3px 0 0' }}>
+                    {st.desc}
+                  </Said>
+                </div>
+              </div>
+            ))}
+            <div className="cycle-station" style={{ borderBottom: 'none', paddingBottom: 4 }}>
+              <Recorded style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-secondary)', opacity: 0.6 }}>→</Recorded>
+              <Recorded style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-secondary)' }}>runs again from 01</Recorded>
+            </div>
+          </div>
+        </div>
+      </section>
+    </>
+  )
+}
+
+// ── Final CTA — the closer ───────────────────────────────────────────────────
+// NOTE — ratified Bible override (owner decision, 07/2026): the subhead uses
+// a typewriter effect, a one-off exception to §Motion ban #12. Built as the
+// restrained version: types ONCE when scrolled into view (IntersectionObserver,
+// latched, never loops), fast even pacing (~19ms/char ≈ 1.2s total), steady
+// non-blinking cursor that vanishes on completion, zero layout shift (typed
+// text overlays a hidden copy of the full line, so wrapping is identical).
+// prefers-reduced-motion renders the full sentence instantly, no typing.
+const CTA_LINE = 'Your first three vendors are free. Setup takes about a minute.'
+
+function CtaSection() {
+  const sectionRef = useRef<HTMLElement | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const startedRef = useRef(false)
+  const [typedCount, setTypedCount] = useState(0)
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setTypedCount(CTA_LINE.length)
+      return
+    }
+    const el = sectionRef.current
+    if (!el) return
+    const io = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (entry.isIntersecting && !startedRef.current) {
+          startedRef.current = true
+          io.disconnect()
+          intervalRef.current = setInterval(() => {
+            setTypedCount(c => Math.min(c + 1, CTA_LINE.length))
+          }, 19)
+          break
+        }
+      }
+    }, { threshold: 0.4 })
+    io.observe(el)
+    return () => {
+      io.disconnect()
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [])
+
+  // stop the ticker once the line is complete
+  useEffect(() => {
+    if (typedCount >= CTA_LINE.length && intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+  }, [typedCount])
+
+  const done = typedCount >= CTA_LINE.length
+
+  return (
+    <>
+      {/* ── FINAL CTA — Design Bible rebuild ────────────────────────────────
+          Deleted: "Stop assuming. Start knowing." (ban: "Stop X. Start Y."),
+          "Join property managers who…" (implied social proof) + "the smart
+          way" (banned phrase), the animated radial glow (§Background), the
+          glowing primary button (§Buttons: flat fill only), old orange
+          #D97706 → --verified. The closer states certainty quietly
+          (§Emotional goals: certainty is the terminal emotion) — headline
+          all ink, orange reserved for the one primary action. */}
+      <section ref={sectionRef} id="about" style={{ background: 'var(--carbon)', borderTop: '1px solid var(--seam)', padding: 'clamp(88px, 12vw, 140px) 24px', textAlign: 'center' }}>
+        <div style={{ maxWidth: 640, margin: '0 auto' }}>
+          <Said as="h2" variant="headline" style={{ fontSize: 'clamp(31px, 4.5vw, 49px)', color: 'var(--ink-primary)', marginBottom: 18 }}>
+            Know exactly which vendors are covered.
+          </Said>
+
+          {/* Typed subhead — full text exposed to screen readers via
+              aria-label; the visual typing is aria-hidden. The hidden copy
+              reserves exact width/wrap so nothing shifts as it types. */}
+          <p aria-label={CTA_LINE} style={{ margin: '0 0 36px' }}>
+            <span aria-hidden="true" style={{ position: 'relative', display: 'inline-block' }}>
+              <Said style={{ visibility: 'hidden', fontSize: 18, lineHeight: 1.6 }}>{CTA_LINE}</Said>
+              <Said style={{ position: 'absolute', inset: 0, textAlign: 'left', fontSize: 18, lineHeight: 1.6, color: 'var(--ink-secondary)' }}>
+                {CTA_LINE.slice(0, typedCount)}
+                {!done && typedCount > 0 ? (
+                  <span style={{ display: 'inline-block', width: 2, height: '1em', background: 'var(--ink-secondary)', verticalAlign: '-0.15em', marginLeft: 2 }} />
+                ) : null}
+              </Said>
+            </span>
+          </p>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
+            <Link href="/sign-up" className="btn-verify">Verify your first certificate</Link>
+            <a
+              href="https://calendly.com/charles-covira/30min"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-quiet"
+            >
+              Book a demo
+            </a>
+          </div>
+        </div>
+      </section>
+    </>
+  )
+}
 
 export default function Home() {
   const [navOpen, setNavOpen] = useState(false)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    let animId: number
-
-    interface Particle {
-      x: number; y: number; size: number
-      vx: number; vy: number; opacity: number; phase: number
-    }
-
-    const setup = () => {
-      const W = canvas.offsetWidth || 800
-      const H = canvas.offsetHeight || 600
-      canvas.width = W
-      canvas.height = H
-
-      const particles: Particle[] = []
-      for (let i = 0; i < 280; i++) {
-        const r = Math.random()
-        let x: number, y: number
-        if (r < 0.45) {
-          // bottom-left cluster
-          x = Math.random() * W * 0.32
-          y = H * 0.45 + Math.random() * H * 0.55
-        } else if (r < 0.78) {
-          // bottom-right cluster
-          x = W * 0.68 + Math.random() * W * 0.32
-          y = H * 0.45 + Math.random() * H * 0.55
-        } else {
-          // scattered across full canvas
-          x = Math.random() * W
-          y = Math.random() * H
-        }
-        particles.push({
-          x, y,
-          size: Math.random() * 2.2 + 0.3,
-          vx: (Math.random() - 0.5) * 0.3,
-          vy: -(Math.random() * 0.22 + 0.06),
-          opacity: Math.random() * 0.45 + 0.08,
-          phase: Math.random() * Math.PI * 2,
-        })
-      }
-
-      let tick = 0
-      const frame = () => {
-        ctx.clearRect(0, 0, W, H)
-        tick += 0.012
-        for (const p of particles) {
-          p.x += p.vx + Math.sin(tick + p.phase) * 0.7
-          p.y += p.vy
-          if (p.y < -4) { p.y = H + 4; p.x = Math.random() * W }
-          if (p.x < -4) p.x = W + 4
-          if (p.x > W + 4) p.x = -4
-          ctx.globalAlpha = p.opacity
-          ctx.fillStyle = '#D97706'
-          ctx.beginPath()
-          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-          ctx.fill()
-        }
-        ctx.globalAlpha = 1
-        animId = requestAnimationFrame(frame)
-      }
-      frame()
-    }
-
-    setup()
-    const onResize = () => { cancelAnimationFrame(animId); setup() }
-    window.addEventListener('resize', onResize)
-    return () => { cancelAnimationFrame(animId); window.removeEventListener('resize', onResize) }
-  }, [])
 
   return (
     <div style={{ background: T.bg, minHeight: '100vh', color: T.textPrimary, fontFamily: 'Inter, sans-serif' }}>
       <style>{`
+        /* ── FONTS ─────────────────────────────────────────────────────────
+           The two Covira voices (Schibsted Grotesk = SAID, IBM Plex Mono =
+           RECORDED) are self-hosted via next/font in app/layout.tsx, which
+           exposes them as --font-voice / --font-evidence on <html>. The
+           .voice / .evidence classes below just consume those variables.
+           Inter is retained via @import ONLY until the last legacy section is
+           rebuilt, then it must be removed — it is not a Covira face. */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+        /* ── DESIGN TOKENS (Design Bible appendix) ─────────────────────────
+           Single source of truth. Sections consume these as var(--token) from
+           inline styles or classes — do not reintroduce a parallel JS palette. */
+        :root {
+          /* Color — carbon ground, orange earned, NO green/purple/glass */
+          --carbon:        #0C0E12; /* primary ground, cold near-black */
+          --graphite:      #171A21; /* raised surfaces: cards, nav */
+          --seam:          #262B35; /* borders / hairlines */
+          --ink-primary:   #F2F4F8; /* primary text */
+          --ink-secondary: #9AA3B2; /* secondary text */
+          --document:      #FAF9F6; /* evidence surfaces ONLY — warm paper */
+          --document-ink:  #15181E; /* text on document surfaces */
+          --verified:      #F97316; /* verification states, primary CTA, the stamp — nothing else */
+          --attention:     #E5484D; /* failed verification / lapsed coverage — sparingly, with a reason */
+
+          /* Two voices — supplied on <html> by next/font (app/layout.tsx):
+             --font-voice = Schibsted Grotesk (SAID), --font-evidence = IBM Plex Mono (RECORDED). */
+
+          /* Type scale — 1.25 ratio: 13 16 20 25 31 39 49 61 */
+          --text-xs:   13px;
+          --text-base: 16px; /* body baseline */
+          --text-md:   20px;
+          --text-lg:   25px;
+          --text-xl:   31px;
+          --text-2xl:  39px;
+          --text-3xl:  49px;
+          --text-4xl:  61px;
+
+          /* Spacing & layout — base unit 4px, 24px component rhythm */
+          --unit:          4px;
+          --section-gap:   96px;   /* 96–128px between major sections */
+          --gap-component: 24px;   /* 24–32px inside components */
+          --radius:        8px;    /* the only radius */
+          --content-max:   1120px; /* max content width */
+          --measure:       68ch;   /* max text-column measure */
+
+          /* Motion — things settle and stop DEAD; no bounce/spring */
+          --settle-distance: 10px;                              /* 8–12px arrival */
+          --settle:          200ms cubic-bezier(0.2,0.8,0.2,1); /* 180–240ms, ease-out, no overshoot */
+          --stamp:           160ms ease-out;                    /* verified mark meeting paper */
+        }
+
+        /* ── TWO-VOICE TYPOGRAPHY (reusable) ───────────────────────────────
+           .voice     → Schibsted Grotesk: headlines, body, labels, buttons.
+           .evidence  → IBM Plex Mono, tabular figures: any real datum —
+                        policy numbers, dates, dollar limits, statuses,
+                        timestamps, vendor IDs. Never italic, never bold for
+                        emphasis, never orange unless the datum is a verified
+                        state. Reads like it was printed by a machine.
+           Also exposed as <Said> / <Recorded> React components below. */
+        .voice { font-family: var(--font-voice); }
+        .voice-headline {
+          font-family: var(--font-voice);
+          font-weight: 600;            /* 500–700 range */
+          letter-spacing: -0.02em;     /* tight tracking */
+          line-height: 1.07;           /* 1.05–1.1 tight leading */
+        }
+        .voice-body {
+          font-family: var(--font-voice);
+          font-weight: 400;
+          font-size: 18px; /* Bible body range is 16–18px; marketing surfaces use the 18px upper bound */
+          line-height: 1.6;
+          max-width: var(--measure);
+        }
+        .evidence {
+          font-family: var(--font-evidence);
+          font-style: normal;                 /* never italic */
+          font-weight: 400;                    /* never bold for emphasis */
+          font-variant-numeric: tabular-nums;  /* tabular figures */
+          font-feature-settings: "tnum" 1;
+          letter-spacing: 0;
+        }
+
+        /* ── MOTION PRIMITIVES (the settle + the stamp) ────────────────────
+           Reusable arrival animations. One orchestrated moment per page max;
+           apply deliberately when sections are built, not decoratively. */
+        @keyframes settle {
+          /* downward arrival per §Motion ("short downward ease-out") —
+             starts above its resting place and settles down onto it */
+          from { opacity: 0; transform: translateY(calc(-1 * var(--settle-distance))); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes stamp {
+          from { opacity: 0; transform: scale(1.06); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+        /* settle-datum — the settle at datum scale (6px, 180ms) for small
+           inline values that change state (counts, statuses). Same curve,
+           same dead stop; distance reduced so a 13px datum doesn't lurch. */
+        @keyframes settle-datum {
+          from { opacity: 0; transform: translateY(-6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .settle       { animation: settle var(--settle) both; }
+        .stamp        { animation: stamp var(--stamp) both; }
+        .settle-datum { animation: settle-datum 180ms cubic-bezier(0.2,0.8,0.2,1) both; }
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         a { cursor: pointer; text-decoration: none; }
         button { cursor: pointer; }
 
-        @keyframes slide-up {
-          from { opacity: 0; transform: translateY(20px); }
-          to   { opacity: 1; transform: translateY(0); }
+        html { scroll-behavior: smooth; }
+
+        /* ── HERO (Design Bible rebuild) ───────────────────────────────────
+           Flat carbon ground — §Background bans mesh/aurora/radial/dot-grid.
+           Buttons per §Component philosophy: primary = verified-orange fill
+           with carbon text, the ONLY orange fill in the system; secondary =
+           transparent + seam border. Focus ring = 1px ink, never orange glow
+           (orange is earned). Hover = one-step surface shift, no lift. */
+        .hero-shell {
+          background: var(--carbon);
+          padding: clamp(64px, 9vw, 112px) 24px;
         }
-        @keyframes fade-in {
-          from { opacity: 0; }
-          to   { opacity: 1; }
+        .hero-grid {
+          max-width: var(--content-max); margin: 0 auto;
+          display: flex; align-items: center; gap: 56px;
         }
-        @keyframes live-pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
+        .hero-copy { flex: 0 0 44%; max-width: 44%; }
+        .hero-artifact-col { flex: 1 1 auto; min-width: 0; }
+
+        .btn-verify {
+          display: inline-flex; align-items: center; justify-content: center;
+          background: var(--verified); color: var(--carbon);
+          font-family: var(--font-voice); font-weight: 600; font-size: var(--text-base);
+          padding: 13px 26px; border-radius: var(--radius);
+          border: none; text-decoration: none;
+          transition: background 150ms ease;
         }
-        @keyframes float-card {
-          0%, 100% { transform: translateY(0px); }
-          50%       { transform: translateY(-7px); }
+        .btn-verify:hover { background: #E1660D; } /* one-step press shade — proposed token --verified-press */
+        .btn-quiet {
+          display: inline-flex; align-items: center; justify-content: center;
+          background: transparent; color: var(--ink-primary);
+          font-family: var(--font-voice); font-weight: 500; font-size: var(--text-base);
+          padding: 13px 26px; border-radius: var(--radius);
+          border: 1px solid var(--seam); text-decoration: none;
+          transition: border-color 150ms ease;
         }
-        @keyframes hero-glow-pulse {
-          0%, 100% { opacity: 0.07; }
-          50%       { opacity: 0.14; }
-        }
-        @keyframes badge-glow {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(217,119,6,0); }
-          50%       { box-shadow: 0 0 18px 4px rgba(217,119,6,0.12); }
+        .btn-quiet:hover { border-color: var(--ink-secondary); }
+        .btn-verify:focus-visible, .btn-quiet:focus-visible {
+          outline: 1px solid var(--ink-primary); outline-offset: 2px;
         }
 
-        .hero-left  { animation: fade-in 0.5s ease forwards; }
-        .hero-right { animation: slide-up 0.6s 0.15s ease both; }
+        /* Evidence artifact — the one light surface (§The signature). Sits on
+           the grid: no float, no tilt, no soft drop shadow. Hairlines are
+           document-ink at low opacity (paper seams, not carbon seams). */
+        .artifact {
+          background: var(--document); color: var(--document-ink);
+          border: 1px solid rgba(21,24,30,0.18);
+          border-radius: var(--radius);
+          padding: 24px;
+        }
+        .paper-hairline { border-top: 1px solid rgba(21,24,30,0.12); }
+
+        /* ── STAGE 1 — the read (scanning certificate, plays ONCE) ─────────
+           One shared 4.8s pass, run a single time on load: the scan head
+           sweeps top→bottom over 0–58% (~2.8s, linear — calm, machine-
+           paced), each row resolves as the head passes it, and the fully-
+           read certificate then RESTS permanently (fill-mode: both holds the
+           final frame). No loop — the page arc is tension → resolution →
+           certainty, and certainty is a state, not a cycle (§Emotional
+           goals; §Motion: things settle and stop dead). This one pass is the
+           page's single orchestrated moment. Bible extension ratified this
+           session: machine-work motion is exempt from the 400ms UI cap
+           because it depicts the product working, not a UI transition. The
+           scan head is INK, not orange — scanning is checking, not
+           confirming; orange appears only at the instant a line resolves
+           verified (§Color: orange is earned). Resolve timings
+           (29/35/41/46/52%) approximate each row's vertical position × the
+           58% sweep window; they must stay in SCAN_ROWS index order.
+           transform-only sweep = compositor-friendly (react-best-practices).
+           prefers-reduced-motion: the global rule collapses every animation
+           to its final frame — the resolved certificate, statically. */
+        .scan-artifact { position: relative; overflow: hidden; }
+        .scan-line {
+          position: absolute; inset: 0; pointer-events: none;
+          background: linear-gradient(to bottom, transparent calc(100% - 26px), rgba(21,24,30,0.05) 100%);
+          border-bottom: 1.5px solid rgba(21,24,30,0.45);
+          animation: scan-sweep 4.8s linear both;
+        }
+        @keyframes scan-sweep {
+          0%   { transform: translateY(-100%); opacity: 0; }
+          2%   { opacity: 1; }
+          56%  { opacity: 1; }
+          58%  { transform: translateY(0); opacity: 0; }
+          100% { transform: translateY(0); opacity: 0; }
+        }
+        .status-cell {
+          display: inline-flex; align-items: center; gap: 6px;
+          justify-self: end;
+        }
+        .resolve-1 { animation: resolve-stamp-1 4.8s ease-out both; }
+        .resolve-2 { animation: resolve-stamp-2 4.8s ease-out both; }
+        .resolve-3 { animation: resolve-stamp-3 4.8s ease-out both; }
+        .resolve-4 { animation: resolve-flag-4  4.8s ease-out both; }
+        .resolve-5 { animation: resolve-flag-5  4.8s ease-out both; }
+        @keyframes resolve-stamp-1 { 0%, 29% { opacity: 0; transform: scale(1.06); } 32%, 100% { opacity: 1; transform: scale(1); } }
+        @keyframes resolve-stamp-2 { 0%, 35% { opacity: 0; transform: scale(1.06); } 38%, 100% { opacity: 1; transform: scale(1); } }
+        @keyframes resolve-stamp-3 { 0%, 41% { opacity: 0; transform: scale(1.06); } 44%, 100% { opacity: 1; transform: scale(1); } }
+        @keyframes resolve-flag-4  { 0%, 46% { opacity: 0; } 48%, 100% { opacity: 1; } }
+        @keyframes resolve-flag-5  { 0%, 52% { opacity: 0; } 54%, 100% { opacity: 1; } }
+
+        /* ── AUDIT TRAIL section (Design Bible rebuild) ────────────────────
+           Audit tags are evidence labels, not marketing pills: mono, hairline
+           seam border, SQUARE corners. Bible extension ratified in-session:
+           0 radius marks archival/evidence labels; the 8px token stays
+           reserved for interactive components (buttons, cards, inputs) —
+           radius now encodes interactive vs archival. Trail entries hang
+           from a hairline seam (§Spacing: elements sit on the grid or hang
+           from a seam); timestamps are the ledger voice (§The signature). */
+        .audit-tag {
+          display: inline-block;
+          border: 1px solid var(--seam);
+          padding: 5px 10px;
+          font-size: var(--text-xs);
+          color: var(--ink-secondary);
+          white-space: nowrap;
+        }
+        /* Two-panel composition: trail (left) narrates, evidence panel
+           (right) shows the certificate it produced. align-items: start so
+           the panel can pin (position: sticky) in Part 2 without relayout. */
+        .audit-grid {
+          display: grid;
+          grid-template-columns: 1.05fr 0.95fr;
+          gap: clamp(36px, 5vw, 72px);
+          align-items: start;
+        }
+        /* The Bible's ONE sanctioned texture (§Background): extremely faint
+           ledger-grid — 1px seam lines, low opacity, 24px rhythm — behind
+           the evidence-heavy trail only. Not a dot grid, not a mesh. */
+        .ledger-grid-bg {
+          background-image: repeating-linear-gradient(
+            to bottom,
+            rgba(38,43,53,0.30) 0, rgba(38,43,53,0.30) 1px,
+            transparent 1px, transparent 24px
+          );
+        }
+        .audit-row {
+          display: grid;
+          grid-template-columns: 92px 1fr;
+          gap: clamp(14px, 3vw, 28px);
+          align-items: baseline;
+          padding: 16px 0;
+          border-bottom: 1px solid var(--seam);
+        }
+        .audit-row:last-child { border-bottom: none; }
+        /* Sticky pin — bounded by the grid row (the section), never the
+           page: sticky's containing block is the audit-grid row, so the
+           card releases exactly where the trail ends. 88px = nav (64) +
+           24px breathing room. No effect when the grid stacks to one
+           column (the card's own row leaves it no travel). */
+        .panel-pin { position: sticky; top: 88px; }
+
+        /* ── COMPLIANCE CYCLE — radial. The ring is a seam, not a glowing
+           track; the center is a quiet mono label, not an orb; stations are
+           type anchored around the ring, not cards (§Components). Bible
+           extension ratified this session: the cycle ring is the page's
+           ONLY perpetual motion — the section's claim is that verification
+           repeats, so the traveling reading head IS the content, not
+           decoration; stations never move or rotate. First revolution
+           activates each station as the head passes (opacity-only settle —
+           positioning transforms are never animated); stations then stay
+           recorded and the head continues. Runs from ~35% visibility
+           (IntersectionObserver — no scroll listeners). 12s/revolution:
+           methodical sweep, not a spinner. prefers-reduced-motion →
+           .is-resolved: finished board, static, no traveling point. */
+        .cycle-stage {
+          display: none;
+          position: relative;
+          width: min(660px, 100%);
+          height: 560px;
+          margin: 0 auto;
+        }
+        .cycle-list { display: block; max-width: 720px; padding: 10px 0; }
+        @media (min-width: 768px) {
+          .cycle-stage { display: block; }
+          .cycle-list { display: none; }
+        }
+        .cycle-ring {
+          position: absolute; left: 50%; top: 50%;
+          width: 340px; height: 340px; margin: -170px 0 0 -170px;
+          border: 1px solid var(--seam); border-radius: 50%;
+        }
+        .cycle-center {
+          position: absolute; left: 50%; top: 50%;
+          transform: translate(-50%, -50%);
+          font-size: 11px; letter-spacing: 0.08em;
+          color: var(--ink-secondary);
+          text-align: center;
+        }
+        /* the reading head — a 6px verified point on the seam, no glow */
+        .cycle-orbit {
+          position: absolute; left: 50%; top: 50%;
+          width: 0; height: 0; opacity: 0; pointer-events: none;
+        }
+        .cycle-point {
+          position: absolute; left: -3px; top: -173px;
+          width: 6px; height: 6px; border-radius: 50%;
+          background: var(--verified);
+        }
+        .is-running .cycle-orbit { opacity: 1; animation: cycle-orbit 12s linear infinite; }
+        @keyframes cycle-orbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        /* stations — dim until the head passes (first revolution), then
+           recorded for good. Angles: 01 top, then 72° steps clockwise;
+           activation percentages = angle / 360. */
+        .cycle-st { position: absolute; max-width: 190px; opacity: 0.45; }
+        .st-1 { left: 50%; transform: translateX(-50%); top: 28px; text-align: center; }
+        .st-2 { right: 8px;  top: 168px;   text-align: left;  }
+        .st-3 { right: 56px; bottom: 34px; text-align: left;  }
+        .st-4 { left: 56px;  bottom: 34px; text-align: right; }
+        .st-5 { left: 8px;   top: 168px;   text-align: right; }
+        .is-running .st-1 { animation: st-act-1 12s ease-out both; }
+        .is-running .st-2 { animation: st-act-2 12s ease-out both; }
+        .is-running .st-3 { animation: st-act-3 12s ease-out both; }
+        .is-running .st-4 { animation: st-act-4 12s ease-out both; }
+        .is-running .st-5 { animation: st-act-5 12s ease-out both; }
+        @keyframes st-act-1 { 0%       { opacity: 0.45; }  2%, 100% { opacity: 1; } }
+        @keyframes st-act-2 { 0%, 20%  { opacity: 0.45; } 22%, 100% { opacity: 1; } }
+        @keyframes st-act-3 { 0%, 40%  { opacity: 0.45; } 42%, 100% { opacity: 1; } }
+        @keyframes st-act-4 { 0%, 60%  { opacity: 0.45; } 62%, 100% { opacity: 1; } }
+        @keyframes st-act-5 { 0%, 80%  { opacity: 0.45; } 82%, 100% { opacity: 1; } }
+        /* the caught gap's mark appears only when the head reaches it */
+        .cycle-flag { opacity: 0; display: inline-flex; }
+        .is-running .cycle-flag { animation: cycle-flag-act 12s ease-out both; }
+        @keyframes cycle-flag-act { 0%, 40% { opacity: 0; } 42%, 100% { opacity: 1; } }
+        /* reduced motion / resolved: finished board, no traveling point */
+        .is-resolved .cycle-st { opacity: 1; }
+        .is-resolved .cycle-flag { opacity: 1; }
+        .is-resolved .cycle-orbit { opacity: 0; }
+
+        /* mobile fallback list rows (shared ledger row shape) */
+        .cycle-station {
+          display: grid;
+          grid-template-columns: 40px 1fr;
+          gap: clamp(12px, 2vw, 20px);
+          align-items: baseline;
+          padding: 14px 0;
+          border-bottom: 1px solid var(--seam);
+        }
+        .cycle-station:last-child { border-bottom: none; }
 
         /* ── Nav link ── */
         .nav-link {
@@ -238,31 +994,65 @@ export default function Home() {
         .demo-link .demo-arrow { transition: transform 0.2s ease; }
         .demo-link:hover .demo-arrow { transform: translateX(4px); }
 
-        .card-hover { transition: border-color 0.2s, transform 0.2s; }
-        .card-hover:hover { border-color: rgba(217,119,6,0.3) !important; transform: translateY(-2px); }
 
-        .pricing-btn {
-          display: block; text-align: center; padding: 12px;
-          border-radius: 9px; font-size: 14px; font-weight: 600;
-          text-decoration: none;
-          transition: background 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s;
+        /* ── PRICING (Bible rebuild) — record cards: graphite, seam border,
+           8px radius, no shadow, no hover lift (§Components). The
+           recommended plan is signaled structurally — a one-step stronger
+           hairline + a stated mono label ("RECOMMENDED" is our claim and
+           true; "MOST POPULAR" implies crowd data we don't have, ban #6).
+           Feature bullets use a neutral 4px marker: a bullet is not a
+           verified state, so no checkmark and no orange (§Color). */
+        .plan-card {
+          background: var(--graphite);
+          border: 1px solid var(--seam);
+          border-radius: var(--radius);
+          padding: 24px;
+          display: flex; flex-direction: column;
         }
-        .pricing-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,0.35); }
+        .plan-card.recommended { border-color: rgba(154,163,178,0.5); }
+        .pricing-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 16px;
+          align-items: stretch;
+        }
+        .plan-dot {
+          width: 4px; height: 4px; flex-shrink: 0;
+          background: var(--ink-secondary); opacity: 0.5;
+        }
 
         /* ── Responsive ── */
         @media (max-width: 1023px) {
-          .hero-grid { flex-direction: column !important; }
-          .hero-right-wrap { display: none !important; }
-          .steps-connector { display: none !important; }
+          .audit-grid { grid-template-columns: 1fr; }
+          .pricing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .hero-grid { flex-direction: column; align-items: flex-start; }
+          .hero-copy { flex: 1 1 auto; max-width: 640px; }
+          /* the evidence artifact is the signature — it stays on mobile */
+          .hero-artifact-col { width: 100%; max-width: 600px; }
           .desktop-nav { display: none !important; }
           .mobile-menu-btn { display: flex !important; }
         }
         @media (max-width: 767px) {
-          .problem-grid { flex-direction: column !important; }
-          .pricing-grid { flex-direction: column !important; }
-          .trust-pills { flex-wrap: wrap !important; gap: 10px !important; }
+          .audit-row { grid-template-columns: 74px 1fr; }
+          .pricing-grid { grid-template-columns: 1fr; max-width: 440px; }
           .footer-inner { flex-direction: column !important; gap: 24px !important; }
           .footer-links { flex-wrap: wrap !important; gap: 14px !important; }
+          .footer-copyright { text-align: left !important; white-space: normal !important; }
+        }
+        @media (max-width: 479px) {
+          .hero-ctas { flex-direction: column !important; align-items: stretch !important; }
+          .hero-ctas .btn-verify, .hero-ctas .btn-quiet { justify-content: center; }
+        }
+
+        /* ── Accessibility: reduced motion fully respected (Design Bible
+           §Motion) — settle and stamp collapse to instant state changes. */
+        @media (prefers-reduced-motion: reduce) {
+          html { scroll-behavior: auto; }
+          *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+          }
         }
       `}</style>
 
@@ -306,6 +1096,7 @@ export default function Home() {
           <button
             onClick={() => setNavOpen(v => !v)}
             aria-label="Toggle menu"
+            aria-expanded={navOpen}
             style={{
               display: 'none', background: 'none',
               border: `1px solid ${T.borderAccent}`, borderRadius: 8,
@@ -354,846 +1145,177 @@ export default function Home() {
         )}
       </nav>
 
-      {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <section style={{
-        minHeight: 'calc(100vh - 64px)',
-        background: T.bg,
-        padding: 'clamp(56px, 7vw, 96px) 24px',
-        position: 'relative', overflow: 'hidden',
-        display: 'flex', alignItems: 'center',
-      }}>
-        {/* Particle canvas — z-index 0, no pointer events */}
-        <canvas
-          ref={canvasRef}
-          style={{
-            position: 'absolute', inset: 0,
-            width: '100%', height: '100%',
-            pointerEvents: 'none', zIndex: 0,
-          }}
-        />
+      {/* ── HERO — Design Bible rebuild ───────────────────────────────────
+          Flat carbon, no mesh/dots/glow (§Background). Left: the thesis, all
+          ink-primary in the voice face — orange is reserved for the one
+          primary action and the stamps (§Color: orange is earned). Right: the
+          evidence artifact — a certificate treated as a legal exhibit on the
+          one permitted light surface, sitting on the grid, unrotated, no soft
+          shadow (§The signature; §Spacing: floating is banned). The stamps
+          landing on verified rows are this page's single orchestrated motion
+          moment (§Motion: one per page max). */}
+      <section className="hero-shell">
+        <div className="hero-grid">
 
-        {/* Dot grid */}
-        <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1,
-          backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px)',
-          backgroundSize: '32px 32px',
-        }} />
-
-        {/* Orange glow — top-left behind headline */}
-        <div style={{
-          position: 'absolute', top: '-12%', left: '-16%',
-          width: 720, height: 720, borderRadius: '50%',
-          background: 'rgba(217,119,6,0.09)', filter: 'blur(160px)',
-          pointerEvents: 'none', zIndex: 1,
-          animation: 'hero-glow-pulse 4s ease-in-out infinite',
-        }} />
-        {/* Indigo glow — right behind card */}
-        <div style={{
-          position: 'absolute', bottom: '-8%', right: '-8%',
-          width: 500, height: 500, borderRadius: '50%',
-          background: 'rgba(99,102,241,0.05)', filter: 'blur(120px)',
-          pointerEvents: 'none', zIndex: 1,
-        }} />
-
-        {/* Two-column grid */}
-        <div
-          className="hero-grid"
-          style={{
-            maxWidth: 1200, margin: '0 auto', width: '100%',
-            display: 'flex', alignItems: 'center', gap: 40,
-            position: 'relative', zIndex: 2,
-          }}
-        >
-          {/* ── LEFT COLUMN ── */}
-          <div className="hero-left" style={{ flex: '0 0 44%', maxWidth: '44%' }}>
-            {/* Badge */}
-            <div style={{
-              display: 'inline-flex', alignItems: 'center',
-              background: 'rgba(217,119,6,0.10)', border: '1px solid rgba(217,119,6,0.25)',
-              borderRadius: 6, padding: '5px 12px', marginBottom: 28,
-              animation: 'badge-glow 3.5s ease-in-out infinite',
-            }}>
-              <span style={{
-                fontSize: 11, fontWeight: 700, color: T.orange,
-                letterSpacing: '0.04em', textTransform: 'uppercase',
-              }}>
-                AI-Powered Compliance
-              </span>
+          {/* Thesis column — everything here is SAID (Schibsted), except the
+              proof line, which is RECORDED (mono): it names actual checks. */}
+          <div className="hero-copy">
+            {/* Three beats, all ink-primary — the resolution ("Covira does.")
+                stays white: orange is earned by verification, never by
+                headlines (§Color). Confidence is carried by the full stop
+                and the short beat, not by color (§Personality: confident
+                not loud). */}
+            <Said as="h1" variant="headline" style={{ fontSize: 'clamp(31px, 4.4vw, 49px)', color: 'var(--ink-primary)', marginBottom: 20 }}>
+              Your property software stores certificates. It doesn&apos;t read them. Covira does.
+            </Said>
+            <Said as="p" variant="body" style={{ color: 'var(--ink-secondary)', marginBottom: 36 }}>
+              Covira checks every vendor COI against your requirements and shows exactly what&apos;s missing before it becomes a claim problem.
+            </Said>
+            <div className="hero-ctas" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <Link href="/sign-up" className="btn-verify">Verify a certificate</Link>
+              <a href="#how-it-works" className="btn-quiet">See how it works</a>
             </div>
-
-            {/* Headline */}
-            <h1 style={{
-              fontSize: 'clamp(42px, 5.2vw, 66px)', fontWeight: 800,
-              lineHeight: 0.95, letterSpacing: '-0.02em', marginBottom: 24,
-            }}>
-              <span style={{ display: 'block', color: T.textPrimary }}>Vendor Insurance</span>
-              <span style={{ display: 'block', color: T.textPrimary }}>Verification</span>
-              <span style={{ display: 'block', color: T.orange }}>Made Simple.</span>
-            </h1>
-
-            {/* Subheadline */}
-            <p style={{
-              fontSize: 18, color: T.textSecondary, lineHeight: 1.6,
-              maxWidth: 450, marginBottom: 40,
-            }}>
-              Upload a COI, receive a plain-English compliance review, and identify vendor insurance gaps in seconds.
-            </p>
-
-            {/* CTAs */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-              <Link href="/sign-up" className="btn-orange" style={{ fontSize: 15 }}>
-                Start Free Trial <ArrowRight size={15} />
-              </Link>
-              <a href="#how-it-works" className="btn-ghost-lg">
-                <PlayCircle size={16} />
-                See How It Works
-              </a>
-            </div>
+            <Recorded as="p" style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-secondary)', marginTop: 24 }}>
+              Example check: GL limits · additional insured · waiver · expiration
+            </Recorded>
           </div>
 
-          {/* ── RIGHT COLUMN — static dashboard replica ── */}
-          <div className="hero-right hero-right-wrap" style={{ flex: 1, minWidth: 0, position: 'relative' }}>
-            {/* Outer orange glow ring */}
-            <div style={{
-              position: 'absolute', inset: -20, borderRadius: 20,
-              background: 'radial-gradient(ellipse, rgba(217,119,6,0.07) 0%, transparent 70%)',
-              pointerEvents: 'none',
-            }} />
+          {/* Evidence artifact — the certificate being READ, once. The
+              artifact settles (200ms), the ink scan head sweeps down a single
+              time, each line resolves under it (verified = orange stamp,
+              failed = attention flag), and the resolved certificate rests as
+              the permanent state — the audit that already happened and came
+              back clean. Reduced motion shows the resolved state statically
+              via the global rule. */}
+          <div className="hero-artifact-col settle">
+            <div className="artifact scan-artifact">
+              <div className="scan-line" aria-hidden="true" />
 
-            <div style={{
-              background: T.surface,
-              border: `1px solid ${T.borderAccent}`,
-              borderRadius: 12,
-              boxShadow: [
-                '0 0 0 1px rgba(217,119,6,0.07)',
-                '0 28px 64px rgba(0,0,0,0.65)',
-                '0 0 80px rgba(217,119,6,0.05)',
-              ].join(', '),
-              overflow: 'hidden',
-              animation: 'float-card 4s ease-in-out infinite',
-            }}>
-
-              {/* Card top bar */}
-              <div style={{
-                background: '#0d0d14',
-                borderBottom: `1px solid ${T.borderAccent}`,
-                padding: '9px 14px',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <svg fill="none" viewBox="0 0 100 115" style={{ height: 13, width: 'auto', flexShrink: 0 }}>
-                    <path d="M50 8C44 6 38 4 33 5C19 3 9 13 9 28L9 55C9 77 24 93 50 104C76 93 91 77 91 55L91 28C91 13 81 3 67 5C62 4 56 6 50 8Z" fill="#D97706"/>
-                    <circle cx="50" cy="57" r="26" fill="rgba(0,0,0,0.82)"/>
-                    <path d="M68 44A22 22 0 1 0 68 70L61 64A13 13 0 1 1 61 50Z" fill="#D97706"/>
-                  </svg>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: T.textPrimary, letterSpacing: '0.1em' }}>COVIRA</span>
-                </div>
+              {/* Document header */}
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, paddingBottom: 10, borderBottom: '1px solid rgba(21,24,30,0.35)' }}>
+                <Recorded style={{ fontSize: 11, letterSpacing: '0.08em' }}>CERTIFICATE OF LIABILITY INSURANCE</Recorded>
+                <Recorded style={{ fontSize: 11 }}>{CERT.issued}</Recorded>
               </div>
 
-              {/* Sidebar + content */}
-              <div style={{ display: 'flex' }}>
-
-                {/* ── MINI SIDEBAR ── */}
-                <div style={{
-                  width: 108, flexShrink: 0,
-                  background: '#0d0d14',
-                  borderRight: `1px solid ${T.borderAccent}`,
-                  padding: '8px 0',
-                }}>
-                  {SIDEBAR.map(({ Icon, label, active, badge }) => (
-                    <div key={label} style={{
-                      display: 'flex', alignItems: 'center', gap: 6,
-                      padding: '5px 8px', margin: '1px 5px', borderRadius: 5,
-                      background: active ? 'rgba(217,119,6,0.12)' : 'transparent',
-                    }}>
-                      <Icon size={11} color={active ? T.orange : T.textMuted} strokeWidth={active ? 2.2 : 1.8} />
-                      <span style={{
-                        fontSize: 9.5, fontWeight: active ? 600 : 400,
-                        color: active ? T.orange : T.textMuted,
-                        flex: 1, whiteSpace: 'nowrap',
-                      }}>
-                        {label}
-                      </span>
-                      {badge && (
-                        <span style={{
-                          fontSize: 7.5, fontWeight: 700, color: '#fff',
-                          background: '#dc2626', borderRadius: 3,
-                          padding: '1px 3px', lineHeight: 1.5,
-                        }}>{badge}</span>
-                      )}
-                    </div>
-                  ))}
+              {/* Parties */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 0' }}>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <Recorded style={{ fontSize: 11, opacity: 0.55, minWidth: 66 }}>PRODUCER</Recorded>
+                  <Recorded style={{ fontSize: 13 }}>{CERT.producer}</Recorded>
                 </div>
-
-                {/* ── MAIN CONTENT ── */}
-                <div style={{ flex: 1, padding: '10px 12px', minWidth: 0, overflow: 'hidden' }}>
-
-                  {/* 4 metric cards */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10 }}>
-                    {[
-                      { label: 'Total Vendors', value: '42', sub: '↑12% vs last month', subColor: T.green  },
-                      { label: 'Compliant',      value: '29', sub: '69%',               subColor: T.green  },
-                      { label: 'Issues Found',   value: '9',  sub: '21%',               subColor: T.red    },
-                      { label: 'Expiring Soon',  value: '4',  sub: '10%',               subColor: T.orange },
-                    ].map(m => (
-                      <div key={m.label} style={{
-                        background: '#0d0d14', border: `1px solid ${T.borderAccent}`,
-                        borderRadius: 7, padding: '7px 9px',
-                      }}>
-                        <div style={{ fontSize: 7.5, color: T.textSecondary, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{m.label}</div>
-                        <div style={{ fontSize: 22, fontWeight: 800, color: '#ffffff', lineHeight: 1, marginBottom: 3 }}>{m.value}</div>
-                        <div style={{ fontSize: 8.5, color: m.subColor, fontWeight: 600 }}>{m.sub}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Compliance Overview */}
-                  <div style={{
-                    background: '#0d0d14', border: `1px solid ${T.borderAccent}`,
-                    borderRadius: 7, padding: '9px 11px', marginBottom: 8,
-                  }}>
-                    {/* Section header */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 }}>
-                      <span style={{ fontSize: 10.5, fontWeight: 600, color: T.textPrimary }}>Compliance Overview</span>
-                      <div style={{
-                        display: 'flex', alignItems: 'center', gap: 3,
-                        background: T.borderAccent, borderRadius: 4, padding: '2px 7px',
-                        border: '1px solid rgba(255,255,255,0.05)',
-                      }}>
-                        <span style={{ fontSize: 8, color: T.textSecondary }}>This Month</span>
-                        <ChevronDown size={8} color={T.textMuted} />
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                      {/* SVG donut */}
-                      <svg viewBox="0 0 100 100" width={86} height={86} style={{ flexShrink: 0 }}>
-                        {/* Track */}
-                        <circle cx="50" cy="50" r={R} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="12" />
-                        {/* Compliant 69% — green, starts at 12 o'clock */}
-                        <circle cx="50" cy="50" r={R} fill="none" stroke="#16a34a" strokeWidth="12"
-                          strokeDasharray={`${C_CIRC * 0.69} ${C_CIRC * 0.31}`}
-                          transform="rotate(-90 50 50)" />
-                        {/* Issues 21% — red */}
-                        <circle cx="50" cy="50" r={R} fill="none" stroke="#ef4444" strokeWidth="12"
-                          strokeDasharray={`${C_CIRC * 0.21} ${C_CIRC * 0.79}`}
-                          transform={`rotate(${-90 + 0.69 * 360} 50 50)`} />
-                        {/* Expiring 10% — orange */}
-                        <circle cx="50" cy="50" r={R} fill="none" stroke="#f59e0b" strokeWidth="12"
-                          strokeDasharray={`${C_CIRC * 0.10} ${C_CIRC * 0.90}`}
-                          transform={`rotate(${-90 + 0.90 * 360} 50 50)`} />
-                        {/* Center label */}
-                        <text x="50" y="46" textAnchor="middle" fill="#ffffff" fontSize="14" fontWeight="800" fontFamily="Inter, sans-serif">69%</text>
-                        <text x="50" y="57" textAnchor="middle" fill="#9ca3af" fontSize="7.5" fontFamily="Inter, sans-serif">Compliant</text>
-                      </svg>
-
-                      {/* Legend */}
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
-                        {[
-                          { dot: '#16a34a', label: 'Compliant',     n: 29, pct: '69%' },
-                          { dot: '#ef4444', label: 'Issues',        n: 9,  pct: '21%' },
-                          { dot: '#f59e0b', label: 'Expiring Soon', n: 4,  pct: '10%' },
-                          { dot: '#374151', label: 'Pending',       n: 0,  pct: '0%'  },
-                        ].map(l => (
-                          <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <div style={{ width: 7, height: 7, borderRadius: '50%', background: l.dot, flexShrink: 0 }} />
-                            <span style={{ fontSize: 9, color: T.textSecondary, flex: 1 }}>{l.label}</span>
-                            <span style={{ fontSize: 9.5, fontWeight: 700, color: '#ffffff', marginRight: 4 }}>{l.n}</span>
-                            <span style={{ fontSize: 9, fontWeight: 600, color: l.dot, minWidth: 26, textAlign: 'right' }}>{l.pct}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Recent Submissions */}
-                  <div style={{
-                    background: '#0d0d14', border: `1px solid ${T.borderAccent}`,
-                    borderRadius: 7, overflow: 'hidden',
-                  }}>
-                    {/* Header */}
-                    <div style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '7px 11px', borderBottom: `1px solid ${T.borderAccent}`,
-                    }}>
-                      <span style={{ fontSize: 10.5, fontWeight: 600, color: T.textPrimary }}>Recent Submissions</span>
-                      <span style={{ fontSize: 9, color: T.orange, fontWeight: 600 }}>View all</span>
-                    </div>
-
-                    {/* Column headers */}
-                    <div style={{
-                      display: 'grid', gridTemplateColumns: '1.9fr 1.15fr 1.1fr 0.45fr',
-                      padding: '4px 11px',
-                      background: 'rgba(255,255,255,0.02)',
-                      borderBottom: `1px solid ${T.borderAccent}`,
-                    }}>
-                      {['Vendor', 'COI Uploaded', 'Status', 'Issues'].map(col => (
-                        <span key={col} style={{ fontSize: 7.5, fontWeight: 600, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{col}</span>
-                      ))}
-                    </div>
-
-                    {/* Rows */}
-                    {SUBMISSIONS.map(row => (
-                      <div key={row.vendor} style={{
-                        display: 'grid', gridTemplateColumns: '1.9fr 1.15fr 1.1fr 0.45fr',
-                        padding: '5px 11px', alignItems: 'center',
-                        borderBottom: `1px solid ${T.borderAccent}`,
-                      }}>
-                        <span style={{ fontSize: 9.5, color: T.textPrimary, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 6 }}>
-                          {row.vendor}
-                        </span>
-                        <span style={{ fontSize: 9, color: T.textSecondary }}>{row.date}</span>
-                        <span style={{
-                          display: 'inline-block', fontSize: 8, fontWeight: 700,
-                          padding: '2px 6px', borderRadius: 4,
-                          background: row.sBg, color: row.sColor,
-                          whiteSpace: 'nowrap',
-                        }}>{row.status}</span>
-                        <span style={{
-                          fontSize: 10, fontWeight: 600, textAlign: 'center',
-                          color: row.issues > 0 ? T.orange : T.textMuted,
-                        }}>{row.issues}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                </div>{/* end main content */}
-              </div>{/* end sidebar+content */}
-            </div>{/* end card */}
-          </div>{/* end right col */}
-        </div>{/* end hero grid */}
-      </section>
-
-      {/* ── TRUST BAR ─────────────────────────────────────────────────────── */}
-      <div style={{
-        background: 'linear-gradient(to bottom, #0a0a0f 0%, #0d0d17 100%)',
-        borderTop: `1px solid ${T.borderSubtle}`,
-        borderBottom: `1px solid ${T.borderSubtle}`,
-        padding: '20px 24px',
-      }}>
-        <div style={{
-          maxWidth: 1200, margin: '0 auto',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          gap: 16, flexWrap: 'wrap',
-        }}>
-          <span style={{ fontSize: 12, color: T.textMuted, fontWeight: 500, marginRight: 8 }}>
-            Covira checks every COI against:
-          </span>
-          {[
-            'General Liability limits',
-            'Additional Insured status',
-            'Waiver of Subrogation',
-            'Workers Comp coverage',
-            'Policy expiration dates',
-          ].map(pill => (
-            <div key={pill} style={{
-              background: 'rgba(217,119,6,0.07)', border: `1px solid rgba(217,119,6,0.18)`,
-              borderRadius: 100, padding: '5px 14px',
-              fontSize: 12, fontWeight: 500, color: T.orange,
-              whiteSpace: 'nowrap',
-            }}>
-              {pill}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── PROBLEM / SOLUTION ────────────────────────────────────────────── */}
-      <section style={{ background: 'linear-gradient(to bottom, #0d0d17 0%, #0a0a0f 60%)', padding: 'clamp(72px, 9vw, 110px) 24px' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div
-            className="problem-grid"
-            style={{ display: 'flex', gap: 24, alignItems: 'stretch' }}
-          >
-            {/* Red card */}
-            <div style={{
-              flex: 1, background: 'rgba(220,38,38,0.05)',
-              border: `1px solid rgba(220,38,38,0.15)`,
-              borderRadius: 16, padding: 'clamp(32px, 4vw, 48px)',
-            }}>
-              <h3 style={{
-                fontSize: 'clamp(22px, 2.8vw, 30px)', fontWeight: 800,
-                color: T.textPrimary, lineHeight: 1.2, marginBottom: 28,
-                letterSpacing: '-0.8px',
-              }}>
-                Right now, one of your vendors is probably uninsured.
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginBottom: 32 }}>
-                {[
-                  'Your PM software stores COIs. It does not verify them.',
-                  'Manual spreadsheet tracking misses renewals.',
-                  "You won't know there's a gap until someone gets hurt.",
-                ].map(item => (
-                  <div key={item} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    <div style={{
-                      width: 20, height: 20, borderRadius: '50%', flexShrink: 0, marginTop: 2,
-                      background: 'rgba(220,38,38,0.15)', border: `1px solid rgba(220,38,38,0.3)`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <X size={10} color={T.red} />
-                    </div>
-                    <p style={{ fontSize: 15, color: T.textSecondary, lineHeight: 1.6 }}>{item}</p>
-                  </div>
-                ))}
-              </div>
-              <p style={{ fontSize: 13, color: T.textMuted, lineHeight: 1.7, fontStyle: 'italic' }}>
-                The average property management firm manages 30+ vendors. Manually verifying each one is impossible.
-              </p>
-            </div>
-
-            {/* Green card */}
-            <div style={{
-              flex: 1, background: 'rgba(22,163,74,0.05)',
-              border: `1px solid rgba(22,163,74,0.15)`,
-              borderRadius: 16, padding: 'clamp(32px, 4vw, 48px)',
-              display: 'flex', flexDirection: 'column',
-            }}>
-              <h3 style={{
-                fontSize: 'clamp(22px, 2.8vw, 30px)', fontWeight: 800,
-                color: T.textPrimary, lineHeight: 1.2, marginBottom: 28,
-                letterSpacing: '-0.8px',
-              }}>
-                With Covira, you know instantly.
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginBottom: 36, flex: 1 }}>
-                {[
-                  'Upload any COI — PDF, photo, or email attachment',
-                  'AI reads every coverage detail in seconds',
-                  'Get a plain-English report with specific action items',
-                ].map(item => (
-                  <div key={item} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    <div style={{
-                      width: 20, height: 20, borderRadius: '50%', flexShrink: 0, marginTop: 2,
-                      background: 'rgba(22,163,74,0.15)', border: `1px solid rgba(22,163,74,0.3)`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <Check size={10} color="#22c55e" />
-                    </div>
-                    <p style={{ fontSize: 15, color: T.textSecondary, lineHeight: 1.6 }}>{item}</p>
-                  </div>
-                ))}
-              </div>
-              <Link href="/demo" className="btn-orange" style={{ alignSelf: 'flex-start' }}>
-                See it in action <ArrowRight size={15} />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── HOW IT WORKS ──────────────────────────────────────────────────── */}
-      <section id="how-it-works" style={{
-        background: '#0d0d17', borderTop: `1px solid ${T.borderSubtle}`,
-        padding: 'clamp(72px, 9vw, 110px) 24px',
-      }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: 56 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: T.orange, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 14 }}>
-              HOW IT WORKS
-            </p>
-            <h2 style={{
-              fontSize: 'clamp(28px, 3.8vw, 46px)', fontWeight: 800,
-              color: T.textPrimary, letterSpacing: '-1.5px', lineHeight: 1.1,
-            }}>
-              Three steps. Fifteen seconds. Total confidence.
-            </h2>
-          </div>
-
-          <div style={{ display: 'flex', gap: 0, position: 'relative', alignItems: 'stretch' }}>
-            {/* Connector line */}
-            <div
-              className="steps-connector"
-              style={{
-                position: 'absolute', top: 52, left: 'calc(33.33% - 0px)', right: 'calc(33.33%)',
-                height: 1, background: `linear-gradient(90deg, ${T.borderAccent}, ${T.borderAccent})`,
-                zIndex: 0,
-              }}
-            />
-
-            {[
-              {
-                Icon: Upload, num: '01', title: 'Upload',
-                desc: 'Drop in a PDF or photo of any COI. We handle the rest.',
-              },
-              {
-                Icon: Zap, num: '02', title: 'Analyze',
-                desc: "Covira's AI reads every coverage limit, endorsement, and expiration date.",
-              },
-              {
-                Icon: FileText, num: '03', title: 'Act',
-                desc: 'Get a plain-English report with specific gaps and one-click vendor outreach.',
-              },
-            ].map(({ Icon, num, title, desc }) => (
-              <div key={num} style={{ flex: 1, position: 'relative', zIndex: 1, padding: '0 12px' }}>
-                <div
-                  className="card-hover"
-                  style={{
-                    background: T.card, border: `1px solid ${T.borderSubtle}`,
-                    borderRadius: 14, padding: '32px 28px', height: '100%',
-                    textAlign: 'center',
-                  }}
-                >
-                  <div style={{
-                    width: 52, height: 52, borderRadius: 14,
-                    background: 'rgba(217,119,6,0.10)', border: `1px solid rgba(217,119,6,0.2)`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    margin: '0 auto 16px',
-                  }}>
-                    <Icon size={22} color={T.orange} />
-                  </div>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: T.orange, letterSpacing: '0.12em', marginBottom: 10 }}>
-                    Step {num}
-                  </p>
-                  <h4 style={{ fontSize: 18, fontWeight: 700, color: T.textPrimary, marginBottom: 12 }}>{title}</h4>
-                  <p style={{ fontSize: 14, color: T.textSecondary, lineHeight: 1.7 }}>{desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── WHY TEAMS CHOOSE COVIRA ──────────────────────────────────────── */}
-      <section style={{
-        background: '#0a0a0f',
-        borderTop: `1px solid ${T.borderSubtle}`,
-        padding: 'clamp(72px, 9vw, 110px) 24px',
-        overflow: 'hidden',
-      }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div style={{ display: 'flex', gap: 64, alignItems: 'center', flexWrap: 'wrap' }}>
-
-            {/* LEFT — features */}
-            <div style={{ flex: '0 0 420px', maxWidth: 460 }}>
-              <p style={{
-                fontSize: 11, fontWeight: 700, color: T.orange,
-                letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 12,
-              }}>Built for Property Managers</p>
-              <h2 style={{
-                fontSize: 'clamp(28px, 3.8vw, 44px)', fontWeight: 800,
-                color: T.textPrimary, letterSpacing: '-1.5px', lineHeight: 1.1, marginBottom: 16,
-              }}>
-                Why Teams Choose <span style={{ color: T.orange }}>Covira</span>
-              </h2>
-              <p style={{
-                fontSize: 15, color: T.textSecondary, lineHeight: 1.7,
-                marginBottom: 40, maxWidth: 420,
-              }}>
-                Covira helps property management teams save time, reduce risk, and stay compliant—without the manual work.
-              </p>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 20px' }}>
-                {[
-                  { Icon: Clock,        title: 'Save Time',      desc: 'Automate certificate requests and follow-ups.' },
-                  { Icon: Shield,       title: 'Reduce Risk',    desc: 'Identify coverage gaps before they become problems.' },
-                  { Icon: CheckCircle2, title: 'Stay Compliant', desc: 'Track expirations and requirements in one central place.' },
-                  { Icon: Users,        title: 'Built for PMs',  desc: 'Designed specifically for property management teams.' },
-                ].map(({ Icon, title, desc }) => (
-                  <div key={title} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    <div style={{
-                      width: 42, height: 42, flexShrink: 0,
-                      border: `1.5px solid ${T.orange}`, borderRadius: 10,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: 'rgba(217,119,6,0.07)',
-                    }}>
-                      <Icon size={18} color={T.orange} strokeWidth={1.6} />
-                    </div>
-                    <div>
-                      <h4 style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary, marginBottom: 4 }}>{title}</h4>
-                      <p style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5 }}>{desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* RIGHT — rotated COI + compliance card */}
-            <div style={{ flex: 1, position: 'relative', minHeight: 500, minWidth: 380 }}>
-
-              {/* COI document */}
-              <div style={{
-                background: '#f5f4ef',
-                borderRadius: 8,
-                padding: '20px 22px',
-                transform: 'rotate(-5deg)',
-                boxShadow: '0 24px 72px rgba(0,0,0,0.65)',
-                width: '88%',
-                position: 'relative',
-                zIndex: 1,
-              }}>
-                <div style={{ textAlign: 'center', marginBottom: 10, borderBottom: '1px solid #d1d5db', paddingBottom: 8 }}>
-                  <p style={{ fontSize: 8.5, fontWeight: 700, color: '#111', letterSpacing: '0.10em', textTransform: 'uppercase' }}>
-                    Certificate of Liability Insurance
-                  </p>
-                  <p style={{ fontSize: 7, color: '#6b7280', marginTop: 2 }}>DATE (MM/DD/YYYY): 04/15/2025</p>
-                </div>
-                {[
-                  { label: 'PRODUCER', lines: ['Acme Insurance Brokers, LLC', '123 Main St, Suite 200', 'New York, NY 10001'] },
-                  { label: 'INSURED',  lines: ['ABC Plumbing LLC', '456 Trade Avenue', 'Brooklyn, NY 11201'] },
-                ].map(row => (
-                  <div key={row.label} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                    <span style={{ fontSize: 6, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em', minWidth: 54 }}>{row.label}</span>
-                    <div>{row.lines.map((l, i) => <p key={i} style={{ fontSize: 7, color: '#374151', lineHeight: 1.5 }}>{l}</p>)}</div>
-                  </div>
-                ))}
-                <div style={{ border: '1px solid #d1d5db', borderRadius: 3, overflow: 'hidden', marginTop: 8 }}>
-                  <div style={{ background: '#e5e7eb', padding: '3px 8px' }}>
-                    <span style={{ fontSize: 6.5, fontWeight: 700, color: '#111', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Type of Insurance</span>
-                  </div>
-                  {[
-                    ['Commercial General Liability', '$1,000,000 / $2,000,000'],
-                    ['Automobile Liability', '$1,000,000'],
-                    ["Workers' Compensation", 'Statutory'],
-                    ['Umbrella Liability', '$5,000,000'],
-                  ].map(([type, limit]) => (
-                    <div key={type} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                      <span style={{ fontSize: 6.5, color: '#374151' }}>{type}</span>
-                      <span style={{ fontSize: 6.5, fontWeight: 600, color: '#111' }}>{limit}</span>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ marginTop: 8, padding: '5px 8px', background: '#e5e7eb', borderRadius: 3 }}>
-                  <p style={{ fontSize: 6, fontWeight: 700, color: '#374151', textTransform: 'uppercase', marginBottom: 2 }}>Certificate Holder</p>
-                  <p style={{ fontSize: 6.5, color: '#374151' }}>Skyline Property Management LLC</p>
-                  <p style={{ fontSize: 6.5, color: '#374151' }}>789 Park Ave, New York, NY 10021</p>
-                </div>
-              </div>
-
-              {/* Compliance Summary card */}
-              <div style={{
-                position: 'absolute', bottom: -16, right: 0,
-                zIndex: 2,
-                background: '#111118',
-                border: '1px solid rgba(255,255,255,0.09)',
-                borderRadius: 14,
-                padding: '18px 20px',
-                width: 228,
-                boxShadow: '0 16px 56px rgba(0,0,0,0.75)',
-              }}>
-                <p style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary, marginBottom: 14 }}>Compliance Summary</p>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                  <svg viewBox="0 0 60 60" width={52} height={52} style={{ flexShrink: 0 }}>
-                    <circle cx="30" cy="30" r="23" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="6" />
-                    <circle cx="30" cy="30" r="23" fill="none" stroke="#16a34a" strokeWidth="6"
-                      strokeDasharray={`${2 * Math.PI * 23 * 0.75} ${2 * Math.PI * 23 * 0.25}`}
-                      transform="rotate(-90 30 30)" strokeLinecap="round" />
-                    <text x="30" y="28" textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="800" fontFamily="Inter,sans-serif">75%</text>
-                    <text x="30" y="37" textAnchor="middle" fill="#9ca3af" fontSize="5.5" fontFamily="Inter,sans-serif">Score</text>
-                  </svg>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <Recorded style={{ fontSize: 11, opacity: 0.55, minWidth: 66 }}>INSURED</Recorded>
                   <div>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: '#16a34a' }}>On Track</p>
-                    <p style={{ fontSize: 9.5, color: T.textSecondary }}>Compliance</p>
+                    <Recorded as="p" style={{ fontSize: 13 }}>{CERT.insured}</Recorded>
+                    <Recorded as="p" style={{ fontSize: 13, opacity: 0.75 }}>{CERT.insuredAddr}</Recorded>
                   </div>
                 </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                  {[
-                    { label: 'General Liability',    status: 'Verified', ok: true  },
-                    { label: 'Additional Insured',   status: 'Verified', ok: true  },
-                    { label: 'Waiver of Subrogation',status: 'Verified', ok: true  },
-                    { label: 'Workers Comp',         status: 'Missing',  ok: false },
-                  ].map(item => (
-                    <div key={item.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                      <span style={{ fontSize: 10, color: T.textSecondary }}>{item.label}</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                        {item.ok
-                          ? <Check size={10} color="#16a34a" strokeWidth={2.5} />
-                          : <X size={10} color="#ef4444" strokeWidth={2.5} />}
-                        <span style={{ fontSize: 9, fontWeight: 600, color: item.ok ? '#16a34a' : '#ef4444' }}>{item.status}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-                  <a href="#" style={{
-                    fontSize: 11, fontWeight: 600, color: T.orange,
-                    textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
-                  }}>
-                    View Full Report <ArrowRight size={11} />
-                  </a>
-                </div>
               </div>
-            </div>
 
+              {/* Scan ledger — row seams only, no zebra (§Tables/ledgers).
+                  Each row's status cell resolves as the scan head passes it;
+                  .resolve-N timing must match SCAN_ROWS index order. */}
+              <div className="paper-hairline" style={{ paddingTop: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.2fr 1fr', gap: 8, paddingBottom: 6 }}>
+                  <Recorded style={{ fontSize: 11, opacity: 0.55, letterSpacing: '0.06em' }}>COVERAGE</Recorded>
+                  <Recorded style={{ fontSize: 11, opacity: 0.55, letterSpacing: '0.06em' }}>LIMIT / DETAIL</Recorded>
+                  <Recorded style={{ fontSize: 11, opacity: 0.55, letterSpacing: '0.06em', textAlign: 'right' }}>STATUS</Recorded>
+                </div>
+                {SCAN_ROWS.map((row, i) => (
+                  <div key={row.coverage} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.2fr 1fr', gap: 8, alignItems: 'center', padding: '8px 0', borderTop: '1px solid rgba(21,24,30,0.10)' }}>
+                    <div>
+                      <Recorded as="p" style={{ fontSize: 12.5 }}>{row.coverage}</Recorded>
+                      {row.policy ? <Recorded as="p" style={{ fontSize: 10.5, opacity: 0.55 }}>{row.policy}</Recorded> : null}
+                    </div>
+                    <Recorded style={{ fontSize: 12 }}>{row.detail}</Recorded>
+                    <span className={`status-cell resolve-${i + 1}`}>
+                      {row.state === 'verified' ? <VerifiedMark /> : null}
+                      <Recorded style={{ fontSize: 12, color: row.state === 'verified' ? 'var(--verified)' : 'var(--attention)', whiteSpace: 'nowrap' }}>
+                        {row.status}
+                      </Recorded>
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ── PRICING ───────────────────────────────────────────────────────── */}
-      <section id="pricing" style={{
-        background: 'linear-gradient(to bottom, #0d0d17 0%, #0a0a0f 55%)', borderTop: `1px solid ${T.borderSubtle}`,
-        padding: 'clamp(72px, 9vw, 110px) 24px',
-      }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: 52 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: T.orange, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 14 }}>
-              PRICING
-            </p>
-            <h2 style={{
-              fontSize: 'clamp(28px, 3.8vw, 46px)', fontWeight: 800,
-              color: T.textPrimary, letterSpacing: '-1.5px', lineHeight: 1.1, marginBottom: 12,
-            }}>
-              Simple, transparent pricing.
-            </h2>
-            <p style={{ fontSize: 15, color: T.textSecondary }}>
-              No contracts. No per-seat fees. Cancel anytime.
-            </p>
+      <AuditSection />
+
+      <CycleSection />
+
+      {/* ── PRICING — Bible rebuild + honest beta framing ───────────────────
+          Deleted: "MOST POPULAR" badge (ban #6), colored checkmark bullets
+          (unearned color, §5), gradient background, hover-lift buttons,
+          Stripe checkout links (Stripe is NOT live — implying a working
+          paid checkout would be a false claim, §Copywriting). Plans stay
+          visible for transparency; every CTA joins the free beta, which is
+          real. Prices/caps are DATA → evidence face, tabular figures. */}
+      <section id="pricing" style={{ background: 'var(--carbon)', borderTop: '1px solid var(--seam)', padding: 'clamp(72px, 9vw, 112px) 24px' }}>
+        <div style={{ maxWidth: 'var(--content-max)', margin: '0 auto' }}>
+
+          <Said as="h2" variant="headline" style={{ fontSize: 'clamp(25px, 3.2vw, 39px)', color: 'var(--ink-primary)', marginBottom: 14 }}>
+            Priced per vendor. No sales call, no contract.
+          </Said>
+
+          {/* Honest beta note — the plans are what launch will cost; today
+              everything is free. Squared audit tag, not a marketing pill. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 44 }}>
+            <Recorded className="audit-tag" style={{ color: 'var(--ink-primary)' }}>FREE DURING BETA</Recorded>
+            <Said style={{ fontSize: 15, color: 'var(--ink-secondary)' }}>
+              Every plan is free while Covira is in beta — this is what they&apos;ll cost at launch.
+            </Said>
           </div>
 
-          <div
-            className="pricing-grid"
-            style={{ display: 'flex', gap: 20, alignItems: 'stretch' }}
-          >
-            {[
-              {
-                name: 'Starter', price: '$49', period: '/mo', cap: 'Up to 25 vendor COI reviews',
-                popular: false, buttonLabel: 'Start Free Trial',
-                href: 'https://buy.stripe.com/test_6oU6oH0yy69Z6PX7iTdMI02',
-                solid: false,
-                features: ['AI COI analysis', 'Vendor database', 'Basic reporting', 'Email support'],
-              },
-              {
-                name: 'Pro', price: '$99', period: '/mo', cap: 'Up to 100 vendor COI reviews',
-                popular: true, buttonLabel: 'Start Free Trial',
-                href: 'https://buy.stripe.com/test_8x2dR9gxw8i7eip46HdMI01',
-                solid: true,
-                features: ['Everything in Starter', 'Expiration tracking', 'Advanced reporting', 'Priority support', 'Export data'],
-              },
-              {
-                name: 'Business', price: '$149', period: '/mo', cap: 'Up to 250 vendor COI reviews',
-                popular: false, buttonLabel: 'Start Free Trial',
-                href: 'https://buy.stripe.com/test_5kQ00jfts8i78Y58mXdMI00',
-                solid: false,
-                features: ['Everything in Pro', 'Team access', 'Custom requirements', 'API access', 'Dedicated support'],
-              },
-            ].map(plan => (
-              <div
-                key={plan.name}
-                style={{
-                  flex: 1, position: 'relative',
-                  background: T.card,
-                  border: plan.popular ? `1.5px solid ${T.orange}` : `1px solid ${T.borderSubtle}`,
-                  borderRadius: 16, padding: '32px 28px',
-                  display: 'flex', flexDirection: 'column',
-                  boxShadow: plan.popular ? `0 0 40px rgba(217,119,6,0.12)` : 'none',
-                }}
-              >
-                {plan.popular && (
-                  <div style={{
-                    position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)',
-                    background: T.orange, color: '#fff',
-                    fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
-                    padding: '4px 16px', borderRadius: 100, whiteSpace: 'nowrap',
-                  }}>
-                    MOST POPULAR
-                  </div>
-                )}
-
-                <p style={{ fontSize: 12, fontWeight: 700, color: T.textMuted, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 16 }}>
-                  {plan.name}
-                </p>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, marginBottom: 6 }}>
-                  <span style={{ fontSize: 44, fontWeight: 800, color: T.textPrimary, letterSpacing: '-2px', lineHeight: 1 }}>
-                    {plan.price}
-                  </span>
-                  <span style={{ fontSize: 14, color: T.textMuted, marginBottom: 6 }}>{plan.period}</span>
+          <div className="pricing-grid">
+            {PLANS.map(plan => (
+              <div key={plan.name} className={plan.recommended ? 'plan-card recommended' : 'plan-card'}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 18 }}>
+                  <Said style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink-primary)' }}>{plan.name}</Said>
+                  {plan.recommended ? (
+                    <Recorded style={{ fontSize: 10.5, letterSpacing: '0.08em', color: 'var(--ink-secondary)' }}>RECOMMENDED</Recorded>
+                  ) : null}
                 </div>
-                <p style={{ fontSize: 12, color: T.textMuted, marginBottom: 28 }}>{plan.cap}</p>
 
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, marginBottom: 4 }}>
+                  <Recorded style={{ fontSize: 'var(--text-2xl)', color: 'var(--ink-primary)', lineHeight: 1 }}>{plan.price}</Recorded>
+                  <Recorded style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-secondary)' }}>/mo at launch</Recorded>
+                </div>
+                <Recorded as="p" style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-secondary)', margin: '0 0 20px' }}>{plan.cap}</Recorded>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24, flex: 1, paddingTop: 14, borderTop: '1px solid var(--seam)' }}>
                   {plan.features.map(f => (
-                    <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <Check size={14} color={T.orange} style={{ flexShrink: 0 }} />
-                      <span style={{ fontSize: 14, color: T.textSecondary }}>{f}</span>
-                    </div>
+                    <span key={f} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span className="plan-dot" />
+                      <Said style={{ fontSize: 13.5, color: 'var(--ink-secondary)' }}>{f}</Said>
+                    </span>
                   ))}
                 </div>
 
-                <a
-                  href={plan.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="pricing-btn"
-                  style={{
-                    background: plan.solid ? T.orange : 'transparent',
-                    color: plan.solid ? '#fff' : T.orange,
-                    border: `1.5px solid ${T.orange}`,
-                  }}
-                  onMouseEnter={e => {
-                    if (plan.solid) e.currentTarget.style.background = T.orangeHover
-                    else { e.currentTarget.style.background = 'rgba(217,119,6,0.08)' }
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = plan.solid ? T.orange : 'transparent'
-                  }}
+                {/* The label says what happens: joining the beta is real;
+                    "Start Free Trial" into a dead Stripe checkout is not.
+                    One orange fill in the section (§Buttons). */}
+                <Link
+                  href="/sign-up"
+                  className={plan.recommended ? 'btn-verify' : 'btn-quiet'}
+                  style={{ width: '100%', fontSize: 14, padding: '11px 16px' }}
                 >
-                  {plan.buttonLabel}
-                </a>
+                  Join the beta
+                </Link>
               </div>
             ))}
           </div>
 
-          <p style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: T.textMuted }}>
-            All plans include a 14-day free trial — no credit card required.
-          </p>
+          <Recorded as="p" style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-secondary)', marginTop: 20 }}>
+            No credit card required during beta.
+          </Recorded>
         </div>
       </section>
 
-      {/* ── FINAL CTA ─────────────────────────────────────────────────────── */}
-      <section id="about" style={{
-        background: T.bg, borderTop: `1px solid ${T.borderSubtle}`,
-        padding: 'clamp(80px, 11vw, 130px) 24px',
-        textAlign: 'center', position: 'relative', overflow: 'hidden',
-      }}>
-        <div style={{
-          position: 'absolute', top: '50%', left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 600, height: 600, borderRadius: '50%',
-          background: 'rgba(217,119,6,0.10)',
-          filter: 'blur(100px)',
-          pointerEvents: 'none',
-        }} />
-        <div style={{ position: 'relative', maxWidth: 600, margin: '0 auto' }}>
-          <h2 style={{
-            fontSize: 'clamp(40px, 6vw, 72px)', fontWeight: 900,
-            letterSpacing: '-2.5px', lineHeight: 1.04, marginBottom: 20,
-          }}>
-            <span style={{ display: 'block', color: T.textPrimary }}>Stop assuming.</span>
-            <span style={{ display: 'block', color: T.orange }}>Start knowing.</span>
-          </h2>
-          <p style={{ fontSize: 16, color: T.textSecondary, lineHeight: 1.7, marginBottom: 36, maxWidth: 440, margin: '0 auto 36px' }}>
-            Join property managers who verify vendor insurance the smart way.
-          </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, justifyContent: 'center' }}>
-            <Link href="/sign-up" className="btn-orange" style={{ fontSize: 16, padding: '16px 36px' }}>
-              Get Started Free — No Credit Card Required
-            </Link>
-            <a
-              href="https://calendly.com/charles-covira/30min"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8,
-                fontSize: 16, fontWeight: 600, padding: '16px 32px',
-                borderRadius: 10, textDecoration: 'none',
-                border: '1px solid rgba(217,119,6,0.45)',
-                color: '#D97706',
-                background: 'rgba(217,119,6,0.06)',
-                transition: 'background 150ms ease, border-color 150ms ease, transform 150ms ease',
-              }}
-              onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = 'rgba(217,119,6,0.12)'; el.style.borderColor = 'rgba(217,119,6,0.7)'; el.style.transform = 'translateY(-1px)' }}
-              onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = 'rgba(217,119,6,0.06)'; el.style.borderColor = 'rgba(217,119,6,0.45)'; el.style.transform = '' }}
-            >
-              Book a Demo Call
-            </a>
-          </div>
-          <p style={{ fontSize: 13, color: T.textMuted, marginTop: 16 }}>
-            Takes 60 seconds to set up. First 3 vendors always free.
-          </p>
-        </div>
-      </section>
+      <CtaSection />
 
       {/* ── FOOTER ────────────────────────────────────────────────────────── */}
       <footer style={{
@@ -1215,7 +1337,6 @@ export default function Home() {
                 </svg>
                 <span style={{ fontSize: 15, fontWeight: 800, color: '#ffffff', letterSpacing: '0.20em' }}>COVIRA</span>
               </Link>
-              <p style={{ fontSize: 12, color: T.textMuted }}>Instant. Accurate. Compliant.</p>
             </div>
 
             {/* Center links */}
@@ -1241,7 +1362,7 @@ export default function Home() {
             </div>
 
             {/* Right */}
-            <p style={{ fontSize: 12, color: T.textMuted, textAlign: 'right', whiteSpace: 'nowrap' }}>
+            <p className="footer-copyright" style={{ fontSize: 12, color: T.textMuted, textAlign: 'right', whiteSpace: 'nowrap' }}>
               © 2026 Covira AI Inc.<br />All rights reserved.
             </p>
           </div>
