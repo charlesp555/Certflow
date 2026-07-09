@@ -19,7 +19,10 @@ export const metadata: Metadata = {
   keywords: ['COI verification', 'certificate of insurance', 'property management', 'vendor compliance', 'insurance automation', 'covira'],
   openGraph: {
     title: 'Covira — AI Vendor Insurance Verification',
-    description: 'Instant. Accurate. Compliant. AI-powered vendor insurance verification for property managers.',
+    // Plain descriptor — the old "Instant. Accurate. Compliant." tricolon and
+    // leading "AI-powered" are banned (Design Bible §14); this is what link
+    // previews show.
+    description: 'Vendor insurance verification for property managers. Every COI checked against your requirements before work begins.',
     type: 'website',
   },
 }

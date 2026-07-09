@@ -1,11 +1,12 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
 import {
   LayoutDashboard, Building2, FileText, TrendingUp,
-  Bell, ClipboardList, FolderOpen, Puzzle, Settings, Shield, User,
+  Bell, ClipboardList, FolderOpen, Puzzle, Settings, User,
 } from 'lucide-react'
 
 const NAV = [
@@ -48,17 +49,12 @@ export default function Sidebar() {
       position: 'fixed', top: 0, bottom: 0, left: 0,
       zIndex: 50,
     }}>
-      {/* Logo */}
+      {/* Logo — the standard Covira lockup: shield-C mark + COVIRA in the
+          voice face, identical to the landing nav. */}
       <div style={{ padding: '22px 20px 18px', borderBottom: `1px solid ${T.border}` }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-          <div style={{
-            width: 32, height: 32,
-            background: 'rgba(217,119,6,0.12)', border: '1px solid rgba(217,119,6,0.25)',
-            borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Shield size={17} color={T.orange} strokeWidth={2.5} />
-          </div>
-          <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.07em', color: T.primary }}>COVIRA</span>
+          <Image src="/covira-logo.png?v=3" alt="" width={40} height={40} style={{ flexShrink: 0 }} />
+          <span style={{ fontFamily: 'var(--font-voice)', fontSize: 15, fontWeight: 700, letterSpacing: '0.20em', color: 'var(--ink-primary, #F2F4F8)' }}>COVIRA</span>
         </Link>
       </div>
 

@@ -2,7 +2,7 @@
 import { useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Shield } from 'lucide-react'
+import Image from 'next/image'
 import { UserButton } from '@clerk/nextjs'
 
 type Coverage = {
@@ -105,9 +105,10 @@ function UploadForm() {
         padding: '0 24px', height: 60,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-        <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-          <Shield size={18} color="#D97706" strokeWidth={2.5} />
-          <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.5px', color: 'var(--text)' }}>COVIRA</span>
+        {/* Standard Covira lockup — shield-C mark + COVIRA in the voice face */}
+        <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+          <Image src="/covira-logo.png?v=3" alt="" width={40} height={40} priority style={{ flexShrink: 0 }} />
+          <span style={{ fontFamily: 'var(--font-voice)', fontSize: 15, fontWeight: 700, letterSpacing: '0.20em', color: 'var(--ink-primary, #F2F4F8)' }}>COVIRA</span>
         </Link>
         <UserButton />
       </header>

@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState, type CSSProperties, type ElementType, type ReactNode } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Menu, X } from 'lucide-react'
 
 const T = {
@@ -18,6 +19,23 @@ const T = {
   textSecondary: '#9ca3af',
   textMuted:     '#4b5063',
 }
+
+// ── Hero subhead typewriter (ratified Bible override, owner decision 07/2026) ─
+// Second sanctioned exception to §Motion ban #12, alongside the final-CTA
+// line. Types ONCE on load, never loops; steady non-blinking cursor that
+// vanishes on completion; prefers-reduced-motion shows the full sentence
+// instantly. HERO_TYPE_MS is the single knob for typing speed — the final CTA
+// runs at 19ms/char; the hero is deliberately slower and calmer.
+const HERO_TYPE_MS = 38
+const HERO_SUB = 'Every vendor COI verified against your insurance requirements. Coverage gaps explained in plain English before work begins.'
+
+// ── Page ledger-grid (§12 sanctioned, single instance) ──────────────────────
+// One continuous whisper-faint graph-paper layer behind the ENTIRE page —
+// the only texture, visible only in the page's open space (sections with
+// their own linework sit on opaque mats above it). This is the one knob:
+// 0.02–0.03 is the intended whisper range. Lines are drawn ink-toned —
+// seam-toned lines at this alpha vanish into carbon completely.
+const GRID_ALPHA = 0.025
 
 // ── Hero evidence artifact data (Design Bible §Illustration & imagery) ──────
 // Plausibility test: real-sounding trade LLC, real address format, real limit
@@ -228,7 +246,10 @@ function AuditSection() {
           carbon, hairline seam transition (§Section transitions: structural,
           not decorative). No green (ban #8): resolution is stamped orange.
           The old trust-bar chips live on here as squared audit tags. */}
-      <section style={{ background: 'var(--carbon)', borderTop: '1px solid var(--seam)', padding: 'clamp(72px, 9vw, 112px) 24px' }}>
+      {/* Transparent over the root carbon (§7: one uniform ground). The
+          trail + panel composition below carries its own linework, so it
+          sits on an opaque carbon mat that blocks the page grid. */}
+      <section style={{ borderTop: '1px solid var(--seam)', padding: 'clamp(72px, 9vw, 112px) 24px' }}>
         <div style={{ maxWidth: 'var(--content-max)', margin: '0 auto' }}>
 
           <Said as="h2" variant="headline" style={{ fontSize: 'clamp(25px, 3.2vw, 39px)', color: 'var(--ink-primary)', marginBottom: 14 }}>
@@ -251,14 +272,14 @@ function AuditSection() {
               finding. The unresolved state is deliberate (§Emotional goals:
               discomfort before relief); Part 2's scroll-sync resolves it as
               the reader reaches the 10:47 entries. Trail entries hang from
-              the seam spine over the sanctioned ledger-grid texture;
-              timestamps and statuses are RECORDED, event descriptions are
-              SAID. Verified rows get the drawn stamp; Missing gets no mark —
+              the seam spine on the opaque carbon mat (the page grid stays
+              behind it); timestamps and statuses are RECORDED, event
+              descriptions are SAID. Verified rows get the drawn stamp; Missing gets no mark —
               absence is the state. */}
           <div className="audit-grid">
 
             {/* LEFT — the trail */}
-            <div className="ledger-grid-bg" style={{ borderLeft: '1px solid var(--seam)', padding: '4px 0 4px clamp(20px, 3vw, 36px)' }}>
+            <div style={{ borderLeft: '1px solid var(--seam)', padding: '4px 0 4px clamp(20px, 3vw, 36px)' }}>
               {AUDIT_TRAIL.map((e, i) => (
                 <div
                   key={i}
@@ -402,7 +423,10 @@ function CycleSection() {
           appears ONLY as the traveling reading head (verification in
           motion); red only on the caught gap (§Color). Stations are
           fixed; only the head moves. id="how-it-works" preserved. */}
-      <section id="how-it-works" style={{ background: 'var(--carbon)', borderTop: '1px solid var(--seam)', padding: 'clamp(72px, 9vw, 112px) 24px' }}>
+      {/* Transparent over the root carbon (§7: one uniform ground). The
+          cycle ring/connectors are their own linework — the stage and the
+          mobile list sit on opaque carbon mats that block the page grid. */}
+      <section id="how-it-works" style={{ borderTop: '1px solid var(--seam)', padding: 'clamp(72px, 9vw, 112px) 24px' }}>
         <div style={{ maxWidth: 'var(--content-max)', margin: '0 auto' }}>
 
           <Said as="h2" variant="headline" style={{ fontSize: 'clamp(25px, 3.2vw, 39px)', color: 'var(--ink-primary)', marginBottom: 14 }}>
@@ -415,7 +439,7 @@ function CycleSection() {
           {/* Desktop: the radial stage */}
           <div
             ref={stageRef}
-            className={`cycle-stage ledger-grid-bg${phase === 'running' ? ' is-running' : ''}${phase === 'resolved' ? ' is-resolved' : ''}`}
+            className={`cycle-stage${phase === 'running' ? ' is-running' : ''}${phase === 'resolved' ? ' is-resolved' : ''}`}
           >
             <div className="cycle-ring" aria-hidden="true" />
             <div className="cycle-orbit" aria-hidden="true"><span className="cycle-point" /></div>
@@ -436,7 +460,7 @@ function CycleSection() {
 
           {/* Mobile: the compact ledger list (static — the radial stage
               needs width the small screens don't have) */}
-          <div className="cycle-list ledger-grid-bg">
+          <div className="cycle-list">
             {CYCLE_STATIONS.map(st => (
               <div key={st.index} className="cycle-station">
                 <Recorded style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-secondary)' }}>{st.index}</Recorded>
@@ -524,7 +548,7 @@ function CtaSection() {
           #D97706 → --verified. The closer states certainty quietly
           (§Emotional goals: certainty is the terminal emotion) — headline
           all ink, orange reserved for the one primary action. */}
-      <section ref={sectionRef} id="about" style={{ background: 'var(--carbon)', borderTop: '1px solid var(--seam)', padding: 'clamp(88px, 12vw, 140px) 24px', textAlign: 'center' }}>
+      <section ref={sectionRef} id="about" style={{ borderTop: '1px solid var(--seam)', padding: 'clamp(88px, 12vw, 140px) 24px', textAlign: 'center' }}>
         <div style={{ maxWidth: 640, margin: '0 auto' }}>
           <Said as="h2" variant="headline" style={{ fontSize: 'clamp(31px, 4.5vw, 49px)', color: 'var(--ink-primary)', marginBottom: 18 }}>
             Know exactly which vendors are covered.
@@ -562,11 +586,63 @@ function CtaSection() {
   )
 }
 
+// Typed hero subhead — same restrained construction as the CTA line: the
+// visual typing is aria-hidden with the full text on the wrapper's aria-label,
+// and a hidden copy of the complete sentence reserves exact width/wrap so
+// nothing shifts as it types (zero layout shift). Starts on mount — the hero
+// is above the fold, so "on load" and "scrolled into view" are the same event.
+function HeroTypedSubhead() {
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [typedCount, setTypedCount] = useState(0)
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setTypedCount(HERO_SUB.length)
+      return
+    }
+    intervalRef.current = setInterval(() => {
+      setTypedCount(c => Math.min(c + 1, HERO_SUB.length))
+    }, HERO_TYPE_MS)
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [])
+
+  // stop the ticker once the line is complete
+  useEffect(() => {
+    if (typedCount >= HERO_SUB.length && intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+  }, [typedCount])
+
+  const done = typedCount >= HERO_SUB.length
+
+  return (
+    <p aria-label={HERO_SUB} style={{ margin: '0 0 36px' }}>
+      <span aria-hidden="true" style={{ position: 'relative', display: 'inline-block' }}>
+        <Said variant="body" style={{ visibility: 'hidden', display: 'inline-block' }}>{HERO_SUB}</Said>
+        <Said variant="body" style={{ position: 'absolute', inset: 0, color: 'var(--ink-secondary)' }}>
+          {HERO_SUB.slice(0, typedCount)}
+          {!done && typedCount > 0 ? (
+            <span style={{ display: 'inline-block', width: 2, height: '1em', background: 'var(--ink-secondary)', verticalAlign: '-0.15em', marginLeft: 2 }} />
+          ) : null}
+        </Said>
+      </span>
+    </p>
+  )
+}
+
 export default function Home() {
   const [navOpen, setNavOpen] = useState(false)
 
   return (
-    <div style={{ background: T.bg, minHeight: '100vh', color: T.textPrimary, fontFamily: 'Inter, sans-serif' }}>
+    // Root — the ONE page ground: flat carbon edge to edge, every section
+    // transparent over it (§7: no per-section shifts). position + isolation
+    // let the .page-grid layer sit at z -1: above this background, below
+    // ALL content.
+    <div style={{ background: 'var(--carbon)', minHeight: '100vh', color: T.textPrimary, fontFamily: 'Inter, sans-serif', position: 'relative', isolation: 'isolate' }}>
+      <div className="page-grid" aria-hidden="true" />
       <style>{`
         /* ── FONTS ─────────────────────────────────────────────────────────
            The two Covira voices (Schibsted Grotesk = SAID, IBM Plex Mono =
@@ -674,6 +750,22 @@ export default function Home() {
         .stamp        { animation: stamp var(--stamp) both; }
         .settle-datum { animation: settle-datum 180ms cubic-bezier(0.2,0.8,0.2,1) both; }
 
+        /* ── PAGE LEDGER-GRID (§12 sanctioned) ─────────────────────────────
+           The single continuous texture: 1px hairlines on the 24px rhythm,
+           drawn with repeating-linear-gradient (a line-drawing tool, not a
+           wash — washes stay banned). Absolute at z -1 inside the isolated
+           root: above the carbon ground, below every piece of content.
+           Sections carrying their own linework (audit trail, cycle) sit on
+           opaque carbon mats that fully cover it — the grid shows only in
+           the page's open space. Tune with GRID_ALPHA (top of file). */
+        .page-grid {
+          position: absolute; inset: 0; z-index: -1; pointer-events: none;
+          --grid-line: rgba(154,163,178, ${GRID_ALPHA}); /* ink-toned hairline */
+          background-image:
+            repeating-linear-gradient(to bottom, var(--grid-line) 0, var(--grid-line) 1px, transparent 1px, transparent 24px),
+            repeating-linear-gradient(to right,  var(--grid-line) 0, var(--grid-line) 1px, transparent 1px, transparent 24px);
+        }
+
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         a { cursor: pointer; text-decoration: none; }
         button { cursor: pointer; }
@@ -687,7 +779,8 @@ export default function Home() {
            transparent + seam border. Focus ring = 1px ink, never orange glow
            (orange is earned). Hover = one-step surface shift, no lift. */
         .hero-shell {
-          background: var(--carbon);
+          /* transparent over the root carbon — the page grid may show in the
+             hero's open margins; the document artifact is opaque above it */
           padding: clamp(64px, 9vw, 112px) 24px;
         }
         .hero-grid {
@@ -802,16 +895,9 @@ export default function Home() {
           grid-template-columns: 1.05fr 0.95fr;
           gap: clamp(36px, 5vw, 72px);
           align-items: start;
-        }
-        /* The Bible's ONE sanctioned texture (§Background): extremely faint
-           ledger-grid — 1px seam lines, low opacity, 24px rhythm — behind
-           the evidence-heavy trail only. Not a dot grid, not a mesh. */
-        .ledger-grid-bg {
-          background-image: repeating-linear-gradient(
-            to bottom,
-            rgba(38,43,53,0.30) 0, rgba(38,43,53,0.30) 1px,
-            transparent 1px, transparent 24px
-          );
+          /* opaque mat — the trail's spine/rows are their own linework; the
+             page grid must not bleed through behind them */
+          background: var(--carbon);
         }
         .audit-row {
           display: grid;
@@ -848,8 +934,11 @@ export default function Home() {
           width: min(660px, 100%);
           height: 560px;
           margin: 0 auto;
+          /* opaque mat — ring + connectors are their own linework; the page
+             grid must not bleed through behind them */
+          background: var(--carbon);
         }
-        .cycle-list { display: block; max-width: 720px; padding: 10px 0; }
+        .cycle-list { display: block; max-width: 720px; padding: 10px 0; background: var(--carbon); }
         @media (min-width: 768px) {
           .cycle-stage { display: block; }
           .cycle-list { display: none; }
@@ -918,90 +1007,70 @@ export default function Home() {
         }
         .cycle-station:last-child { border-bottom: none; }
 
-        /* ── Nav link ── */
+        /* ── Nav link (Design Bible migration) — voice face, quiet pill
+           highlight on hover: one-step seam tint + ink shift, 8px radius
+           (interactive), no glow, no motion (§Components: hover = one-step
+           surface shift, no lift). */
         .nav-link {
+          font-family: var(--font-voice);
           font-size: 14px; font-weight: 500;
-          color: ${T.textSecondary}; text-decoration: none;
+          color: var(--ink-secondary); text-decoration: none;
           display: inline-flex; align-items: center; gap: 3px;
-          transition: color 0.2s ease;
+          padding: 7px 12px; border-radius: var(--radius);
+          transition: color 150ms ease, background 150ms ease;
         }
-        .nav-link:hover { color: ${T.textPrimary}; }
+        .nav-link:hover { color: var(--ink-primary); background: rgba(38,43,53,0.55); } /* --seam @ 55% */
+        .nav-link:focus-visible { outline: 1px solid var(--ink-primary); outline-offset: 2px; }
 
-        /* ── Buttons ── */
-        .btn-orange {
-          display: inline-flex; align-items: center; gap: 6px;
-          background: ${T.orange}; color: #fff; font-weight: 600;
-          font-size: 15px; padding: 13px 26px; border-radius: 10px;
-          border: none; text-decoration: none;
-          box-shadow: 0 4px 20px rgba(217,119,6,0.28);
-          transition: background 150ms ease, box-shadow 150ms ease, transform 150ms ease;
-          position: relative; overflow: hidden;
+        /* ── Nav buttons (Design Bible migration) — the "Get Started" pair is
+           the header's one orange fill: --verified with carbon text, flat, no
+           glow/shimmer/lift (§Buttons: flat fill only; §Color: orange is
+           earned). Hover = the same one-step press shade as .btn-verify. */
+        .btn-orange, .btn-orange-sm {
+          display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+          background: var(--verified); color: var(--carbon);
+          font-family: var(--font-voice); font-weight: 600;
+          border: none; text-decoration: none; border-radius: var(--radius);
+          transition: background 150ms ease;
         }
-        .btn-orange::before {
-          content: '';
-          position: absolute; top: 0; left: -100%;
-          width: 55%; height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
-          transform: skewX(-20deg);
-          transition: left 0.5s ease;
-          pointer-events: none;
-        }
-        .btn-orange:hover::before { left: 160%; }
-        .btn-orange:hover {
-          background: ${T.orangeHover};
-          box-shadow: 0 6px 32px rgba(217,119,6,0.50), 0 0 0 5px rgba(217,119,6,0.12);
-          transform: translateY(-2px);
-        }
+        .btn-orange    { font-size: 15px; padding: 13px 26px; }
+        .btn-orange-sm { font-size: 13px; padding: 9px 18px; }
+        .btn-orange:hover, .btn-orange-sm:hover { background: #E1660D; } /* matches .btn-verify press shade */
 
-        .btn-orange-sm {
-          display: inline-flex; align-items: center; gap: 5px;
-          background: ${T.orange}; color: #fff; font-weight: 600;
-          font-size: 13px; padding: 9px 18px; border-radius: 8px;
-          border: none; text-decoration: none;
-          box-shadow: 0 2px 12px rgba(217,119,6,0.25);
-          transition: background 150ms ease, box-shadow 150ms ease, transform 150ms ease;
-        }
-        .btn-orange-sm:hover {
-          background: ${T.orangeHover};
-          box-shadow: 0 0 20px rgba(217,119,6,0.3), 0 4px 20px rgba(217,119,6,0.40);
-          transform: translateY(-1px);
-        }
-
+        /* Log In — quiet secondary: seam border, ink shift on hover, no
+           orange (orange is earned), no lift. */
         .btn-ghost {
-          display: inline-flex; align-items: center; gap: 6px;
-          background: transparent; color: ${T.textSecondary}; font-weight: 500;
-          font-size: 14px; padding: 8px 18px; border-radius: 8px;
-          border: 1px solid #2a2a3f; text-decoration: none;
-          transition: border-color 150ms ease, color 150ms ease, transform 150ms ease;
+          display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+          background: transparent; color: var(--ink-secondary);
+          font-family: var(--font-voice); font-weight: 500;
+          font-size: 14px; padding: 8px 18px; border-radius: var(--radius);
+          border: 1px solid var(--seam); text-decoration: none;
+          transition: border-color 150ms ease, color 150ms ease;
         }
-        .btn-ghost:hover { border-color: ${T.orange}; color: #fff; transform: translateY(-1px); }
+        .btn-ghost:hover { border-color: var(--ink-secondary); color: var(--ink-primary); }
+        .btn-ghost:focus-visible, .btn-orange:focus-visible, .btn-orange-sm:focus-visible {
+          outline: 1px solid var(--ink-primary); outline-offset: 2px;
+        }
 
-        .btn-ghost-lg {
-          display: inline-flex; align-items: center; gap: 8px;
-          background: transparent; color: ${T.textSecondary}; font-weight: 600;
-          font-size: 15px; padding: 13px 26px; border-radius: 10px;
-          border: 1px solid #2a2a3f; text-decoration: none;
-          transition: border-color 150ms ease, color 150ms ease, transform 150ms ease;
+        /* ── Footer link (Design Bible migration) — voice face, ink shift
+           only. */
+        .footer-link {
+          font-family: var(--font-voice);
+          font-size: var(--text-xs); color: var(--ink-secondary);
+          text-decoration: none; transition: color 150ms ease;
         }
-        .btn-ghost-lg:hover { border-color: ${T.orange}; color: #fff; transform: translateY(-1px); }
-
-        .demo-link {
-          font-size: 15px; font-weight: 600; color: ${T.orange};
-          text-decoration: none; display: inline-flex; align-items: center; gap: 4px;
-          border-bottom: 1px solid transparent; transition: border-color 0.2s, gap 0.2s;
-        }
-        .demo-link:hover { border-bottom-color: ${T.orange}; gap: 8px; }
-        .demo-link .demo-arrow { transition: transform 0.2s ease; }
-        .demo-link:hover .demo-arrow { transform: translateX(4px); }
+        .footer-link:hover { color: var(--ink-primary); }
+        .footer-link:focus-visible { outline: 1px solid var(--ink-primary); outline-offset: 2px; }
 
 
         /* ── PRICING (Bible rebuild) — record cards: graphite, seam border,
-           8px radius, no shadow, no hover lift (§Components). The
-           recommended plan is signaled structurally — a one-step stronger
-           hairline + a stated mono label ("RECOMMENDED" is our claim and
-           true; "MOST POPULAR" implies crowd data we don't have, ban #6).
-           Feature bullets use a neutral 4px marker: a bullet is not a
-           verified state, so no checkmark and no orange (§Color). */
+           8px radius, no shadow, no hover lift (§Components). Opaque, so
+           they cover the page grid themselves. The recommended plan is
+           signaled structurally — a one-step stronger hairline + a stated
+           mono label ("RECOMMENDED" is our claim and true; "MOST POPULAR"
+           implies crowd data we don't have, ban #6). Feature bullets use a
+           neutral 4px marker: a bullet is not a verified state, so no
+           checkmark and no orange (§Color). */
         .plan-card {
           background: var(--graphite);
           border: 1px solid var(--seam);
@@ -1056,11 +1125,14 @@ export default function Home() {
         }
       `}</style>
 
-      {/* ── NAV ───────────────────────────────────────────────────────────── */}
+      {/* ── NAV — Design Bible migration ──────────────────────────────────
+          Translucent graphite bar floating over the carbon ground: graphite
+          @ 80% + backdrop blur, hairline seam beneath. All text in the voice
+          face; the logo is the real shield-C mark (public/covira-logo.png). */}
       <nav style={{
         position: 'sticky', top: 0, zIndex: 100,
-        background: 'rgba(10,10,15,0.82)',
-        borderBottom: `1px solid ${T.borderAccent}`,
+        background: 'rgba(23,26,33,0.8)', /* --graphite @ 80% */
+        borderBottom: '1px solid var(--seam)',
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
       }}>
@@ -1068,18 +1140,17 @@ export default function Home() {
           maxWidth: 1200, margin: '0 auto', padding: '0 24px',
           height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
-          {/* Logo */}
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none' }}>
-            <svg fill="none" viewBox="0 0 100 115" style={{ height: 28, width: 'auto', flexShrink: 0 }}>
-              <path d="M50 8C44 6 38 4 33 5C19 3 9 13 9 28L9 55C9 77 24 93 50 104C76 93 91 77 91 55L91 28C91 13 81 3 67 5C62 4 56 6 50 8Z" fill="#D97706"/>
-              <circle cx="50" cy="57" r="26" fill="rgba(0,0,0,0.82)"/>
-              <path d="M68 44A22 22 0 1 0 68 70L61 64A13 13 0 1 1 61 50Z" fill="#D97706"/>
-            </svg>
-            <span style={{ fontSize: 15, fontWeight: 800, color: '#ffffff', letterSpacing: '0.20em' }}>COVIRA</span>
+          {/* Logo — the real shield-C mark (public/covira-logo.png).
+              next/image serves 1x/2x variants from the 1254px source, so it
+              stays crisp on retina. alt="" — the wordmark carries the name. */}
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+            <Image src="/covira-logo.png?v=3" alt="" width={44} height={44} priority style={{ flexShrink: 0 }} />
+            <Said style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink-primary)', letterSpacing: '0.20em' }}>COVIRA</Said>
           </Link>
 
-          {/* Center nav — desktop */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 32 }} className="desktop-nav">
+          {/* Center nav — desktop. Gap 8 + 12px link padding ≈ the old 32px
+              rhythm, so the hover pill doesn't inflate the spacing. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} className="desktop-nav">
             <a href="#pricing" className="nav-link">Pricing</a>
             <a href="#how-it-works" className="nav-link">How It Works</a>
             <Link href="/demo" className="nav-link">Interactive Demo</Link>
@@ -1099,9 +1170,9 @@ export default function Home() {
             aria-expanded={navOpen}
             style={{
               display: 'none', background: 'none',
-              border: `1px solid ${T.borderAccent}`, borderRadius: 8,
+              border: '1px solid var(--seam)', borderRadius: 'var(--radius)',
               width: 40, height: 40, alignItems: 'center', justifyContent: 'center',
-              color: T.textPrimary,
+              color: 'var(--ink-primary)',
             }}
             className="mobile-menu-btn"
           >
@@ -1112,7 +1183,7 @@ export default function Home() {
         {/* Mobile dropdown */}
         {navOpen && (
           <div style={{
-            background: T.surface, borderTop: `1px solid ${T.borderAccent}`,
+            background: 'var(--graphite)', borderTop: '1px solid var(--seam)',
             padding: '12px 24px 24px',
           }}>
             {[
@@ -1126,13 +1197,14 @@ export default function Home() {
                 href={l.href}
                 onClick={() => setNavOpen(false)}
                 style={{
-                  display: 'block', color: T.textSecondary, fontSize: 15,
+                  display: 'block', fontFamily: 'var(--font-voice)',
+                  color: 'var(--ink-secondary)', fontSize: 15,
                   fontWeight: 500, padding: '14px 0',
-                  borderBottom: `1px solid ${T.borderAccent}`,
-                  transition: 'color 0.2s',
+                  borderBottom: '1px solid var(--seam)',
+                  transition: 'color 150ms ease',
                 }}
-                onMouseEnter={e => (e.currentTarget.style.color = T.textPrimary)}
-                onMouseLeave={e => (e.currentTarget.style.color = T.textSecondary)}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--ink-primary)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--ink-secondary)')}
               >
                 {l.label}
               </a>
@@ -1160,17 +1232,14 @@ export default function Home() {
           {/* Thesis column — everything here is SAID (Schibsted), except the
               proof line, which is RECORDED (mono): it names actual checks. */}
           <div className="hero-copy">
-            {/* Three beats, all ink-primary — the resolution ("Covira does.")
-                stays white: orange is earned by verification, never by
-                headlines (§Color). Confidence is carried by the full stop
-                and the short beat, not by color (§Personality: confident
-                not loud). */}
+            {/* Two beats, all ink-primary — orange is earned by verification,
+                never by headlines (§Color). Confidence is carried by the full
+                stop and the short second beat, not by color (§Personality:
+                confident not loud). */}
             <Said as="h1" variant="headline" style={{ fontSize: 'clamp(31px, 4.4vw, 49px)', color: 'var(--ink-primary)', marginBottom: 20 }}>
-              Your property software stores certificates. It doesn&apos;t read them. Covira does.
+              Your property software stores certificates. Covira verifies them.
             </Said>
-            <Said as="p" variant="body" style={{ color: 'var(--ink-secondary)', marginBottom: 36 }}>
-              Covira checks every vendor COI against your requirements and shows exactly what&apos;s missing before it becomes a claim problem.
-            </Said>
+            <HeroTypedSubhead />
             <div className="hero-ctas" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <Link href="/sign-up" className="btn-verify">Verify a certificate</Link>
               <a href="#how-it-works" className="btn-quiet">See how it works</a>
@@ -1254,7 +1323,7 @@ export default function Home() {
           paid checkout would be a false claim, §Copywriting). Plans stay
           visible for transparency; every CTA joins the free beta, which is
           real. Prices/caps are DATA → evidence face, tabular figures. */}
-      <section id="pricing" style={{ background: 'var(--carbon)', borderTop: '1px solid var(--seam)', padding: 'clamp(72px, 9vw, 112px) 24px' }}>
+      <section id="pricing" style={{ borderTop: '1px solid var(--seam)', padding: 'clamp(72px, 9vw, 112px) 24px' }}>
         <div style={{ maxWidth: 'var(--content-max)', margin: '0 auto' }}>
 
           <Said as="h2" variant="headline" style={{ fontSize: 'clamp(25px, 3.2vw, 39px)', color: 'var(--ink-primary)', marginBottom: 14 }}>
@@ -1317,9 +1386,14 @@ export default function Home() {
 
       <CtaSection />
 
-      {/* ── FOOTER ────────────────────────────────────────────────────────── */}
+      {/* ── FOOTER — Design Bible migration ───────────────────────────────
+          Carbon ground, seam hairlines, voice face throughout; the logo is
+          the real shield-C mark, same lockup as the nav. Tagline is a plain
+          descriptor (the old tricolon is banned §14) — the last live
+          instance lived in layout.tsx's openGraph description, fixed
+          alongside this. */}
       <footer style={{
-        background: T.bg, borderTop: `1px solid ${T.borderSubtle}`,
+        borderTop: '1px solid var(--seam)',
         padding: '48px 24px 32px',
       }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
@@ -1327,16 +1401,15 @@ export default function Home() {
             className="footer-inner"
             style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 40, gap: 32 }}
           >
-            {/* Logo + tagline */}
+            {/* Logo + descriptor */}
             <div>
-              <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none', marginBottom: 10 }}>
-                <svg fill="none" viewBox="0 0 100 115" style={{ height: 26, width: 'auto', flexShrink: 0 }}>
-                  <path d="M50 8C44 6 38 4 33 5C19 3 9 13 9 28L9 55C9 77 24 93 50 104C76 93 91 77 91 55L91 28C91 13 81 3 67 5C62 4 56 6 50 8Z" fill="#D97706"/>
-                  <circle cx="50" cy="57" r="26" fill="rgba(0,0,0,0.82)"/>
-                  <path d="M68 44A22 22 0 1 0 68 70L61 64A13 13 0 1 1 61 50Z" fill="#D97706"/>
-                </svg>
-                <span style={{ fontSize: 15, fontWeight: 800, color: '#ffffff', letterSpacing: '0.20em' }}>COVIRA</span>
+              <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', marginBottom: 10 }}>
+                <Image src="/covira-logo.png?v=3" alt="" width={40} height={40} style={{ flexShrink: 0 }} />
+                <Said style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink-primary)', letterSpacing: '0.20em' }}>COVIRA</Said>
               </Link>
+              <Said as="p" style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-secondary)', maxWidth: '32ch', lineHeight: 1.5 }}>
+                Vendor insurance verification for property managers.
+              </Said>
             </div>
 
             {/* Center links */}
@@ -1349,28 +1422,22 @@ export default function Home() {
                 { label: 'Privacy Policy',   href: '#'             },
                 { label: 'Terms of Service', href: '#'             },
               ].map(l => (
-                <a
-                  key={l.label}
-                  href={l.href}
-                  style={{ fontSize: 13, color: T.textMuted, textDecoration: 'none', transition: 'color 0.2s' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = T.textPrimary)}
-                  onMouseLeave={e => (e.currentTarget.style.color = T.textMuted)}
-                >
+                <a key={l.label} href={l.href} className="footer-link">
                   {l.label}
                 </a>
               ))}
             </div>
 
             {/* Right */}
-            <p className="footer-copyright" style={{ fontSize: 12, color: T.textMuted, textAlign: 'right', whiteSpace: 'nowrap' }}>
+            <Said as="p" className="footer-copyright" style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-secondary)', textAlign: 'right', whiteSpace: 'nowrap', lineHeight: 1.6 }}>
               © 2026 Covira AI Inc.<br />All rights reserved.
-            </p>
+            </Said>
           </div>
 
-          <div style={{ borderTop: `1px solid ${T.borderSubtle}`, paddingTop: 20 }}>
-            <p style={{ fontSize: 11, color: T.textMuted, lineHeight: 1.6 }}>
+          <div style={{ borderTop: '1px solid var(--seam)', paddingTop: 20 }}>
+            <Said as="p" style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-secondary)', lineHeight: 1.6, opacity: 0.8 }}>
               Covira&apos;s analysis is for informational purposes only and does not constitute legal or insurance advice.
-            </p>
+            </Said>
           </div>
         </div>
       </footer>

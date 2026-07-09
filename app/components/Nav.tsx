@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState } from 'react'
-import { Shield } from 'lucide-react'
 import { UserButton, useAuth } from '@clerk/nextjs'
 
 export default function Nav() {
@@ -22,9 +22,10 @@ export default function Nav() {
         className="flex items-center justify-between"
         style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px', height: 60 }}
       >
-        <Link href="/" className="flex items-center gap-2" style={{ textDecoration: 'none' }}>
-          <Shield size={18} color="#D97706" strokeWidth={2.5} />
-          <span style={{ letterSpacing: '-0.5px', fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>
+        {/* Standard Covira lockup — shield-C mark + COVIRA in the voice face */}
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+          <Image src="/covira-logo.png?v=3" alt="" width={44} height={44} priority style={{ flexShrink: 0 }} />
+          <span style={{ fontFamily: 'var(--font-voice)', fontSize: 15, fontWeight: 700, letterSpacing: '0.20em', color: 'var(--ink-primary, #F2F4F8)' }}>
             COVIRA
           </span>
         </Link>

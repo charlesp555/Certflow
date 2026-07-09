@@ -1,5 +1,6 @@
 import { SignUp } from '@clerk/nextjs'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function SignUpPage() {
   return (
@@ -38,16 +39,11 @@ export default function SignUpPage() {
         backgroundSize: '32px 32px',
       }} />
 
-      {/* Logo */}
+      {/* Logo — standard Covira lockup: shield-C mark + COVIRA in the voice face */}
       <div style={{ position: 'relative', zIndex: 1, marginBottom: 28 }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-          <svg fill="none" viewBox="0 0 100 115" style={{ height: 34, width: 'auto', flexShrink: 0 }}>
-            <path
-              d="M50 8C44 6 38 4 33 5C19 3 9 13 9 28L9 55C9 77 24 93 50 104C76 93 91 77 91 55L91 28C91 13 81 3 67 5C62 4 56 6 50 8Z"
-              fill="#D97706"
-            />
-          </svg>
-          <span style={{ fontSize: 18, fontWeight: 800, color: '#f8f8f8', letterSpacing: '0.1em' }}>
+          <Image src="/covira-logo.png?v=3" alt="" width={48} height={48} priority style={{ flexShrink: 0 }} />
+          <span style={{ fontFamily: 'var(--font-voice)', fontSize: 15, fontWeight: 700, letterSpacing: '0.20em', color: 'var(--ink-primary, #F2F4F8)' }}>
             COVIRA
           </span>
         </Link>

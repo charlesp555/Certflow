@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import {
-  Shield, LayoutDashboard, Building2, FileText, TrendingUp,
+  LayoutDashboard, Building2, FileText, TrendingUp,
   Bell, ClipboardList, FolderOpen, Puzzle, Settings, User,
   ChevronDown, AlertTriangle, ArrowRight, Users, CheckCircle2,
   Clock, Check, RotateCcw, Upload, X, ChevronLeft, Download,
@@ -202,11 +203,10 @@ function DemoSidebar({ activeTab, onAction }: { activeTab: number; onAction: () 
       position: 'fixed', top: 0, bottom: 0, left: 0, zIndex: 50,
     }}>
       <div style={{ padding: '22px 20px 18px', borderBottom: `1px solid ${T.border}` }}>
+        {/* Standard Covira lockup — shield-C mark + COVIRA in the voice face */}
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-          <div style={{ width: 32, height: 32, background: 'rgba(217,119,6,0.12)', border: '1px solid rgba(217,119,6,0.25)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Shield size={17} color={T.orange} strokeWidth={2.5} />
-          </div>
-          <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.07em', color: T.primary }}>COVIRA</span>
+          <Image src="/covira-logo.png?v=3" alt="" width={40} height={40} style={{ flexShrink: 0 }} />
+          <span style={{ fontFamily: 'var(--font-voice)', fontSize: 15, fontWeight: 700, letterSpacing: '0.20em', color: 'var(--ink-primary, #F2F4F8)' }}>COVIRA</span>
         </Link>
       </div>
 
@@ -1089,7 +1089,7 @@ function TourCard({ step, onNext, onBack, onExit, onRestart }: {
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <Shield size={12} color={T.orange} />
+              <Image src="/covira-logo.png?v=3" alt="" width={16} height={16} style={{ flexShrink: 0 }} />
               <span style={{ fontSize: 10, fontWeight: 800, color: T.orange, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Covira Tour</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -1145,8 +1145,9 @@ function LandingScreen({ onStart }: { onStart: () => void }) {
   return (
     <div style={{ minHeight: '100vh', background: T.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', fontFamily: 'Inter, -apple-system, sans-serif' }}>
       <div style={{ width: '100%', maxWidth: 540, textAlign: 'center' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(217,119,6,0.10)', border: '1px solid rgba(217,119,6,0.22)', borderRadius: 100, padding: '5px 14px', marginBottom: 24 }}>
-          <Shield size={12} color={T.orange} />
+        {/* no pill bg/border — the logo mark floats clean on the surface */}
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 24 }}>
+          <Image src="/covira-logo.png?v=3" alt="" width={16} height={16} style={{ flexShrink: 0 }} />
           <span style={{ fontSize: 10, fontWeight: 800, color: T.orange, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Live Demo</span>
         </div>
         <h1 style={{ fontSize: 'clamp(30px, 5vw, 46px)', fontWeight: 800, color: T.primary, margin: '0 0 14px', letterSpacing: '-1.5px', lineHeight: 1.1 }}>

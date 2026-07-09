@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function Footer() {
   return (
@@ -8,8 +9,12 @@ export default function Footer() {
         className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
         style={{ maxWidth: 1280, margin: '0 auto', padding: '28px 24px' }}
       >
-        <div style={{ fontWeight: 800, fontSize: 15, letterSpacing: '-0.4px', color: 'var(--text)' }}>
-          Covira
+        {/* Standard Covira lockup — shield-C mark + COVIRA in the voice face */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Image src="/covira-logo.png?v=3" alt="" width={40} height={40} style={{ flexShrink: 0 }} />
+          <span style={{ fontFamily: 'var(--font-voice)', fontWeight: 700, fontSize: 15, letterSpacing: '0.20em', color: 'var(--ink-primary, #F2F4F8)' }}>
+            COVIRA
+          </span>
         </div>
         <div className="flex flex-wrap gap-6">
           {['privacy', 'terms', 'security', 'status'].map((item) => (

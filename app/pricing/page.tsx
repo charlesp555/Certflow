@@ -1,6 +1,7 @@
 'use client'
 
-import { Check, Shield } from 'lucide-react'
+import Image from 'next/image'
+import { Check } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 
 // ─── Stripe Payment Links ──────────────────────────────────────────────────────
@@ -69,12 +70,12 @@ export default function PricingPage() {
 
             {/* Heading */}
             <div style={{ textAlign: 'center', marginBottom: 52 }}>
+              {/* no pill bg/border — the logo mark floats clean on the surface */}
               <div style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,
-                background: 'rgba(217,119,6,0.10)', border: '1px solid rgba(217,119,6,0.20)',
-                borderRadius: 100, padding: '5px 14px', marginBottom: 20,
+                marginBottom: 20,
               }}>
-                <Shield size={13} color="#D97706" />
+                <Image src="/covira-logo.png?v=3" alt="" width={16} height={16} style={{ flexShrink: 0 }} />
                 <span style={{ fontSize: 12, color: '#D97706', fontWeight: 600, letterSpacing: '0.5px' }}>Pricing</span>
               </div>
               <h1 style={{ fontSize: 'clamp(28px,4vw,44px)', fontWeight: 800, letterSpacing: '-1.5px', color: '#f0ede8', margin: '0 0 14px', lineHeight: 1.1 }}>
