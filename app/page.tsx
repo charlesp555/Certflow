@@ -64,51 +64,38 @@ const SCAN_ROWS: ScanRow[] = [
   { coverage: 'Umbrella Liability',   policy: 'UMB-4471186-03', detail: '$5,000,000',              status: 'Expired 01/15/2026', state: 'attention' },
 ]
 
-// ── Audit trail section data (Design Bible §The signature: the ledger voice —
-// ledger-set data IS verification). The trail SHOWS the workflow as a
-// timestamped record: received → reviewed → per-coverage resolution → vendor
-// notified → replacement → resolved. The 09:03 → 10:47 gap is deliberate:
-// a plausible real-world resolution time, not marketing seconds. Continues
-// the Calloway Mechanical story from the hero artifact (same vendor, same
-// missing Workers Comp, here resolved). ──────────────────────────────────────
-const AUDIT_TAGS = [
-  'General Liability',
-  'Additional Insured',
-  'Waiver of Subrogation',
-  'Workers Comp',
-  'Policy expiration',
+// ── Flow diagram data (Design Bible §The signature: ledger-set data IS
+// verification). SINGLE SOURCE OF TRUTH for the "From certificate to verdict"
+// section. Every coverage has exactly ONE status here; Stage 2 (the read) and
+// Stage 3 (the verdict) both derive from this same array, so a coverage can
+// never appear in two states — the old audit-trail/summary contradiction (WC
+// shown Missing and Verified at once) is impossible by construction.
+// Continues the Calloway Mechanical story from the hero artifact: same vendor,
+// same missing Workers Compensation, here framed as the core transformation
+// (certificate in → checked → verdict out). `found` is the neutral FACT read
+// off the certificate; `status` is the JUDGMENT against your requirement —
+// stage 2 states the fact, stage 3 renders the verdict, so no status color
+// (orange/attention) appears until the verdict stage.
+type FlowCheck = { coverage: string; required: string; found: string; status: 'Verified' | 'Missing'; state: 'verified' | 'attention' }
+const FLOW_CHECKS: FlowCheck[] = [
+  { coverage: 'General Liability',    required: '$1M / $2M', found: '$1M / $2M',    status: 'Verified', state: 'verified'  },
+  { coverage: 'Auto Liability',       required: '$1M CSL',   found: '$1M CSL',      status: 'Verified', state: 'verified'  },
+  { coverage: 'Additional Insured',   required: 'Required',  found: 'Endorsed',     status: 'Verified', state: 'verified'  },
+  { coverage: 'Workers Compensation', required: 'Required',  found: 'Not provided', status: 'Missing',  state: 'attention' },
+  { coverage: 'Expiration',           required: 'Current',   found: '06/30/2027',   status: 'Verified', state: 'verified'  },
 ]
 
-// `milestone` marks the two entries the scroll-sync watches: reaching the
-// Missing entry emphasizes the card's open finding; reaching the final
-// Verified entry resolves the card. Watched via IntersectionObserver.
-type AuditEntry = { time: string; event?: string; detail?: string; coverage?: string; status?: 'Verified' | 'Missing'; milestone?: 'emphasize' | 'resolve' }
-const AUDIT_TRAIL: AuditEntry[] = [
-  { time: '09:03:04', event: 'Certificate received',             detail: 'Calloway Mechanical Services' },
-  { time: '09:03:07', event: 'Coverage reviewed',                detail: 'Against your requirements' },
-  { time: '09:03:09', coverage: 'General Liability',    status: 'Verified' },
-  { time: '09:03:09', coverage: 'Additional Insured',   status: 'Verified' },
-  { time: '09:03:11', coverage: 'Workers Compensation', status: 'Missing',  milestone: 'emphasize' },
-  { time: '09:03:12', event: 'Vendor notified',                  detail: 'Replacement certificate requested' },
-  { time: '10:47:22', event: 'Replacement certificate received', detail: 'Calloway Mechanical Services' },
-  { time: '10:47:29', coverage: 'Workers Compensation', status: 'Verified', milestone: 'resolve' },
-]
+// Verdict tally — COMPUTED from FLOW_CHECKS, never hand-typed, so the overall
+// count can't drift out of sync with the per-coverage statuses.
+const FLOW_VERIFIED = FLOW_CHECKS.filter(c => c.state === 'verified').length
+const FLOW_FLAGGED  = FLOW_CHECKS.length - FLOW_VERIFIED
 
-// Right evidence panel — a Verification Summary record card on graphite
-// (§Components: cards exist only for discrete records; graphite surface,
-// seam border, 8px radius, no shadow). Deliberately NOT warm paper: the
-// document surface belongs to the hero's certificate; this section shows the
-// verdict view, so the two evidence artifacts stay visually distinct.
-// MID-STORY state on purpose — Workers Comp Missing, 2/3 passed, 1 open
-// finding — matching the trail before the 10:47 replacement arrives. The
-// tension is the point; Part 2's scroll-sync resolves it (WC → Verified,
-// 2/3 → 3/3, 1 → 0).
-// (Verdict-row values are computed from scroll state inside AuditSection —
-// mid-story until the reader reaches the 10:47:29 resolve milestone.)
-const SUMMARY_REQS: { name: string; status: 'Verified' | 'Missing' }[] = [
-  { name: 'General Liability',    status: 'Verified' },
-  { name: 'Additional Insured',   status: 'Verified' },
-  { name: 'Workers Compensation', status: 'Missing'  },
+// Stage 1 input — the raw, unverified certificate. Mono policy numbers are the
+// evidence texture (§The signature); no statuses appear here, it's the input.
+const INPUT_POLICIES: { label: string; policy: string }[] = [
+  { label: 'GL',   policy: 'GLP-7734921-02' },
+  { label: 'AUTO', policy: 'CA-8812305-01'  },
+  { label: 'AI',   policy: 'CG 20 10 04 13' },
 ]
 
 // ── Compliance cycle stations (§Copywriting: consequence framing; the loop
@@ -137,6 +124,43 @@ const PLANS: Plan[] = [
   { name: 'Starter',  price: '$49',  cap: 'Up to 25 vendors',  features: ['COI verification', 'Vendor database', 'Basic reporting', 'Email support'] },
   { name: 'Pro',      price: '$99',  cap: 'Up to 100 vendors', features: ['Everything in Starter', 'Expiration tracking', 'Advanced reporting', 'Priority support', 'Export data'], recommended: true },
   { name: 'Business', price: '$149', cap: 'Up to 250 vendors', features: ['Everything in Pro', 'Team access', 'Custom requirements', 'API access', 'Dedicated support'] },
+]
+
+// ── Key questions (Design Bible §Copywriting: direct, evidence-based, no
+// hype; §Personality: confident not loud). Answers are the brand SAID; the
+// two exact-dollar figures in the first answer are RECORDED (§Typography: the
+// ledger voice — dollar limits are data, even mid-sentence), which is also
+// the point of that answer, so the type does the arguing. Kept understated,
+// like a reference document — no marketing gloss. ────────────────────────────
+const FAQS: { q: string; a: ReactNode }[] = [
+  {
+    q: "Can't I just do this with ChatGPT or regular AI?",
+    a: (
+      <>
+        Covira isn&apos;t a general chatbot. It&apos;s a verification engine tested against real ACORD certificates with known answers — it reads limits to the exact dollar (a <Recorded>$999,999</Recorded> limit fails a <Recorded>$1,000,000</Recorded> requirement), catches expired policies, and confirms endorsements on the actual policy. General AI guesses; Covira is built and tested to verify.
+      </>
+    ),
+  },
+  {
+    q: 'How accurate is it?',
+    a: 'Covira is stress-tested against hard, adversarial certificates with known-correct answers — including the traps that fool manual review (aggregate vs. per-occurrence limits, split-limit auto, expired coverage hiding behind current dates). It reads the actual document, shows what it found, and flags exactly what is missing.',
+  },
+  {
+    q: 'What documents does it read?',
+    a: 'ACORD 25 Certificates of Liability Insurance — the standard vendor compliance document. It checks General Liability, Auto, Workers Comp, Umbrella, Additional Insured, and Waiver of Subrogation against your requirements. Support for additional forms is added as customers need them.',
+  },
+  {
+    q: 'Does it replace my property management software?',
+    a: 'No — it fills the gap they leave. Your PM software stores certificates; Covira reads and verifies them. It works alongside whatever you already use.',
+  },
+  {
+    q: 'How much does it cost?',
+    a: 'Plans are per vendor, starting free for your first three. No sales call, no contract — you see the price and sign up. (Free during beta.)',
+  },
+  {
+    q: 'Is this legal or insurance advice?',
+    a: 'No. Covira reads and verifies certificates against your requirements — it is a tool for you, not legal or insurance advice. Final compliance decisions are yours.',
+  },
 ]
 
 // ── Two-voice typography components (Design Bible §Typography) ──────────────
@@ -196,190 +220,165 @@ function FailMark() {
   )
 }
 
-// ── Audit trail section — scroll-synced verification ────────────────────────────
-// Own component so milestone state updates re-render only this section, not
-// the whole page (react-best-practices: re-render scope).
-function AuditSection() {
-  // One-way latches: once the reader has reached a milestone it stays
-  // reached — the audit happened; certainty does not un-settle (§Emotional
-  // goals: certainty is the terminal state). Scrolling back up never
-  // un-verifies the card.
-  const [emphasized, setEmphasized] = useState(false)
-  const [resolved, setResolved] = useState(false)
-  const emphasizeRef = useRef<HTMLDivElement | null>(null)
-  const resolveRef = useRef<HTMLDivElement | null>(null)
+// ── Flow connector — a hairline seam arrow between the three stages ─────────
+// Horizontal on desktop; the media query rotates it to point down when the
+// stages stack on narrow screens. Purely structural (§Section transitions:
+// structural, not decorative), so it stays out of the resolve choreography.
+function FlowArrow() {
+  return (
+    <svg className="flow-arrow-svg" width="46" height="16" viewBox="0 0 46 16" aria-hidden="true">
+      <path d="M0 8 H40" stroke="var(--seam)" strokeWidth="1.5" />
+      <path d="M34 3 L40 8 L34 13" fill="none" stroke="var(--seam)" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter" />
+    </svg>
+  )
+}
+
+// ── The flow diagram — "From certificate to verdict" ────────────────────────
+// Replaces the old audit-trail + verification-summary pair, whose two views
+// could disagree (WC Missing in the trail, Verified in the summary). This
+// explains the product as a single left-to-right transformation:
+//   input (raw COI)  →  read (checked against your requirements)  →  verdict.
+// Every status is derived from FLOW_CHECKS, so the diagram cannot contradict
+// itself. Own component (react-best-practices: re-render scope) so the phase
+// state stays local. One orchestrated resolve on scroll-in, plays ONCE
+// (§Motion: settle and stop dead, no loop); reduced motion rests at the
+// resolved end state statically.
+function FlowSection() {
+  const stageRef = useRef<HTMLDivElement | null>(null)
+  const [phase, setPhase] = useState<'idle' | 'running' | 'resolved'>('idle')
 
   useEffect(() => {
-    // Reduced motion: rest at the resolved end state, statically (§Motion:
-    // prefers-reduced-motion fully respected — the state change itself is
-    // the JS side; the global CSS rule kills the animations).
+    // Reduced motion: the resolved diagram, statically — no staggered resolve
+    // (§Motion: prefers-reduced-motion fully respected).
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setEmphasized(true)
-      setResolved(true)
+      setPhase('resolved')
       return
     }
-    // IntersectionObserver only — no scroll listeners, no snapping, the
-    // native scroll is never touched. A milestone fires when its trail
-    // entry crosses 75% of the viewport, then is unobserved (latch).
-    const pairs: Array<[Element | null, () => void]> = [
-      [emphasizeRef.current, () => setEmphasized(true)],
-      [resolveRef.current, () => setResolved(true)],
-    ]
-    const observer = new IntersectionObserver(entries => {
+    const el = stageRef.current
+    if (!el) return
+    // No IntersectionObserver (or SSR) → show the resolved state rather than a
+    // blank section; the choreography is an enhancement, not a gate on content.
+    if (!('IntersectionObserver' in window)) { setPhase('resolved'); return }
+    // IntersectionObserver only — the native scroll is never touched. Fires
+    // once when the diagram is ~30% visible, then disconnects (latch).
+    const io = new IntersectionObserver(entries => {
       for (const entry of entries) {
-        if (!entry.isIntersecting) continue
-        const pair = pairs.find(([el]) => el === entry.target)
-        if (pair) { pair[1](); observer.unobserve(entry.target) }
+        if (entry.isIntersecting) { setPhase('running'); io.disconnect(); break }
       }
-    }, { rootMargin: '0px 0px -25% 0px' })
-    for (const [el] of pairs) { if (el) observer.observe(el) }
-    return () => observer.disconnect()
+    }, { threshold: 0.3 })
+    io.observe(el)
+    return () => io.disconnect()
   }, [])
+
+  const runClass = phase === 'running' ? ' is-running' : phase === 'resolved' ? ' is-resolved' : ''
 
   return (
     <>
-      {/* ── THE AUDIT TRAIL — replaces the trust bar + red/green comparison ──
-          The two-column pain/solution card pattern is the generic SaaS
-          default (frontend-design: a choice you'd make for any brief fails
-          the brief). Instead the workflow is SHOWN as evidence: a timestamped
-          audit trail in the ledger voice (§The signature — marketing copy
-          talks ABOUT verification; ledger-set data IS verification). Flat
-          carbon, hairline seam transition (§Section transitions: structural,
-          not decorative). No green (ban #8): resolution is stamped orange.
-          The old trust-bar chips live on here as squared audit tags. */}
-      {/* Transparent over the root carbon (§7: one uniform ground). The
-          trail + panel composition below carries its own linework, so it
-          sits on an opaque carbon mat that blocks the page grid. */}
+      {/* Transparent over the root carbon (§7: one uniform ground). The three
+          panels + connectors carry their own linework, so the diagram sits on
+          an opaque carbon mat that blocks the page grid. */}
       <section style={{ borderTop: '1px solid var(--seam)', padding: 'clamp(72px, 9vw, 112px) 24px' }}>
         <div style={{ maxWidth: 'var(--content-max)', margin: '0 auto' }}>
 
           <Said as="h2" variant="headline" style={{ fontSize: 'clamp(25px, 3.2vw, 39px)', color: 'var(--ink-primary)', marginBottom: 14 }}>
-            This is what verification looks like.
+            From certificate to verdict.
           </Said>
-          <Said as="p" variant="body" style={{ color: 'var(--ink-secondary)', marginBottom: 24 }}>
-            Every certificate is read, checked against your requirements, and resolved — before work begins.
+          <Said as="p" variant="body" style={{ color: 'var(--ink-secondary)', marginBottom: 48 }}>
+            A vendor&apos;s certificate comes in. Covira checks every coverage against your requirements. You get one clear answer.
           </Said>
 
-          {/* Audit tags — the checks every certificate is read against */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 56 }}>
-            {AUDIT_TAGS.map(tag => (
-              <Recorded key={tag} className="audit-tag">{tag}</Recorded>
-            ))}
-          </div>
+          <div ref={stageRef} className={`flow-diagram${runClass}`}>
 
-          {/* Two panels, one story: the trail (left) narrates the
-              verification; the summary card (right) shows the verdict as it
-              stands MID-STORY — Workers Comp missing, 2/3 passed, 1 open
-              finding. The unresolved state is deliberate (§Emotional goals:
-              discomfort before relief); Part 2's scroll-sync resolves it as
-              the reader reaches the 10:47 entries. Trail entries hang from
-              the seam spine on the opaque carbon mat (the page grid stays
-              behind it); timestamps and statuses are RECORDED, event
-              descriptions are SAID. Verified rows get the drawn stamp; Missing gets no mark —
-              absence is the state. */}
-          <div className="audit-grid">
-
-            {/* LEFT — the trail */}
-            <div style={{ borderLeft: '1px solid var(--seam)', padding: '4px 0 4px clamp(20px, 3vw, 36px)' }}>
-              {AUDIT_TRAIL.map((e, i) => (
-                <div
-                  key={i}
-                  ref={e.milestone === 'emphasize' ? emphasizeRef : e.milestone === 'resolve' ? resolveRef : undefined}
-                  className="audit-row"
-                >
-                  <Recorded style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-secondary)' }}>{e.time}</Recorded>
-                  {e.status ? (
-                    <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-                      <Said style={{ fontSize: 'var(--text-base)', fontWeight: 500, color: 'var(--ink-primary)' }}>{e.coverage} —</Said>
-                      <Recorded style={{ fontSize: 'var(--text-xs)', color: e.status === 'Verified' ? 'var(--verified)' : 'var(--attention)' }}>
-                        {e.status}
-                      </Recorded>
-                      {e.status === 'Verified' ? <span style={{ alignSelf: 'center', display: 'inline-flex' }}><VerifiedMark /></span> : null}
-                    </span>
-                  ) : (
-                    <div>
-                      <Said as="p" style={{ fontSize: 'var(--text-base)', fontWeight: 500, color: 'var(--ink-primary)' }}>{e.event}</Said>
-                      {e.detail ? (
-                        <Said as="p" style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-secondary)', marginTop: 3 }}>{e.detail}</Said>
-                      ) : null}
-                    </div>
-                  )}
+            {/* ── STAGE 1 — INPUT: the raw, unverified certificate ─────────── */}
+            <div className="flow-stage flow-input">
+              <Said as="p" className="flow-cap">A vendor sends a certificate</Said>
+              <div className="artifact flow-cert">
+                <div className="flow-cert-body">
+                  <Recorded as="p" style={{ fontSize: 10.5, letterSpacing: '0.07em', opacity: 0.6 }}>
+                    CERTIFICATE OF LIABILITY INSURANCE
+                  </Recorded>
+                  <Recorded as="p" style={{ fontSize: 12.5, marginTop: 12 }}>{CERT.insured}</Recorded>
+                  <div className="flow-cert-lines">
+                    {INPUT_POLICIES.map(p => (
+                      <div key={p.label} style={{ display: 'flex', gap: 10 }}>
+                        <Recorded style={{ fontSize: 10.5, opacity: 0.5, minWidth: 34 }}>{p.label}</Recorded>
+                        <Recorded style={{ fontSize: 11.5 }}>{p.policy}</Recorded>
+                      </div>
+                    ))}
+                  </div>
+                  <Recorded as="p" style={{ fontSize: 10.5, opacity: 0.55, marginTop: 12 }}>Issued {CERT.issued}</Recorded>
                 </div>
-              ))}
+              </div>
             </div>
 
-            {/* RIGHT — Verification Summary record card (§Components: a card
-                for a discrete record — graphite, seam border, 8px radius, no
-                shadow, no hover lift). NOT warm paper: the document surface
-                is the hero's; this is the verdict view. Starts MID-STORY
-                (agrees with the trail at 09:03:11) and resolves when the
-                reader reaches the 10:47:29 entry. Pinned by .panel-pin —
-                position: sticky bounded to this grid row, released when the
-                trail ends; the reader's scroll is never touched. */}
-            <div className="panel-pin" style={{ background: 'var(--graphite)', border: '1px solid var(--seam)', borderRadius: 'var(--radius)', padding: 24 }}>
-              <div style={{ paddingBottom: 14, borderBottom: '1px solid var(--seam)' }}>
-                <Recorded as="p" style={{ fontSize: 11, letterSpacing: '0.08em', color: 'var(--ink-secondary)' }}>VERIFICATION SUMMARY</Recorded>
-                <Recorded as="p" style={{ fontSize: 14, color: 'var(--ink-primary)', marginTop: 6 }}>Calloway Mechanical Services</Recorded>
-              </div>
+            <div className="flow-connector"><FlowArrow /></div>
 
-              {/* Verdict rows — labels are SAID, values are RECORDED. On
-                  resolve the values re-mount (key changes) and settle into
-                  place at datum scale — once, then rest. "Verified" earns
-                  orange only at that moment (§Color). Tabular figures keep
-                  2/3 → 3/3 and 1 → 0 from shifting layout. */}
-              <div style={{ padding: '6px 0', borderBottom: '1px solid var(--seam)' }}>
-                {[
-                  { label: 'Overall Status',      value: resolved ? 'Verified' : 'In Progress', color: resolved ? 'var(--verified)' : 'var(--ink-primary)' },
-                  { label: 'Requirements Passed', value: resolved ? '3 / 3' : '2 / 3',          color: 'var(--ink-primary)' },
-                  { label: 'Open Findings',       value: resolved ? '0' : '1',                  color: 'var(--ink-primary)' },
-                ].map(s => (
-                  <div key={s.label} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, padding: '8px 0' }}>
-                    <Said style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-secondary)' }}>{s.label}</Said>
-                    <Recorded
-                      key={`${s.label}-${resolved}`}
-                      className={resolved ? 'settle-datum' : undefined}
-                      style={{ fontSize: 'var(--text-xs)', color: s.color }}
-                    >
-                      {s.value}
+            {/* ── STAGE 2 — READ: checked against your requirements ─────────
+                The intelligence. Each row states a fact read off the cert
+                (`found`), matched to your `required` minimum. Values are
+                NEUTRAL ink here — no orange/attention — because this stage
+                reports what's on the certificate; the judgment is stage 3.
+                The `found` column resolves one row at a time as the section
+                scrolls in. */}
+            <div className="flow-stage flow-process">
+              <Said as="p" className="flow-cap">Covira checks it against your requirements</Said>
+              <div className="flow-panel">
+                <div className="flow-proc-head">
+                  <Recorded>COVERAGE</Recorded>
+                  <Recorded>REQUIRED</Recorded>
+                  <Recorded>ON CERTIFICATE</Recorded>
+                </div>
+                {FLOW_CHECKS.map((c, i) => (
+                  <div key={c.coverage} className="flow-proc-row">
+                    <Recorded className="flow-cov">{c.coverage}</Recorded>
+                    <Recorded className="flow-req">{c.required}</Recorded>
+                    <Recorded className="flow-found" style={{ animationDelay: `${420 + i * 140}ms` }}>
+                      {c.found}
                     </Recorded>
                   </div>
                 ))}
               </div>
+            </div>
 
-              {/* Requirement list — Verified gets the drawn stamp; Missing
-                  gets no mark and carries --attention. The WC row is the key
-                  moment: on resolve it re-mounts with the .stamp shape
-                  (1.06 → 1.0, 160ms, stops dead — a stamp meeting paper).
-                  On the emphasize milestone the Missing datum re-settles
-                  once so the open finding registers as the trail names it. */}
-              <div style={{ paddingTop: 6 }}>
-                {SUMMARY_REQS.map(r => {
-                  const isWC = r.name === 'Workers Compensation'
-                  const status = isWC && resolved ? 'Verified' : r.status
-                  return (
-                    <div key={r.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '9px 0' }}>
-                      <Said style={{ fontSize: 14, color: 'var(--ink-primary)' }}>{r.name}</Said>
-                      {status === 'Verified' ? (
-                        <span className={isWC ? 'status-cell stamp' : 'status-cell'}>
+            <div className="flow-connector"><FlowArrow /></div>
+
+            {/* ── STAGE 3 — OUTPUT: the verdict ────────────────────────────
+                The clear answer. Verified coverages get the orange stamp
+                (§Color: orange is earned at the instant of verification);
+                the flagged coverage carries --attention with its reason
+                (the tally + the visible Missing row). Overall status lands
+                last. Every status here reads from the SAME FLOW_CHECKS as
+                stage 2 — no contradiction is possible. */}
+            <div className="flow-stage flow-output">
+              <Said as="p" className="flow-cap">You get a clear verdict</Said>
+              <div className="flow-panel flow-verdict-panel">
+                <div className="flow-overall" style={{ animationDelay: '2000ms' }}>
+                  <Recorded style={{ fontSize: 11, letterSpacing: '0.07em', color: 'var(--attention)' }}>ACTION REQUIRED</Recorded>
+                  <Recorded as="p" style={{ fontSize: 12, color: 'var(--ink-secondary)', marginTop: 6 }}>
+                    {FLOW_VERIFIED} of {FLOW_CHECKS.length} verified · {FLOW_FLAGGED} flagged
+                  </Recorded>
+                </div>
+                <div className="flow-verdict-list">
+                  {FLOW_CHECKS.map((c, i) => (
+                    <div key={c.coverage} className="flow-verdict-row">
+                      <Said className="flow-vcov">{c.coverage}</Said>
+                      {c.state === 'verified' ? (
+                        <span className="flow-verdict status-cell" style={{ animationDelay: `${1200 + i * 150}ms` }}>
                           <VerifiedMark />
-                          <Recorded style={{ fontSize: 'var(--text-xs)', color: 'var(--verified)', whiteSpace: 'nowrap' }}>
-                            Verified
-                          </Recorded>
+                          <Recorded style={{ fontSize: 12, color: 'var(--verified)', whiteSpace: 'nowrap' }}>Verified</Recorded>
                         </span>
                       ) : (
-                        <Recorded
-                          key={emphasized ? 'missing-noted' : 'missing'}
-                          className={emphasized ? 'settle-datum' : undefined}
-                          style={{ fontSize: 'var(--text-xs)', color: 'var(--attention)', whiteSpace: 'nowrap' }}
-                        >
-                          Missing
-                        </Recorded>
+                        <span className="flow-verdict flow-verdict-flag status-cell" style={{ animationDelay: `${1200 + i * 150}ms` }}>
+                          <FailMark />
+                          <Recorded style={{ fontSize: 12, color: 'var(--attention)', whiteSpace: 'nowrap' }}>Missing</Recorded>
+                        </span>
                       )}
                     </div>
-                  )
-                })}
+                  ))}
+                </div>
               </div>
             </div>
+
           </div>
         </div>
       </section>
@@ -481,6 +480,79 @@ function CycleSection() {
               <Recorded style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-secondary)' }}>runs again from 01</Recorded>
             </div>
           </div>
+        </div>
+      </section>
+    </>
+  )
+}
+
+// ── Key questions — dropdown accordion ──────────────────────────────────────
+// Own component (react-best-practices: re-render scope) so toggling a row
+// re-renders only this section. Rows open independently — a reference document
+// you can leave several entries open in, not a single-slot accordion. Native
+// and accessible: each trigger is a real <button> with aria-expanded /
+// aria-controls; the panel is a labelled region kept in the DOM (so it stays
+// readable) and animated open with the CSS grid-rows 0fr→1fr technique —
+// height settles on the --settle curve, no JS measurement, no bounce, and the
+// global reduced-motion rule collapses it to an instant toggle. Dark evidence
+// aesthetic: one graphite card, seam hairline dividers, a neutral plus that
+// becomes a minus (§Color: no orange here — nothing is a verified state).
+function FaqSection() {
+  const [open, setOpen] = useState<Set<number>>(() => new Set())
+  const toggle = (i: number) =>
+    setOpen(prev => {
+      const next = new Set(prev)
+      if (next.has(i)) next.delete(i)
+      else next.add(i)
+      return next
+    })
+
+  return (
+    <>
+      {/* Transparent over the root carbon (§7: one uniform ground). The
+          accordion card is opaque graphite, so it covers the page grid. */}
+      <section style={{ borderTop: '1px solid var(--seam)', padding: 'clamp(72px, 9vw, 112px) 24px' }}>
+        <div style={{ maxWidth: 780, margin: '0 auto' }}>
+
+          <Said as="h2" variant="headline" style={{ fontSize: 'clamp(25px, 3.2vw, 39px)', color: 'var(--ink-primary)', marginBottom: 14 }}>
+            Key questions.
+          </Said>
+          <Said as="p" variant="body" style={{ color: 'var(--ink-secondary)', marginBottom: 40 }}>
+            Straight answers, before you sign up.
+          </Said>
+
+          <div className="faq-list">
+            {FAQS.map((item, i) => {
+              const isOpen = open.has(i)
+              return (
+                <div className="faq-item" key={i}>
+                  <button
+                    type="button"
+                    className="faq-q"
+                    id={`faq-trigger-${i}`}
+                    aria-expanded={isOpen}
+                    aria-controls={`faq-panel-${i}`}
+                    onClick={() => toggle(i)}
+                  >
+                    <Said as="span" className="faq-q-text">{item.q}</Said>
+                    <span className="faq-icon" aria-hidden="true" />
+                  </button>
+                  <div
+                    className="faq-panel"
+                    id={`faq-panel-${i}`}
+                    role="region"
+                    aria-labelledby={`faq-trigger-${i}`}
+                    data-open={isOpen}
+                  >
+                    <div className="faq-panel-inner">
+                      <Said as="p" className="faq-a">{item.a}</Said>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
         </div>
       </section>
     </>
@@ -838,16 +910,30 @@ export default function Home() {
            scan head is INK, not orange — scanning is checking, not
            confirming; orange appears only at the instant a line resolves
            verified (§Color: orange is earned). Resolve timings
-           (29/35/41/46/52%) approximate each row's vertical position × the
-           58% sweep window; they must stay in SCAN_ROWS index order.
+           (29/35/41/47/53%) approximate each row's vertical position × the
+           58% sweep window on an even 6% cadence (~290ms between landings —
+           one line resolving after another as the head descends); they must
+           stay in SCAN_ROWS index order.
+           STAMP FEEL (polish 2026-07-09): the ink arrives near-instantly
+           (~29ms) at 1.055 scale, then PRESSES to 1.0 over ~130ms on a
+           decelerating bezier (no overshoot — control ys ≤ 1) and stops
+           dead. Appear + press ≈ 160ms = the --stamp token. Opacity leading
+           scale is what makes it read as a stamp meeting paper rather than
+           a fade-pop. Failure flags do NOT press — a failure is recorded,
+           not stamped (§Color: --attention states, no ceremony); they keep
+           a calm ~145ms fade.
            transform-only sweep = compositor-friendly (react-best-practices).
            prefers-reduced-motion: the global rule collapses every animation
            to its final frame — the resolved certificate, statically. */
         .scan-artifact { position: relative; overflow: hidden; }
+        /* The reading head — softened (polish 2026-07-09): 1px edge at 30%
+           ink with a taller, fainter approach gloss, so it reads as a line
+           being READ, not a barcode laser. Pace unchanged: 4.8s linear,
+           calm and machine-paced. */
         .scan-line {
           position: absolute; inset: 0; pointer-events: none;
-          background: linear-gradient(to bottom, transparent calc(100% - 26px), rgba(21,24,30,0.05) 100%);
-          border-bottom: 1.5px solid rgba(21,24,30,0.45);
+          background: linear-gradient(to bottom, transparent calc(100% - 34px), rgba(21,24,30,0.04) 100%);
+          border-bottom: 1px solid rgba(21,24,30,0.30);
           animation: scan-sweep 4.8s linear both;
         }
         @keyframes scan-sweep {
@@ -861,25 +947,24 @@ export default function Home() {
           display: inline-flex; align-items: center; gap: 6px;
           justify-self: end;
         }
-        .resolve-1 { animation: resolve-stamp-1 4.8s ease-out both; }
-        .resolve-2 { animation: resolve-stamp-2 4.8s ease-out both; }
-        .resolve-3 { animation: resolve-stamp-3 4.8s ease-out both; }
+        /* Stamps press in on the settle bezier; flags fade on plain ease-out. */
+        .resolve-1 { animation: resolve-stamp-1 4.8s cubic-bezier(0.16,1,0.3,1) both; }
+        .resolve-2 { animation: resolve-stamp-2 4.8s cubic-bezier(0.16,1,0.3,1) both; }
+        .resolve-3 { animation: resolve-stamp-3 4.8s cubic-bezier(0.16,1,0.3,1) both; }
         .resolve-4 { animation: resolve-flag-4  4.8s ease-out both; }
         .resolve-5 { animation: resolve-flag-5  4.8s ease-out both; }
-        @keyframes resolve-stamp-1 { 0%, 29% { opacity: 0; transform: scale(1.06); } 32%, 100% { opacity: 1; transform: scale(1); } }
-        @keyframes resolve-stamp-2 { 0%, 35% { opacity: 0; transform: scale(1.06); } 38%, 100% { opacity: 1; transform: scale(1); } }
-        @keyframes resolve-stamp-3 { 0%, 41% { opacity: 0; transform: scale(1.06); } 44%, 100% { opacity: 1; transform: scale(1); } }
-        @keyframes resolve-flag-4  { 0%, 46% { opacity: 0; } 48%, 100% { opacity: 1; } }
-        @keyframes resolve-flag-5  { 0%, 52% { opacity: 0; } 54%, 100% { opacity: 1; } }
+        @keyframes resolve-stamp-1 { 0%, 29% { opacity: 0; transform: scale(1.06); } 29.6% { opacity: 1; transform: scale(1.055); } 32.3%, 100% { opacity: 1; transform: scale(1); } }
+        @keyframes resolve-stamp-2 { 0%, 35% { opacity: 0; transform: scale(1.06); } 35.6% { opacity: 1; transform: scale(1.055); } 38.3%, 100% { opacity: 1; transform: scale(1); } }
+        @keyframes resolve-stamp-3 { 0%, 41% { opacity: 0; transform: scale(1.06); } 41.6% { opacity: 1; transform: scale(1.055); } 44.3%, 100% { opacity: 1; transform: scale(1); } }
+        @keyframes resolve-flag-4  { 0%, 47% { opacity: 0; } 50%, 100% { opacity: 1; } }
+        @keyframes resolve-flag-5  { 0%, 53% { opacity: 0; } 56%, 100% { opacity: 1; } }
 
-        /* ── AUDIT TRAIL section (Design Bible rebuild) ────────────────────
-           Audit tags are evidence labels, not marketing pills: mono, hairline
-           seam border, SQUARE corners. Bible extension ratified in-session:
+        /* ── Audit tag (evidence label) ────────────────────────────────────
+           A mono, hairline-seam, SQUARE-cornered label (used by the pricing
+           section's "FREE DURING BETA"). Bible extension ratified in-session:
            0 radius marks archival/evidence labels; the 8px token stays
-           reserved for interactive components (buttons, cards, inputs) —
-           radius now encodes interactive vs archival. Trail entries hang
-           from a hairline seam (§Spacing: elements sit on the grid or hang
-           from a seam); timestamps are the ledger voice (§The signature). */
+           reserved for interactive components — radius encodes interactive
+           vs archival. */
         .audit-tag {
           display: inline-block;
           border: 1px solid var(--seam);
@@ -888,33 +973,103 @@ export default function Home() {
           color: var(--ink-secondary);
           white-space: nowrap;
         }
-        /* Two-panel composition: trail (left) narrates, evidence panel
-           (right) shows the certificate it produced. align-items: start so
-           the panel can pin (position: sticky) in Part 2 without relayout. */
-        .audit-grid {
-          display: grid;
-          grid-template-columns: 1.05fr 0.95fr;
-          gap: clamp(36px, 5vw, 72px);
-          align-items: start;
-          /* opaque mat — the trail's spine/rows are their own linework; the
-             page grid must not bleed through behind them */
+
+        /* ── FLOW DIAGRAM — "From certificate to verdict" (Bible rebuild) ───
+           Replaces the audit-trail/summary pair. Three stages left-to-right —
+           input (warm document COI) → read (graphite check panel) → verdict
+           (graphite result panel) — joined by hairline seam arrows. One
+           orchestrated resolve on scroll-in: the certificate settles, the
+           found column fills row by row, then the verdict stamps land and
+           the overall status arrives last (§Motion: settle and stop dead, one
+           moment, no loop). Opaque carbon mat — the panels/connectors are
+           their own linework, so the page grid must not bleed through. */
+        .flow-diagram {
+          display: flex; align-items: stretch;
+          gap: clamp(10px, 1.6vw, 20px);
           background: var(--carbon);
         }
-        .audit-row {
-          display: grid;
-          grid-template-columns: 92px 1fr;
-          gap: clamp(14px, 3vw, 28px);
-          align-items: baseline;
-          padding: 16px 0;
-          border-bottom: 1px solid var(--seam);
+        .flow-stage { display: flex; flex-direction: column; min-width: 0; }
+        .flow-input   { flex: 0 0 clamp(220px, 22vw, 264px); }
+        .flow-process { flex: 1 1 auto; }
+        .flow-output  { flex: 0 0 clamp(248px, 26vw, 300px); }
+        /* Stage caption (SAID). min-height aligns the three panel bodies even
+           when captions wrap to different line counts. */
+        .flow-cap {
+          font-family: var(--font-voice); font-weight: 600;
+          font-size: 14px; line-height: 1.3; color: var(--ink-primary);
+          min-height: 38px; margin-bottom: 14px;
         }
-        .audit-row:last-child { border-bottom: none; }
-        /* Sticky pin — bounded by the grid row (the section), never the
-           page: sticky's containing block is the audit-grid row, so the
-           card releases exactly where the trail ends. 88px = nav (64) +
-           24px breathing room. No effect when the grid stacks to one
-           column (the card's own row leaves it no travel). */
-        .panel-pin { position: sticky; top: 88px; }
+        .flow-connector {
+          display: flex; align-items: center; justify-content: center;
+          flex: 0 0 auto; align-self: center;
+        }
+        .flow-arrow-svg { display: block; }
+
+        /* Stage 1 — the warm document card (reuses .artifact). Height 100% so
+           it matches the taller process panel; padding tightened for the
+           compact input. */
+        .flow-cert { height: 100%; padding: 16px; }
+        .flow-cert-lines {
+          margin-top: 12px; padding-top: 12px;
+          border-top: 1px solid rgba(21,24,30,0.12);
+          display: flex; flex-direction: column; gap: 7px;
+        }
+
+        /* Stage 2 & 3 — graphite record panels (§Components: graphite, seam
+           border, 8px radius, no shadow, no hover lift). */
+        .flow-panel {
+          background: var(--graphite);
+          border: 1px solid var(--seam);
+          border-radius: var(--radius);
+          padding: 18px; height: 100%;
+        }
+        .flow-proc-head, .flow-proc-row {
+          display: grid;
+          grid-template-columns: 1.4fr 0.9fr 1fr;
+          gap: 12px; align-items: baseline;
+        }
+        .flow-proc-head { padding-bottom: 9px; border-bottom: 1px solid var(--seam); }
+        .flow-proc-head .evidence {
+          font-size: 10px; letter-spacing: 0.06em;
+          color: var(--ink-secondary); opacity: 0.7;
+        }
+        .flow-proc-row { padding: 11px 0; border-bottom: 1px solid var(--seam); }
+        .flow-proc-row:last-child { border-bottom: none; }
+        .flow-cov { font-size: 12.5px; color: var(--ink-primary); }
+        .flow-req { font-size: 12px; color: var(--ink-secondary); }
+        .flow-found { font-size: 12px; color: var(--ink-primary); }
+
+        /* Stage 3 — the verdict panel */
+        .flow-verdict-panel { display: flex; flex-direction: column; }
+        .flow-overall { padding-bottom: 14px; margin-bottom: 4px; border-bottom: 1px solid var(--seam); }
+        .flow-verdict-row {
+          display: flex; align-items: center; justify-content: space-between;
+          gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--seam);
+        }
+        .flow-verdict-row:last-child { border-bottom: none; }
+        .flow-vcov { font-size: 13px; color: var(--ink-primary); }
+
+        /* ── FLOW CHOREOGRAPHY ─────────────────────────────────────────────
+           Idle: the resolving pieces are hidden until the section scrolls in.
+           Running: staggered arrival (delays set inline per row) — the found
+           values settle in, the verified verdicts PRESS the stamp shape, the
+           flagged verdict fades (a failure is recorded, not stamped —
+           §Color), overall status settles last. The both fill mode holds the 0%
+           frame through each delay and the 100% frame after, so nothing
+           flashes. Resolved / reduced motion: every piece at its final state,
+           statically, with no animation. */
+        .flow-cert-body, .flow-found, .flow-verdict, .flow-overall { opacity: 0; }
+        .is-running .flow-cert-body { animation: flow-in 460ms cubic-bezier(0.2,0.8,0.2,1) 80ms both; }
+        .is-running .flow-found     { animation: settle-datum 200ms cubic-bezier(0.2,0.8,0.2,1) both; }
+        .is-running .flow-verdict   { animation: stamp var(--stamp) both; }
+        .is-running .flow-verdict-flag { animation: flow-fade 200ms ease-out both; }
+        .is-running .flow-overall   { animation: flow-in 320ms cubic-bezier(0.2,0.8,0.2,1) both; }
+        .is-resolved .flow-cert-body,
+        .is-resolved .flow-found,
+        .is-resolved .flow-verdict,
+        .is-resolved .flow-overall { opacity: 1; }
+        @keyframes flow-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes flow-fade { from { opacity: 0; } to { opacity: 1; } }
 
         /* ── COMPLIANCE CYCLE — radial. The ring is a seam, not a glowing
            track; the center is a quiet mono label, not an orb; stations are
@@ -1091,9 +1246,64 @@ export default function Home() {
           background: var(--ink-secondary); opacity: 0.5;
         }
 
+        /* ── KEY QUESTIONS accordion (Design Bible §Components) ─────────────
+           One graphite record card, seam hairline dividers between rows, 8px
+           radius (interactive). Triggers are full-width buttons; the answer
+           panel animates open with grid-template-rows 0fr→1fr (height settles
+           on the --settle curve, clipped by the inner overflow, no bounce).
+           Expand indicator is a neutral plus that loses its vertical stroke to
+           become a minus — no orange, no green (§Color: nothing here is a
+           verified state). */
+        .faq-list {
+          background: var(--graphite);
+          border: 1px solid var(--seam);
+          border-radius: var(--radius);
+          overflow: hidden; /* clip row corners to the card radius */
+        }
+        .faq-item + .faq-item { border-top: 1px solid var(--seam); }
+        .faq-q {
+          width: 100%;
+          display: flex; align-items: center; justify-content: space-between; gap: 20px;
+          background: transparent; border: none; text-align: left;
+          padding: 20px 22px;
+          transition: background 150ms ease;
+        }
+        .faq-q:hover { background: rgba(38,43,53,0.4); } /* --seam tint */
+        .faq-q:focus-visible { outline: 1px solid var(--ink-primary); outline-offset: -2px; }
+        .faq-q-text {
+          font-family: var(--font-voice); font-weight: 500;
+          font-size: 16px; line-height: 1.4; color: var(--ink-primary);
+        }
+        /* neutral plus → minus */
+        .faq-icon { position: relative; width: 13px; height: 13px; flex-shrink: 0; }
+        .faq-icon::before, .faq-icon::after {
+          content: ''; position: absolute; background: var(--ink-secondary);
+          transition: transform var(--settle), opacity var(--settle);
+        }
+        .faq-icon::before { left: 0; top: 6px; width: 13px; height: 1.5px; }  /* horizontal bar */
+        .faq-icon::after  { left: 6px; top: 0; width: 1.5px; height: 13px; }  /* vertical bar */
+        .faq-q[aria-expanded="true"] .faq-icon::after { transform: scaleY(0); opacity: 0; }
+        /* answer panel — grid-rows collapse, clipped by the inner wrapper */
+        .faq-panel {
+          display: grid; grid-template-rows: 0fr;
+          transition: grid-template-rows var(--settle);
+        }
+        .faq-panel[data-open="true"] { grid-template-rows: 1fr; }
+        .faq-panel-inner { overflow: hidden; }
+        .faq-a {
+          font-family: var(--font-voice); font-weight: 400;
+          font-size: 15px; line-height: 1.6; color: var(--ink-secondary);
+          padding: 0 22px 22px; max-width: 64ch;
+        }
+
         /* ── Responsive ── */
         @media (max-width: 1023px) {
-          .audit-grid { grid-template-columns: 1fr; }
+          /* Flow diagram stacks; connectors rotate to point down */
+          .flow-diagram { flex-direction: column; }
+          .flow-input, .flow-process, .flow-output { flex: 1 1 auto; width: 100%; }
+          .flow-cap { min-height: 0; margin-bottom: 12px; }
+          .flow-connector { align-self: center; padding: 2px 0; }
+          .flow-connector .flow-arrow-svg { transform: rotate(90deg); }
           .pricing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .hero-grid { flex-direction: column; align-items: flex-start; }
           .hero-copy { flex: 1 1 auto; max-width: 640px; }
@@ -1103,7 +1313,6 @@ export default function Home() {
           .mobile-menu-btn { display: flex !important; }
         }
         @media (max-width: 767px) {
-          .audit-row { grid-template-columns: 74px 1fr; }
           .pricing-grid { grid-template-columns: 1fr; max-width: 440px; }
           .footer-inner { flex-direction: column !important; gap: 24px !important; }
           .footer-links { flex-wrap: wrap !important; gap: 14px !important; }
@@ -1112,6 +1321,10 @@ export default function Home() {
         @media (max-width: 479px) {
           .hero-ctas { flex-direction: column !important; align-items: stretch !important; }
           .hero-ctas .btn-verify, .hero-ctas .btn-quiet { justify-content: center; }
+          /* Process panel: drop the REQUIRED column so coverage + what's on
+             the certificate stay readable on the narrowest screens */
+          .flow-proc-head, .flow-proc-row { grid-template-columns: 1.3fr 1fr; }
+          .flow-req, .flow-proc-head .evidence:nth-child(2) { display: none; }
         }
 
         /* ── Accessibility: reduced motion fully respected (Design Bible
@@ -1313,7 +1526,7 @@ export default function Home() {
         </div>
       </section>
 
-      <AuditSection />
+      <FlowSection />
 
       <CycleSection />
 
@@ -1385,16 +1598,23 @@ export default function Home() {
         </div>
       </section>
 
+      <FaqSection />
+
       <CtaSection />
 
       {/* ── FOOTER — Design Bible migration ───────────────────────────────
-          Carbon ground, seam hairlines, voice face throughout; the logo is
-          the real shield-C mark, same lockup as the nav. Tagline is a plain
-          descriptor (the old tricolon is banned §14) — the last live
-          instance lived in layout.tsx's openGraph description, fixed
-          alongside this. */}
+          Bookends the nav: the SAME surface treatment — translucent --graphite
+          @ 80% + 16px backdrop-blur + a hairline --seam edge (on top here,
+          mirroring the nav's bottom edge) — so the top and bottom of the page
+          read as one system. Voice face throughout; the logo is the real
+          shield-C mark, same lockup as the nav. Tagline is a plain descriptor
+          (the old tricolon is banned §14) — the last live instance lived in
+          layout.tsx's openGraph description, fixed alongside this. */}
       <footer style={{
         borderTop: '1px solid var(--seam)',
+        background: 'rgba(23,26,33,0.8)', /* --graphite @ 80% — matches the nav */
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
         padding: '48px 24px 32px',
       }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
