@@ -18,11 +18,11 @@ const T = {
   card: '#13131f',
   border: '#1a1a2e',
   borderAccent: '#2a2a3e',
-  orange: '#D97706',
-  orangeHover: '#B45309',
+  orange: '#F97316',
+  orangeHover: '#EA6A0C',
   green: '#22c55e',
   amber: '#fbbf24',
-  red: '#ef4444',
+  red: '#E5484D',
   blue: '#8b8cf8',
   primary: '#f8f8f8',
   secondary: '#8b8fa8',
@@ -109,7 +109,7 @@ function statusStyle(s: DocStatus) {
   switch (s) {
     case 'Active':         return { bg: 'rgba(34,197,94,0.09)',   color: T.green, border: 'rgba(34,197,94,0.22)'   }
     case 'Expiring Soon':  return { bg: 'rgba(251,191,36,0.09)',  color: T.amber, border: 'rgba(251,191,36,0.22)'  }
-    case 'Expired':        return { bg: 'rgba(239,68,68,0.09)',   color: T.red,   border: 'rgba(239,68,68,0.22)'   }
+    case 'Expired':        return { bg: 'rgba(229,72,77,0.09)',   color: T.red,   border: 'rgba(229,72,77,0.22)'   }
     case 'Pending Review': return { bg: 'rgba(139,140,248,0.09)', color: T.blue,  border: 'rgba(139,140,248,0.22)' }
   }
 }
@@ -294,7 +294,7 @@ export default function DocumentsPage() {
               display: 'inline-flex', alignItems: 'center', gap: 7,
               background: T.orange, color: '#fff', textDecoration: 'none',
               borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600,
-              boxShadow: '0 2px 12px rgba(217,119,6,0.25)',
+              boxShadow: '0 2px 12px rgba(249,115,22,0.25)',
               transition: 'background 0.15s, transform 0.1s',
             }}
               onMouseEnter={e => { e.currentTarget.style.background = T.orangeHover; e.currentTarget.style.transform = 'translateY(-1px)' }}
@@ -371,7 +371,7 @@ export default function DocumentsPage() {
               <div style={{ padding: '64px 24px', textAlign: 'center' }}>
                 <div style={{
                   width: 32, height: 32,
-                  border: `3px solid rgba(217,119,6,0.15)`,
+                  border: `3px solid rgba(249,115,22,0.15)`,
                   borderTop: `3px solid ${T.orange}`,
                   borderRadius: '50%',
                   animation: 'spin 0.85s linear infinite',
@@ -392,7 +392,7 @@ export default function DocumentsPage() {
                   display: 'inline-flex', alignItems: 'center', gap: 7,
                   background: T.orange, color: '#fff', textDecoration: 'none',
                   borderRadius: 8, padding: '10px 20px', fontSize: 13, fontWeight: 600,
-                  boxShadow: '0 2px 12px rgba(217,119,6,0.25)',
+                  boxShadow: '0 2px 12px rgba(249,115,22,0.25)',
                 }}>
                   <Upload size={14} /> Upload your first COI
                 </Link>
@@ -494,14 +494,14 @@ export default function DocumentsPage() {
                                   href={`/report/${doc.id}`}
                                   style={{
                                     display: 'inline-flex', alignItems: 'center', gap: 5,
-                                    background: 'rgba(217,119,6,0.07)', color: T.orange,
-                                    border: '1px solid rgba(217,119,6,0.20)',
+                                    background: 'rgba(249,115,22,0.07)', color: T.orange,
+                                    border: '1px solid rgba(249,115,22,0.20)',
                                     borderRadius: 6, padding: '5px 11px',
                                     fontSize: 12, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap',
                                     transition: 'all 0.15s',
                                   }}
-                                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.15)'; e.currentTarget.style.borderColor = 'rgba(217,119,6,0.35)' }}
-                                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.07)'; e.currentTarget.style.borderColor = 'rgba(217,119,6,0.20)' }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.15)'; e.currentTarget.style.borderColor = 'rgba(249,115,22,0.35)' }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.07)'; e.currentTarget.style.borderColor = 'rgba(249,115,22,0.20)' }}
                                 >
                                   <Eye size={11} /> View
                                 </Link>

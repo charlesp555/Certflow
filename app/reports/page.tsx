@@ -19,11 +19,11 @@ const T = {
   card: '#13131f',
   border: '#1a1a2e',
   borderAccent: '#2a2a3e',
-  orange: '#D97706',
-  orangeHover: '#B45309',
+  orange: '#F97316',
+  orangeHover: '#EA6A0C',
   green: '#22c55e',
   amber: '#fbbf24',
-  red: '#ef4444',
+  red: '#E5484D',
   primary: '#f8f8f8',
   secondary: '#8b8fa8',
   muted: '#4b5063',
@@ -482,7 +482,7 @@ export default function ReportsPage() {
                 display: 'inline-flex', alignItems: 'center', gap: 7,
                 background: T.orange, color: '#fff', border: 'none',
                 borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                boxShadow: '0 2px 12px rgba(217,119,6,0.25)',
+                boxShadow: '0 2px 12px rgba(249,115,22,0.25)',
                 transition: 'background 0.15s, transform 0.1s',
               }}
               onMouseEnter={e => { e.currentTarget.style.background = T.orangeHover; e.currentTarget.style.transform = 'translateY(-1px)' }}
@@ -544,7 +544,7 @@ export default function ReportsPage() {
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '64px 0' }}>
               <div style={{
                 width: 36, height: 36,
-                border: `3px solid rgba(217,119,6,0.15)`,
+                border: `3px solid rgba(249,115,22,0.15)`,
                 borderTop: `3px solid ${T.orange}`,
                 borderRadius: '50%',
                 animation: 'spin 0.85s linear infinite',
@@ -559,7 +559,7 @@ export default function ReportsPage() {
             }}>
               <div style={{
                 width: 64, height: 64, borderRadius: 16,
-                background: 'rgba(217,119,6,0.08)', border: `1px solid rgba(217,119,6,0.18)`,
+                background: 'rgba(249,115,22,0.08)', border: `1px solid rgba(249,115,22,0.18)`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 marginBottom: 20,
               }}>
@@ -575,7 +575,7 @@ export default function ReportsPage() {
                 display: 'inline-flex', alignItems: 'center', gap: 8,
                 background: T.orange, color: '#fff', textDecoration: 'none',
                 borderRadius: 8, padding: '11px 22px', fontSize: 14, fontWeight: 600,
-                boxShadow: '0 2px 16px rgba(217,119,6,0.3)',
+                boxShadow: '0 2px 16px rgba(249,115,22,0.3)',
                 transition: 'background 0.15s',
               }}
                 onMouseEnter={e => (e.currentTarget.style.background = T.orangeHover)}

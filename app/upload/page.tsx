@@ -41,8 +41,8 @@ type COIData = {
 const statusConfig = {
   COMPLIANT:     { bg: 'rgba(16,185,129,0.10)', color: '#6ee7b7', border: 'rgba(16,185,129,0.25)', label: 'COMPLIANT'     },
   EXPIRING:      { bg: 'rgba(251,191,36,0.10)', color: '#fcd34d', border: 'rgba(251,191,36,0.3)',  label: 'EXPIRING SOON' },
-  EXPIRED:       { bg: 'rgba(239,68,68,0.10)',  color: '#fca5a5', border: 'rgba(239,68,68,0.25)', label: 'EXPIRED'       },
-  NON_COMPLIANT: { bg: 'rgba(239,68,68,0.10)',  color: '#fca5a5', border: 'rgba(239,68,68,0.25)', label: 'NON-COMPLIANT' },
+  EXPIRED:       { bg: 'rgba(229,72,77,0.10)',  color: '#F2A0A3', border: 'rgba(229,72,77,0.25)', label: 'EXPIRED'       },
+  NON_COMPLIANT: { bg: 'rgba(229,72,77,0.10)',  color: '#F2A0A3', border: 'rgba(229,72,77,0.25)', label: 'NON-COMPLIANT' },
 }
 
 function UploadForm() {
@@ -164,7 +164,7 @@ function UploadForm() {
         </div>
 
         {error && (
-          <div style={{ background: 'rgba(239,68,68,0.10)', border: '0.5px solid rgba(239,68,68,0.25)', borderRadius: 8, padding: '12px 16px', marginBottom: 16, fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: '#fca5a5' }}>
+          <div style={{ background: 'rgba(229,72,77,0.10)', border: '0.5px solid rgba(229,72,77,0.25)', borderRadius: 8, padding: '12px 16px', marginBottom: 16, fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: '#F2A0A3' }}>
             {error}
           </div>
         )}
@@ -174,7 +174,7 @@ function UploadForm() {
           disabled={!file || loading}
           style={{
             background: !file || loading ? 'rgba(245,158,11,0.3)' : 'var(--amber)',
-            color: '#1a0800', fontFamily: 'IBM Plex Mono, monospace', fontSize: 13, fontWeight: 700,
+            color: '#1D0D02', fontFamily: 'IBM Plex Mono, monospace', fontSize: 13, fontWeight: 700,
             padding: '14px 32px', borderRadius: 8, border: 'none',
             cursor: !file || loading ? 'not-allowed' : 'pointer', width: '100%', marginBottom: 16,
           }}
@@ -222,10 +222,10 @@ function UploadForm() {
             </div>
 
             {result.flags.length > 0 && (
-              <div style={{ background: 'rgba(239,68,68,0.06)', border: '0.5px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '16px 20px' }}>
-                <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 9, color: '#fca5a5', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 12 }}>compliance flags</div>
+              <div style={{ background: 'rgba(229,72,77,0.06)', border: '0.5px solid rgba(229,72,77,0.2)', borderRadius: 10, padding: '16px 20px' }}>
+                <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 9, color: '#F2A0A3', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 12 }}>compliance flags</div>
                 {result.flags.map((flag, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6, fontSize: 13, color: '#fca5a5' }}>
+                  <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6, fontSize: 13, color: '#F2A0A3' }}>
                     <span>⚠</span><span>{flag}</span>
                   </div>
                 ))}
@@ -254,9 +254,9 @@ function UploadForm() {
                         <td style={{ padding: '9px 8px' }}>
                           <span style={{
                             display: 'inline-flex', alignItems: 'center', gap: 5,
-                            background: rc.passed ? 'rgba(16,185,129,0.10)' : 'rgba(239,68,68,0.10)',
-                            color: rc.passed ? '#6ee7b7' : '#fca5a5',
-                            border: `0.5px solid ${rc.passed ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)'}`,
+                            background: rc.passed ? 'rgba(16,185,129,0.10)' : 'rgba(229,72,77,0.10)',
+                            color: rc.passed ? '#6ee7b7' : '#F2A0A3',
+                            border: `0.5px solid ${rc.passed ? 'rgba(16,185,129,0.25)' : 'rgba(229,72,77,0.25)'}`,
                             borderRadius: 5, padding: '3px 9px',
                             fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, fontWeight: 700,
                             letterSpacing: '0.5px',
@@ -264,7 +264,7 @@ function UploadForm() {
                             {rc.passed ? '✓ PASS' : '✗ FAIL'}
                           </span>
                           {!rc.passed && (
-                            <div style={{ fontSize: 11, color: '#fca5a5', marginTop: 3, opacity: 0.85 }}>{rc.reason}</div>
+                            <div style={{ fontSize: 11, color: '#F2A0A3', marginTop: 3, opacity: 0.85 }}>{rc.reason}</div>
                           )}
                         </td>
                       </tr>
@@ -293,7 +293,7 @@ function UploadForm() {
                 ].map(item => (
                   <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 16 }}>{item.value ? '✅' : '❌'}</span>
-                    <span style={{ fontSize: 13, color: item.value ? '#6ee7b7' : '#fca5a5' }}>{item.label}</span>
+                    <span style={{ fontSize: 13, color: item.value ? '#6ee7b7' : '#F2A0A3' }}>{item.label}</span>
                   </div>
                 ))}
               </div>

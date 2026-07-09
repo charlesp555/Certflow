@@ -14,8 +14,8 @@ const T = {
   card: '#13131f',
   border: '#1a1a2e',
   borderAccent: '#2a2a3e',
-  orange: '#D97706',
-  orangeHover: '#B45309',
+  orange: '#F97316',
+  orangeHover: '#EA6A0C',
   green: '#22c55e',
   primary: '#f8f8f8',
   secondary: '#8b8fa8',
@@ -79,7 +79,7 @@ function OrangeBtn({ onClick, children }: { onClick?: () => void; children: Reac
         background: T.orange, color: '#fff', border: 'none',
         borderRadius: 8, padding: '10px 20px',
         fontSize: 13, fontWeight: 600, cursor: 'pointer',
-        boxShadow: '0 2px 12px rgba(217,119,6,0.25)',
+        boxShadow: '0 2px 12px rgba(249,115,22,0.25)',
         transition: 'background 0.15s, transform 0.1s',
       }}
       onMouseEnter={e => { e.currentTarget.style.background = T.orangeHover; e.currentTarget.style.transform = 'translateY(-1px)' }}

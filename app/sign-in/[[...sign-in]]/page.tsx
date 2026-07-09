@@ -20,7 +20,7 @@ export default function SignInPage() {
       <div style={{
         position: 'absolute', top: -100, right: -100,
         width: 600, height: 600, borderRadius: '50%',
-        background: 'rgba(217,119,6,0.15)',
+        background: 'rgba(249,115,22,0.15)',
         filter: 'blur(120px)',
         pointerEvents: 'none',
       }} />
@@ -54,14 +54,14 @@ export default function SignInPage() {
         position: 'relative', zIndex: 1,
         borderRadius: 14,
         overflow: 'hidden',
-        boxShadow: '0 0 0 1px rgba(217,119,6,0.18), 0 0 50px rgba(217,119,6,0.10), 0 32px 80px rgba(0,0,0,0.55)',
+        boxShadow: '0 0 0 1px rgba(249,115,22,0.18), 0 0 50px rgba(249,115,22,0.10), 0 32px 80px rgba(0,0,0,0.55)',
       }}>
         <SignIn
           signUpUrl="/sign-up"
           forceRedirectUrl="/dashboard"
           appearance={{
             variables: {
-              colorPrimary: '#D97706',
+              colorPrimary: '#F97316',
               colorBackground: '#111118',
               colorInputBackground: '#1a1a24',
               colorText: '#f8f8f8',
@@ -82,7 +82,7 @@ export default function SignInPage() {
               headerTitle: { color: '#f8f8f8' },
               headerSubtitle: { color: '#9ca3af' },
               formButtonPrimary: {
-                backgroundColor: '#D97706',
+                backgroundColor: '#F97316',
                 color: '#ffffff',
                 fontWeight: '600',
               },
@@ -105,15 +105,15 @@ export default function SignInPage() {
               socialButtonsBlockButtonText: { color: '#d1d5db' },
               dividerLine: { backgroundColor: '#2a2a3a' },
               dividerText: { color: '#6b7280' },
-              footerActionLink: { color: '#D97706' },
+              footerActionLink: { color: '#F97316' },
               footerActionText: { color: '#9ca3af' },
               identityPreviewText: { color: '#f8f8f8' },
-              identityPreviewEditButtonIcon: { color: '#D97706' },
+              identityPreviewEditButtonIcon: { color: '#F97316' },
               formFieldSuccessText: { color: '#22c55e' },
-              alertText: { color: '#f87171' },
+              alertText: { color: '#F0767B' },
               alert: {
-                backgroundColor: 'rgba(239,68,68,0.10)',
-                borderColor: 'rgba(239,68,68,0.25)',
+                backgroundColor: 'rgba(229,72,77,0.10)',
+                borderColor: 'rgba(229,72,77,0.25)',
               },
             },
           }}

@@ -118,8 +118,8 @@ const STATUS_ORDER: Record<VendorStatus, number> = {
 function StatusBadge({ status }: { status: VendorStatus }) {
   const styles: Record<VendorStatus, { bg: string; color: string; border: string }> = {
     'Compliant':      { bg: '#052e16', color: '#22c55e', border: '#166534' },
-    'Issues Found':   { bg: '#1c0a00', color: '#D97706', border: '#92400e' },
-    'Expiring Soon':  { bg: '#1a1000', color: '#fbbf24', border: '#78350f' },
+    'Issues Found':   { bg: '#1F0E03', color: '#F97316', border: '#9A3412' },
+    'Expiring Soon':  { bg: '#1D0D02', color: '#fbbf24', border: '#7C2D12' },
     'Pending Review': { bg: '#0f0f1a', color: '#8b8cf8', border: '#3730a3' },
   }
   const s = styles[status]
@@ -150,11 +150,11 @@ function PaywallModal({ onClose }: { onClose: () => void }) {
       }} onClick={e => e.stopPropagation()}>
         <div style={{
           width: 52, height: 52, borderRadius: '50%',
-          background: 'rgba(217,119,6,0.12)', border: '1px solid rgba(217,119,6,0.25)',
+          background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.25)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           margin: '0 auto 20px',
         }}>
-          <Lock size={22} color="#D97706" />
+          <Lock size={22} color="#F97316" />
         </div>
 
         <h2 style={{ fontSize: 20, fontWeight: 700, color: '#f0ede8', margin: '0 0 10px' }}>
@@ -169,13 +169,13 @@ function PaywallModal({ onClose }: { onClose: () => void }) {
             href="/pricing"
             style={{
               display: 'block', textAlign: 'center',
-              background: '#D97706', color: '#fff',
+              background: '#F97316', color: '#fff',
               fontSize: 14, fontWeight: 700,
               padding: '12px 24px', borderRadius: 8, textDecoration: 'none',
               transition: 'background 0.15s',
             }}
-            onMouseEnter={e => (e.currentTarget.style.background = '#b45309')}
-            onMouseLeave={e => (e.currentTarget.style.background = '#D97706')}
+            onMouseEnter={e => (e.currentTarget.style.background = '#EA6A0C')}
+            onMouseLeave={e => (e.currentTarget.style.background = '#F97316')}
           >
             Upgrade to Pro
           </Link>
@@ -264,7 +264,7 @@ function AddVendorModal({
                 borderRadius: 8, padding: '10px 14px', fontSize: 14, color: '#f0ede8',
                 outline: 'none', transition: 'border-color 0.15s',
               }}
-              onFocus={e => (e.target.style.borderColor = '#D97706')}
+              onFocus={e => (e.target.style.borderColor = '#F97316')}
               onBlur={e => (e.target.style.borderColor = '#1e1e2e')}
             />
           </div>
@@ -304,7 +304,7 @@ function AddVendorModal({
           </div>
 
           {error && (
-            <div style={{ fontSize: 13, color: '#fca5a5', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, padding: '10px 14px' }}>
+            <div style={{ fontSize: 13, color: '#F2A0A3', background: 'rgba(229,72,77,0.08)', border: '1px solid rgba(229,72,77,0.25)', borderRadius: 8, padding: '10px 14px' }}>
               {error}
             </div>
           )}
@@ -325,12 +325,12 @@ function AddVendorModal({
             onClick={handleSave}
             disabled={saving}
             style={{
-              background: saving ? '#92400e' : '#D97706', color: '#fff', fontSize: 14, fontWeight: 600,
+              background: saving ? '#9A3412' : '#F97316', color: '#fff', fontSize: 14, fontWeight: 600,
               padding: '10px 24px', borderRadius: 8, border: 'none',
               cursor: saving ? 'not-allowed' : 'pointer', transition: 'background 0.15s',
             }}
-            onMouseEnter={e => { if (!saving) e.currentTarget.style.background = '#b45309' }}
-            onMouseLeave={e => { if (!saving) e.currentTarget.style.background = '#D97706' }}
+            onMouseEnter={e => { if (!saving) e.currentTarget.style.background = '#EA6A0C' }}
+            onMouseLeave={e => { if (!saving) e.currentTarget.style.background = '#F97316' }}
           >
             {saving ? 'Saving…' : 'Save Vendor'}
           </button>
@@ -370,11 +370,11 @@ function DeleteConfirmModal({
         {/* Icon */}
         <div style={{
           width: 48, height: 48, borderRadius: '50%',
-          background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.25)',
+          background: 'rgba(229,72,77,0.10)', border: '1px solid rgba(229,72,77,0.25)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           margin: '0 auto 20px',
         }}>
-          <AlertTriangle size={22} color="#ef4444" />
+          <AlertTriangle size={22} color="#E5484D" />
         </div>
 
         <h2 style={{ fontSize: 18, fontWeight: 700, color: '#f0ede8', margin: '0 0 10px', textAlign: 'center' }}>
@@ -387,8 +387,8 @@ function DeleteConfirmModal({
 
         {error && (
           <div style={{
-            fontSize: 13, color: '#fca5a5',
-            background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)',
+            fontSize: 13, color: '#F2A0A3',
+            background: 'rgba(229,72,77,0.08)', border: '1px solid rgba(229,72,77,0.25)',
             borderRadius: 8, padding: '10px 14px', marginBottom: 20,
           }}>
             {error}
@@ -414,13 +414,13 @@ function DeleteConfirmModal({
             onClick={onConfirm}
             disabled={deleting}
             style={{
-              flex: 1, background: deleting ? '#7f1d1d' : '#ef4444', color: '#fff',
+              flex: 1, background: deleting ? '#772629' : '#E5484D', color: '#fff',
               fontSize: 14, fontWeight: 600,
               padding: '11px 20px', borderRadius: 8, border: 'none',
               cursor: deleting ? 'not-allowed' : 'pointer', transition: 'background 0.15s',
             }}
-            onMouseEnter={e => { if (!deleting) e.currentTarget.style.background = '#dc2626' }}
-            onMouseLeave={e => { if (!deleting) e.currentTarget.style.background = '#ef4444' }}
+            onMouseEnter={e => { if (!deleting) e.currentTarget.style.background = '#CE3B41' }}
+            onMouseLeave={e => { if (!deleting) e.currentTarget.style.background = '#E5484D' }}
           >
             {deleting ? 'Deleting…' : 'Delete Vendor'}
           </button>
@@ -474,22 +474,22 @@ function SortableHeader({
       style={{
         textAlign: 'left', padding: '14px 16px',
         fontSize: 11, fontWeight: 600,
-        color: isActive ? '#D97706' : '#8a8599',
+        color: isActive ? '#F97316' : '#8a8599',
         textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap',
         cursor: colKey ? 'pointer' : 'default',
         userSelect: 'none',
         transition: 'color 0.15s',
       }}
       onMouseEnter={colKey ? e => { if (!isActive) e.currentTarget.style.color = '#c8c4bc' } : undefined}
-      onMouseLeave={colKey ? e => { e.currentTarget.style.color = isActive ? '#D97706' : '#8a8599' } : undefined}
+      onMouseLeave={colKey ? e => { e.currentTarget.style.color = isActive ? '#F97316' : '#8a8599' } : undefined}
     >
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
         {label}
         {colKey && (
           isActive
             ? (sortDir === 'asc'
-              ? <ArrowUp size={11} color="#D97706" />
-              : <ArrowDown size={11} color="#D97706" />)
+              ? <ArrowUp size={11} color="#F97316" />
+              : <ArrowDown size={11} color="#F97316" />)
             : <ArrowUpDown size={11} color="#3a3a4a" />
         )}
       </span>
@@ -685,12 +685,12 @@ export default function VendorsPage() {
             <button
               onClick={handleAddVendorClick}
               style={{
-                background: '#D97706', color: '#fff', fontSize: 14, fontWeight: 600,
+                background: '#F97316', color: '#fff', fontSize: 14, fontWeight: 600,
                 padding: '8px 18px', borderRadius: 8, border: 'none', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', gap: 6, transition: 'background 0.15s',
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#b45309')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#D97706')}
+              onMouseEnter={e => (e.currentTarget.style.background = '#EA6A0C')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#F97316')}
             >
               + Add Vendor
             </button>
@@ -699,7 +699,7 @@ export default function VendorsPage() {
               cursor: 'pointer', padding: 6, borderRadius: 8, color: '#8a8599',
             }}>
               <Bell size={20} />
-              <span style={{ position: 'absolute', top: 5, right: 5, width: 8, height: 8, background: '#D97706', borderRadius: '50%', border: '2px solid #0a0a0f' }} />
+              <span style={{ position: 'absolute', top: 5, right: 5, width: 8, height: 8, background: '#F97316', borderRadius: '50%', border: '2px solid #0a0a0f' }} />
             </button>
             <UserButton />
           </div>
@@ -732,7 +732,7 @@ export default function VendorsPage() {
           <div style={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 12, overflow: 'hidden' }}>
             {loading ? (
               <div style={{ padding: '64px 24px', textAlign: 'center' }}>
-                <div style={{ width: 32, height: 32, border: '3px solid rgba(217,119,6,0.15)', borderTop: '3px solid #D97706', borderRadius: '50%', animation: 'spin 0.85s linear infinite', margin: '0 auto 12px' }} />
+                <div style={{ width: 32, height: 32, border: '3px solid rgba(249,115,22,0.15)', borderTop: '3px solid #F97316', borderRadius: '50%', animation: 'spin 0.85s linear infinite', margin: '0 auto 12px' }} />
                 <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
                 <div style={{ fontSize: 13, color: '#8a8599' }}>Loading vendors…</div>
               </div>
@@ -763,7 +763,7 @@ export default function VendorsPage() {
                             <Link
                               href={`/vendors/${vendor.id}`}
                               style={{ fontSize: 14, fontWeight: 600, color: '#f0ede8', textDecoration: 'none' }}
-                              onMouseEnter={e => (e.currentTarget.style.color = '#D97706')}
+                              onMouseEnter={e => (e.currentTarget.style.color = '#F97316')}
                               onMouseLeave={e => (e.currentTarget.style.color = '#f0ede8')}
                             >
                               <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -774,7 +774,7 @@ export default function VendorsPage() {
                           </td>
                           <td style={{ padding: '14px 16px', fontSize: 13, whiteSpace: 'nowrap' }}>
                             {vendor.type === UNTYPED ? (
-                              <span style={{ color: '#D97706', fontStyle: 'italic' }} title="Set this vendor's type from its profile page">
+                              <span style={{ color: '#F97316', fontStyle: 'italic' }} title="Set this vendor's type from its profile page">
                                 Untyped
                               </span>
                             ) : (
@@ -784,7 +784,7 @@ export default function VendorsPage() {
                           <td style={{ padding: '14px 16px' }}><StatusBadge status={vendor.status} /></td>
                           <td style={{ padding: '14px 16px', fontSize: 13, color: '#8a8599', whiteSpace: 'nowrap' }}>{vendor.expiration}</td>
                           <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: vendor.issues > 0 ? '#D97706' : '#8a8599' }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: vendor.issues > 0 ? '#F97316' : '#8a8599' }}>
                               {vendor.issues}
                             </span>
                           </td>
@@ -795,13 +795,13 @@ export default function VendorsPage() {
                                 onClick={() => setUploadTarget({ id: vendor.id, name: vendor.name })}
                                 style={{
                                   display: 'inline-flex', alignItems: 'center', gap: 5,
-                                  background: 'rgba(217,119,6,0.10)', color: '#D97706',
-                                  border: '1px solid rgba(217,119,6,0.25)',
+                                  background: 'rgba(249,115,22,0.10)', color: '#F97316',
+                                  border: '1px solid rgba(249,115,22,0.25)',
                                   fontSize: 12, fontWeight: 600, padding: '6px 12px',
                                   borderRadius: 6, cursor: 'pointer', transition: 'all 0.15s',
                                 }}
-                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.20)' }}
-                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.10)' }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.20)' }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.10)' }}
                               >
                                 <Upload size={12} />
                                 Upload COI
@@ -832,7 +832,7 @@ export default function VendorsPage() {
                                   borderRadius: 6, cursor: 'pointer', transition: 'all 0.15s',
                                   flexShrink: 0,
                                 }}
-                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.30)' }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(229,72,77,0.12)'; e.currentTarget.style.color = '#E5484D'; e.currentTarget.style.borderColor = 'rgba(229,72,77,0.30)' }}
                                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#4b5063'; e.currentTarget.style.borderColor = '#1e1e2e' }}
                               >
                                 <Trash2 size={13} />
@@ -856,12 +856,12 @@ export default function VendorsPage() {
                     <button
                       onClick={handleAddVendorClick}
                       style={{
-                        background: '#D97706', color: '#fff', fontSize: 14, fontWeight: 600,
+                        background: '#F97316', color: '#fff', fontSize: 14, fontWeight: 600,
                         padding: '10px 24px', borderRadius: 8, border: 'none', cursor: 'pointer',
                         transition: 'background 0.15s',
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.background = '#b45309')}
-                      onMouseLeave={e => (e.currentTarget.style.background = '#D97706')}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#EA6A0C')}
+                      onMouseLeave={e => (e.currentTarget.style.background = '#F97316')}
                     >
                       + Add Vendor
                     </button>

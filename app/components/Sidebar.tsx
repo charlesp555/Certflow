@@ -24,7 +24,7 @@ const NAV = [
 const T = {
   bg: '#0f0f17',
   border: '#1a1a2e',
-  orange: '#D97706',
+  orange: '#F97316',
   primary: '#f8f8f8',
   secondary: '#8b8fa8',
 }
@@ -70,7 +70,7 @@ export default function Sidebar() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 padding: '9px 12px', borderRadius: 8, marginBottom: 2,
-                background: active ? 'rgba(217,119,6,0.10)' : 'transparent',
+                background: active ? 'rgba(249,115,22,0.10)' : 'transparent',
                 borderLeft: `2px solid ${active ? T.orange : 'transparent'}`,
                 color,
                 fontSize: 14, fontWeight: active ? 600 : 500,
@@ -120,7 +120,7 @@ export default function Sidebar() {
       }}>
         <div style={{
           width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
-          background: 'rgba(217,119,6,0.15)', border: '1px solid rgba(217,119,6,0.28)',
+          background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.28)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <User size={16} color={T.orange} />

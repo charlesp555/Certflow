@@ -18,12 +18,12 @@ const T = {
   card: '#13131f',
   border: '#1a1a2e',
   borderAccent: '#2a2a3e',
-  orange: '#D97706',
-  orangeHover: '#B45309',
+  orange: '#F97316',
+  orangeHover: '#EA6A0C',
   green: '#22c55e',
   amber: '#fbbf24',
   blue: '#8b8cf8',
-  red: '#ef4444',
+  red: '#E5484D',
   primary: '#f8f8f8',
   secondary: '#8b8fa8',
   muted: '#4b5063',
@@ -106,7 +106,7 @@ const DATE_OPTIONS = ['This Month', 'Last 3 Months', 'This Year', 'All Time']
 function statusStyle(status: Status): { bg: string; color: string; border: string } {
   switch (status) {
     case 'Compliant':      return { bg: 'rgba(34,197,94,0.09)',  color: T.green,  border: 'rgba(34,197,94,0.22)'  }
-    case 'Issues Found':   return { bg: 'rgba(217,119,6,0.09)',  color: T.orange, border: 'rgba(217,119,6,0.22)'  }
+    case 'Issues Found':   return { bg: 'rgba(249,115,22,0.09)',  color: T.orange, border: 'rgba(249,115,22,0.22)'  }
     case 'Expiring Soon':  return { bg: 'rgba(251,191,36,0.09)', color: T.amber,  border: 'rgba(251,191,36,0.22)' }
     case 'Pending Review': return { bg: 'rgba(139,140,248,0.09)',color: T.blue,   border: 'rgba(139,140,248,0.22)'}
   }
@@ -267,7 +267,7 @@ export default function SubmissionsPage() {
               background: T.orange, color: '#fff', textDecoration: 'none',
               borderRadius: 8, padding: '8px 16px',
               fontSize: 13, fontWeight: 600,
-              boxShadow: '0 2px 12px rgba(217,119,6,0.25)',
+              boxShadow: '0 2px 12px rgba(249,115,22,0.25)',
               transition: 'background 0.15s, transform 0.1s',
             }}
               onMouseEnter={e => { e.currentTarget.style.background = T.orangeHover; e.currentTarget.style.transform = 'translateY(-1px)' }}
@@ -419,8 +419,8 @@ export default function SubmissionsPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                           <div style={{
                             width: 28, height: 28, borderRadius: 7, flexShrink: 0,
-                            background: 'rgba(217,119,6,0.08)',
-                            border: '1px solid rgba(217,119,6,0.15)',
+                            background: 'rgba(249,115,22,0.08)',
+                            border: '1px solid rgba(249,115,22,0.15)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                           }}>
                             <FileText size={12} color={T.orange} style={{ opacity: 0.7 }} />
@@ -493,9 +493,9 @@ export default function SubmissionsPage() {
                             whiteSpace: 'nowrap', transition: 'all 0.15s',
                           }}
                           onMouseEnter={e => {
-                            e.currentTarget.style.background = 'rgba(217,119,6,0.10)'
+                            e.currentTarget.style.background = 'rgba(249,115,22,0.10)'
                             e.currentTarget.style.color = T.orange
-                            e.currentTarget.style.borderColor = 'rgba(217,119,6,0.25)'
+                            e.currentTarget.style.borderColor = 'rgba(249,115,22,0.25)'
                           }}
                           onMouseLeave={e => {
                             e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
@@ -527,7 +527,7 @@ export default function SubmissionsPage() {
                   background: T.orange, color: '#fff', textDecoration: 'none',
                   borderRadius: 8, padding: '10px 20px',
                   fontSize: 13, fontWeight: 600,
-                  boxShadow: '0 2px 12px rgba(217,119,6,0.25)',
+                  boxShadow: '0 2px 12px rgba(249,115,22,0.25)',
                 }}>
                   <Upload size={14} /> Upload COI
                 </Link>

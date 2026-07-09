@@ -22,11 +22,11 @@ const T = {
   card:        '#13131f',
   border:      '#1a1a2e',
   borderAccent:'#2a2a3e',
-  orange:      '#D97706',
-  orangeHover: '#B45309',
+  orange:      '#F97316',
+  orangeHover: '#EA6A0C',
   green:       '#22c55e',
   amber:       '#fbbf24',
-  red:         '#ef4444',
+  red:         '#E5484D',
   blue:        '#8b8cf8',
   primary:     '#f8f8f8',
   secondary:   '#8b8fa8',
@@ -111,8 +111,8 @@ function vendorStatusInfo(status: string | null) {
   switch (status) {
     case 'active':        return { label: 'Compliant',      color: T.green,  bg: 'rgba(34,197,94,0.09)',    border: 'rgba(34,197,94,0.22)'   }
     case 'expiring':      return { label: 'Expiring Soon',  color: T.amber,  bg: 'rgba(251,191,36,0.09)',   border: 'rgba(251,191,36,0.22)'  }
-    case 'expired':       return { label: 'Expired',        color: T.red,    bg: 'rgba(239,68,68,0.09)',    border: 'rgba(239,68,68,0.22)'   }
-    case 'non_compliant': return { label: 'Issues Found',   color: T.orange, bg: 'rgba(217,119,6,0.09)',   border: 'rgba(217,119,6,0.22)'   }
+    case 'expired':       return { label: 'Expired',        color: T.red,    bg: 'rgba(229,72,77,0.09)',    border: 'rgba(229,72,77,0.22)'   }
+    case 'non_compliant': return { label: 'Issues Found',   color: T.orange, bg: 'rgba(249,115,22,0.09)',   border: 'rgba(249,115,22,0.22)'   }
     default:              return { label: 'Pending Review', color: T.blue,   bg: 'rgba(139,140,248,0.09)', border: 'rgba(139,140,248,0.22)' }
   }
 }
@@ -124,8 +124,8 @@ function overallStatusInfo(status: string | null) {
   switch (status) {
     case 'COMPLIANT':     return { label: 'Compliant',     color: T.green,  bg: 'rgba(34,197,94,0.09)',   border: 'rgba(34,197,94,0.22)'  }
     case 'EXPIRING':      return { label: 'Expiring Soon',  color: T.amber,  bg: 'rgba(251,191,36,0.09)',  border: 'rgba(251,191,36,0.22)' }
-    case 'EXPIRED':       return { label: 'Expired',        color: T.red,    bg: 'rgba(239,68,68,0.09)',   border: 'rgba(239,68,68,0.22)'  }
-    case 'NON_COMPLIANT': return { label: 'Non-Compliant',  color: T.orange, bg: 'rgba(217,119,6,0.09)',   border: 'rgba(217,119,6,0.22)'  }
+    case 'EXPIRED':       return { label: 'Expired',        color: T.red,    bg: 'rgba(229,72,77,0.09)',   border: 'rgba(229,72,77,0.22)'  }
+    case 'NON_COMPLIANT': return { label: 'Non-Compliant',  color: T.orange, bg: 'rgba(249,115,22,0.09)',   border: 'rgba(249,115,22,0.22)'  }
     default:               return { label: 'Pending Review', color: T.blue,  bg: 'rgba(139,140,248,0.09)', border: 'rgba(139,140,248,0.22)' }
   }
 }
@@ -143,8 +143,8 @@ function findingCategory(coverage: string): 'endorsement' | 'limit' {
 
 function findingStyle(category: 'endorsement' | 'limit') {
   return category === 'endorsement'
-    ? { color: T.orange, bg: 'rgba(217,119,6,0.06)',  border: 'rgba(217,119,6,0.22)'  }
-    : { color: T.red,    bg: 'rgba(239,68,68,0.06)',  border: 'rgba(239,68,68,0.22)'  }
+    ? { color: T.orange, bg: 'rgba(249,115,22,0.06)',  border: 'rgba(249,115,22,0.22)'  }
+    : { color: T.red,    bg: 'rgba(229,72,77,0.06)',  border: 'rgba(229,72,77,0.22)'  }
 }
 
 function findingRecommendation(category: 'endorsement' | 'limit'): string {
@@ -439,7 +439,7 @@ function CopyRequestButton({ vendorName, failedReqs, contact }: { vendorName: st
     <button
       type="button"
       onClick={handleCopy}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0, background: state === 'copied' ? T.green : T.orange, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 2px 12px rgba(217,119,6,0.28)', transition: 'background 0.15s, transform 0.1s' }}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0, background: state === 'copied' ? T.green : T.orange, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 2px 12px rgba(249,115,22,0.28)', transition: 'background 0.15s, transform 0.1s' }}
       onMouseEnter={e => { if (state === 'idle') { e.currentTarget.style.background = T.orangeHover } ; e.currentTarget.style.transform = 'translateY(-1px)' }}
       onMouseLeave={e => { if (state === 'idle') { e.currentTarget.style.background = T.orange } ; e.currentTarget.style.transform = 'translateY(0)' }}
     >
@@ -567,7 +567,7 @@ function OverviewTab({ latestSub, vendorName, vendorEmail, vendorContactName }: 
           there's no vendor email on file and no email service wired up, so the
           PM pastes it into their own mail client, desktop or webmail. */}
       {failedCount !== null && failedCount > 0 && (
-        <div style={{ background: 'rgba(217,119,6,0.05)', border: '1px solid rgba(217,119,6,0.20)', borderRadius: 12, padding: '20px 24px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20 }}>
+        <div style={{ background: 'rgba(249,115,22,0.05)', border: '1px solid rgba(249,115,22,0.20)', borderRadius: 12, padding: '20px 24px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
             <AlertTriangle size={18} color={T.orange} style={{ flexShrink: 0, marginTop: 2 }} />
             <div>
@@ -600,8 +600,8 @@ function DocumentsTab({ vendor, submissions, showToast, onUploadClick }: { vendo
         onDragLeave={() => setDragOver(false)}
         onDrop={e => { e.preventDefault(); setDragOver(false); onUploadClick() }}
       >
-        <div style={{ border: `2px dashed ${dragOver ? T.orange : 'rgba(217,119,6,0.30)'}`, borderRadius: 12, padding: '36px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, background: dragOver ? 'rgba(217,119,6,0.07)' : 'rgba(217,119,6,0.025)', cursor: 'pointer', transition: 'all 0.2s' }}>
-          <div style={{ width: 46, height: 46, borderRadius: 11, background: 'rgba(217,119,6,0.12)', border: '1px solid rgba(217,119,6,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ border: `2px dashed ${dragOver ? T.orange : 'rgba(249,115,22,0.30)'}`, borderRadius: 12, padding: '36px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, background: dragOver ? 'rgba(249,115,22,0.07)' : 'rgba(249,115,22,0.025)', cursor: 'pointer', transition: 'all 0.2s' }}>
+          <div style={{ width: 46, height: 46, borderRadius: 11, background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Upload size={20} color={T.orange} />
           </div>
           <p style={{ fontSize: 14, fontWeight: 600, color: T.primary, margin: 0 }}>Drop new COI here or click to browse</p>
@@ -639,7 +639,7 @@ function DocumentsTab({ vendor, submissions, showToast, onUploadClick }: { vendo
                     : ar?.expirationDate || 'Pending'
                   const stMap: Record<string, { c: string; bg: string; b: string }> = {
                     'Compliant':     { c: T.green,  bg: 'rgba(34,197,94,0.09)',    b: 'rgba(34,197,94,0.22)'   },
-                    'Issues Found':  { c: T.orange, bg: 'rgba(217,119,6,0.09)',   b: 'rgba(217,119,6,0.22)'   },
+                    'Issues Found':  { c: T.orange, bg: 'rgba(249,115,22,0.09)',   b: 'rgba(249,115,22,0.22)'   },
                     'Expiring Soon': { c: T.amber,  bg: 'rgba(251,191,36,0.09)',  b: 'rgba(251,191,36,0.22)'  },
                   }
                   const st = stMap[sub.status ?? ''] ?? { c: T.blue, bg: 'rgba(139,140,248,0.09)', b: 'rgba(139,140,248,0.22)' }
@@ -651,7 +651,7 @@ function DocumentsTab({ vendor, submissions, showToast, onUploadClick }: { vendo
                     >
                       <td style={{ padding: '16px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ width: 32, height: 32, borderRadius: 7, flexShrink: 0, background: 'rgba(217,119,6,0.09)', border: '1px solid rgba(217,119,6,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <div style={{ width: 32, height: 32, borderRadius: 7, flexShrink: 0, background: 'rgba(249,115,22,0.09)', border: '1px solid rgba(249,115,22,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <FileText size={14} color={T.orange} />
                           </div>
                           <span style={{ fontSize: 13, fontWeight: 600, color: T.primary }}>COI_{slug}_{ds}.pdf</span>
@@ -667,9 +667,9 @@ function DocumentsTab({ vendor, submissions, showToast, onUploadClick }: { vendo
                       <td style={{ padding: '16px' }}>
                         <button
                           onClick={() => showToast('Document preview coming soon')}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(217,119,6,0.08)', color: T.orange, border: '1px solid rgba(217,119,6,0.20)', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'background 0.15s' }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(217,119,6,0.16)')}
-                          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(217,119,6,0.08)')}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(249,115,22,0.08)', color: T.orange, border: '1px solid rgba(249,115,22,0.20)', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'background 0.15s' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(249,115,22,0.16)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(249,115,22,0.08)')}
                         >
                           <Eye size={12} /> View
                         </button>
@@ -808,7 +808,7 @@ function NotesTab() {
           <button
             onClick={handleSave}
             disabled={!canSave}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: canSave ? T.orange : 'rgba(217,119,6,0.25)', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: canSave ? 'pointer' : 'not-allowed', transition: 'background 0.15s, transform 0.1s' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: canSave ? T.orange : 'rgba(249,115,22,0.25)', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: canSave ? 'pointer' : 'not-allowed', transition: 'background 0.15s, transform 0.1s' }}
             onMouseEnter={e => { if (canSave) { e.currentTarget.style.background = T.orangeHover; e.currentTarget.style.transform = 'translateY(-1px)' } }}
             onMouseLeave={e => { if (canSave) { e.currentTarget.style.background = T.orange; e.currentTarget.style.transform = 'translateY(0)' } }}
           >
@@ -1035,9 +1035,9 @@ export default function VendorProfile() {
                   <button
                     onClick={() => setEditingType(true)}
                     title="Set this vendor's type"
-                    style={{ background: 'rgba(217,119,6,0.08)', color: T.orange, border: '1px dashed rgba(217,119,6,0.35)', borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 600, fontStyle: 'italic', cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.15s' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.14)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.08)' }}
+                    style={{ background: 'rgba(249,115,22,0.08)', color: T.orange, border: '1px dashed rgba(249,115,22,0.35)', borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 600, fontStyle: 'italic', cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.14)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.08)' }}
                   >
                     Untyped — set type
                   </button>
@@ -1056,7 +1056,7 @@ export default function VendorProfile() {
 
             <button
               onClick={() => setShowUploadModal(true)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0, background: T.orange, color: '#fff', border: 'none', borderRadius: 9, padding: '11px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 2px 14px rgba(217,119,6,0.28)', transition: 'background 0.15s, transform 0.1s' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0, background: T.orange, color: '#fff', border: 'none', borderRadius: 9, padding: '11px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 2px 14px rgba(249,115,22,0.28)', transition: 'background 0.15s, transform 0.1s' }}
               onMouseEnter={e => { e.currentTarget.style.background = T.orangeHover; e.currentTarget.style.transform = 'translateY(-1px)' }}
               onMouseLeave={e => { e.currentTarget.style.background = T.orange; e.currentTarget.style.transform = 'translateY(0)' }}
             >

@@ -57,15 +57,15 @@ type SubmissionRow = {
 function scoreColor(score: number) {
   if (score >= 80) return '#22c55e'
   if (score >= 60) return '#f59e0b'
-  return '#ef4444'
+  return '#E5484D'
 }
 
 function statusInfo(status: string | null | undefined) {
   switch (status) {
     case 'COMPLIANT':     return { label: 'Compliant',     bg: '#052e16', color: '#22c55e', border: '#166534'  }
-    case 'EXPIRING':      return { label: 'Expiring Soon', bg: '#451a03', color: '#f59e0b', border: '#92400e'  }
-    case 'EXPIRED':       return { label: 'Expired',       bg: '#450a0a', color: '#ef4444', border: '#7f1d1d'  }
-    case 'NON_COMPLIANT': return { label: 'Issues Found',  bg: '#1c1002', color: '#D97706', border: '#92400e'  }
+    case 'EXPIRING':      return { label: 'Expiring Soon', bg: '#431407', color: '#f59e0b', border: '#9A3412'  }
+    case 'EXPIRED':       return { label: 'Expired',       bg: '#401518', color: '#E5484D', border: '#772629'  }
+    case 'NON_COMPLIANT': return { label: 'Issues Found',  bg: '#1F0E03', color: '#F97316', border: '#9A3412'  }
     default:              return { label: 'Pending',       bg: '#0f0f17', color: '#8b8cf8', border: '#3730a3'  }
   }
 }
@@ -237,7 +237,7 @@ export default function ReportDetailPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <button style={{ position: 'relative', background: 'transparent', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, color: '#8a8599' }}>
               <Bell size={20} />
-              <span style={{ position: 'absolute', top: 5, right: 5, width: 8, height: 8, background: '#D97706', borderRadius: '50%', border: '2px solid #0a0a0f' }} />
+              <span style={{ position: 'absolute', top: 5, right: 5, width: 8, height: 8, background: '#F97316', borderRadius: '50%', border: '2px solid #0a0a0f' }} />
             </button>
             <UserButton />
           </div>
@@ -249,7 +249,7 @@ export default function ReportDetailPage() {
           {/* Loading */}
           {loading && (
             <div style={{ textAlign: 'center', paddingTop: 80 }}>
-              <div style={{ width: 32, height: 32, border: '3px solid rgba(217,119,6,0.15)', borderTop: '3px solid #D97706', borderRadius: '50%', margin: '0 auto 14px', animation: 'spin 0.8s linear infinite' }} />
+              <div style={{ width: 32, height: 32, border: '3px solid rgba(249,115,22,0.15)', borderTop: '3px solid #F97316', borderRadius: '50%', margin: '0 auto 14px', animation: 'spin 0.8s linear infinite' }} />
               <p style={{ fontSize: 13, color: '#8a8599', margin: 0 }}>Loading report…</p>
               <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
@@ -263,7 +263,7 @@ export default function ReportDetailPage() {
               <p style={{ fontSize: 14, color: '#8a8599', margin: '0 0 24px' }}>
                 This submission doesn&apos;t exist or you don&apos;t have access to it.
               </p>
-              <Link href="/submissions" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#D97706', color: '#fff', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
+              <Link href="/submissions" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#F97316', color: '#fff', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
                 <ArrowLeft size={14} /> Back to Submissions
               </Link>
             </div>
@@ -340,7 +340,7 @@ export default function ReportDetailPage() {
                                 ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(34,197,94,0.10)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.25)', borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>
                                     <Check size={11} strokeWidth={3} /> Pass
                                   </span>
-                                : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(239,68,68,0.10)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>
+                                : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(229,72,77,0.10)', color: '#E5484D', border: '1px solid rgba(229,72,77,0.25)', borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>
                                     <X size={11} strokeWidth={3} /> Fail
                                   </span>
                               }
@@ -374,8 +374,8 @@ export default function ReportDetailPage() {
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {flags.map((flag, i) => (
-                          <div key={i} style={{ display: 'flex', gap: 10, padding: '10px 13px', background: 'rgba(217,119,6,0.06)', border: '1px solid rgba(217,119,6,0.20)', borderRadius: 8 }}>
-                            <AlertTriangle size={14} color="#D97706" style={{ flexShrink: 0, marginTop: 1 }} />
+                          <div key={i} style={{ display: 'flex', gap: 10, padding: '10px 13px', background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.20)', borderRadius: 8 }}>
+                            <AlertTriangle size={14} color="#F97316" style={{ flexShrink: 0, marginTop: 1 }} />
                             <span style={{ fontSize: 13, color: '#c4bfd8', lineHeight: 1.6 }}>{flag}</span>
                           </div>
                         ))}

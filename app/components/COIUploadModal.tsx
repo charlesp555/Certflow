@@ -14,8 +14,8 @@ type UploadResult = {
 const STATUS_CFG = {
   COMPLIANT:     { color: '#22c55e', bg: 'rgba(34,197,94,0.09)',   border: 'rgba(34,197,94,0.22)',   label: 'Compliant'     },
   EXPIRING:      { color: '#fbbf24', bg: 'rgba(251,191,36,0.09)',  border: 'rgba(251,191,36,0.22)',  label: 'Expiring Soon' },
-  EXPIRED:       { color: '#ef4444', bg: 'rgba(239,68,68,0.09)',   border: 'rgba(239,68,68,0.22)',   label: 'Expired'       },
-  NON_COMPLIANT: { color: '#ef4444', bg: 'rgba(239,68,68,0.09)',   border: 'rgba(239,68,68,0.22)',   label: 'Non-Compliant' },
+  EXPIRED:       { color: '#E5484D', bg: 'rgba(229,72,77,0.09)',   border: 'rgba(229,72,77,0.22)',   label: 'Expired'       },
+  NON_COMPLIANT: { color: '#E5484D', bg: 'rgba(229,72,77,0.09)',   border: 'rgba(229,72,77,0.22)',   label: 'Non-Compliant' },
 }
 
 export default function COIUploadModal({
@@ -107,9 +107,9 @@ export default function COIUploadModal({
               onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}
               onClick={() => document.getElementById('modal-coi-input')?.click()}
               style={{
-                border: `2px dashed ${dragging ? '#D97706' : file ? 'rgba(34,197,94,0.5)' : '#2a2a3e'}`,
+                border: `2px dashed ${dragging ? '#F97316' : file ? 'rgba(34,197,94,0.5)' : '#2a2a3e'}`,
                 borderRadius: 12, padding: '38px 24px', textAlign: 'center',
-                cursor: 'pointer', background: dragging ? 'rgba(217,119,6,0.06)' : '#0a0a0f',
+                cursor: 'pointer', background: dragging ? 'rgba(249,115,22,0.06)' : '#0a0a0f',
                 transition: 'all 0.2s', marginBottom: 16,
               }}
             >
@@ -120,10 +120,10 @@ export default function COIUploadModal({
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
                 <div style={{
                   width: 46, height: 46, borderRadius: 11,
-                  background: 'rgba(217,119,6,0.10)', border: '1px solid rgba(217,119,6,0.22)',
+                  background: 'rgba(249,115,22,0.10)', border: '1px solid rgba(249,115,22,0.22)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <Upload size={20} color="#D97706" />
+                  <Upload size={20} color="#F97316" />
                 </div>
               </div>
               {file ? (
@@ -141,9 +141,9 @@ export default function COIUploadModal({
 
             {error && (
               <div style={{
-                background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.22)',
+                background: 'rgba(229,72,77,0.08)', border: '1px solid rgba(229,72,77,0.22)',
                 borderRadius: 8, padding: '11px 14px', marginBottom: 14,
-                fontSize: 13, color: '#fca5a5',
+                fontSize: 13, color: '#F2A0A3',
               }}>
                 {error}
               </div>
@@ -164,7 +164,7 @@ export default function COIUploadModal({
                 onClick={handleSubmit}
                 disabled={!file || loading}
                 style={{
-                  background: !file || loading ? 'rgba(217,119,6,0.30)' : '#D97706',
+                  background: !file || loading ? 'rgba(249,115,22,0.30)' : '#F97316',
                   color: !file || loading ? 'rgba(255,255,255,0.45)' : '#fff',
                   fontSize: 14, fontWeight: 600, padding: '10px 24px',
                   borderRadius: 8, border: 'none',
@@ -226,12 +226,12 @@ function SuccessView({ result, onClose }: { result: UploadResult; onClose: () =>
         <button
           onClick={onClose}
           style={{
-            background: '#D97706', color: '#fff', fontSize: 14, fontWeight: 600,
+            background: '#F97316', color: '#fff', fontSize: 14, fontWeight: 600,
             padding: '10px 28px', borderRadius: 8, border: 'none', cursor: 'pointer',
             transition: 'background 0.15s',
           }}
-          onMouseEnter={e => (e.currentTarget.style.background = '#b45309')}
-          onMouseLeave={e => (e.currentTarget.style.background = '#D97706')}
+          onMouseEnter={e => (e.currentTarget.style.background = '#EA6A0C')}
+          onMouseLeave={e => (e.currentTarget.style.background = '#F97316')}
         >
           Done
         </button>

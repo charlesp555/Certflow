@@ -13,8 +13,8 @@ const T = {
   card: '#13131f',
   border: '#1a1a2e',
   borderAccent: '#2a2a3e',
-  orange: '#D97706',
-  orangeHover: '#B45309',
+  orange: '#F97316',
+  orangeHover: '#EA6A0C',
   green: '#22c55e',
   primary: '#f8f8f8',
   secondary: '#8b8fa8',
@@ -338,7 +338,7 @@ export default function RequirementsPage() {
                 fontSize: 13, fontWeight: 600,
                 cursor: saving || loading ? 'not-allowed' : 'pointer',
                 opacity: saving || loading ? 0.7 : 1,
-                boxShadow: '0 2px 12px rgba(217,119,6,0.25)',
+                boxShadow: '0 2px 12px rgba(249,115,22,0.25)',
                 transition: 'background 0.15s, transform 0.1s',
               }}
               onMouseEnter={e => { if (!saving && !loading) { e.currentTarget.style.background = T.orangeHover; e.currentTarget.style.transform = 'translateY(-1px)' } }}
@@ -482,7 +482,7 @@ export default function RequirementsPage() {
                 >
                   <div style={{
                     width: 32, height: 32, borderRadius: 8,
-                    background: 'rgba(217,119,6,0.10)', border: '1px solid rgba(217,119,6,0.20)',
+                    background: 'rgba(249,115,22,0.10)', border: '1px solid rgba(249,115,22,0.20)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     flexShrink: 0,
                   }}>
@@ -504,14 +504,14 @@ export default function RequirementsPage() {
                     style={{
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                       background: 'none', color: T.orange,
-                      border: `1px solid rgba(217,119,6,0.35)`,
+                      border: `1px solid rgba(249,115,22,0.35)`,
                       borderRadius: 7, padding: '7px 10px',
                       fontSize: 11, fontWeight: 600, cursor: 'pointer',
                       transition: 'background 0.15s, border-color 0.15s',
                       whiteSpace: 'nowrap',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(217,119,6,0.10)'; e.currentTarget.style.borderColor = T.orange }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = 'rgba(217,119,6,0.35)' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.10)'; e.currentTarget.style.borderColor = T.orange }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = 'rgba(249,115,22,0.35)' }}
                   >
                     <Zap size={11} /> Apply Template
                   </button>

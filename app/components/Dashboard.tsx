@@ -18,7 +18,7 @@ const logs = [
 ]
 
 const statusStyle = {
-  expired:   { bg: 'var(--red-dim)',   color: '#fca5a5', border: 'rgba(239,68,68,0.25)',    label: 'EXPIRED'   },
+  expired:   { bg: 'var(--red-dim)',   color: '#F2A0A3', border: 'rgba(229,72,77,0.25)',    label: 'EXPIRED'   },
   expiring:  { bg: 'var(--amber-glow)', color: '#fcd34d', border: 'rgba(245,158,11,0.3)',   label: 'EXPIRING'  },
   compliant: { bg: 'var(--green-dim)', color: '#6ee7b7', border: 'rgba(16,185,129,0.25)',   label: 'COMPLIANT' },
 }
@@ -42,7 +42,7 @@ export default function Dashboard() {
     return () => clearTimeout(t)
   }, [logIdx])
 
-  const logColor = { r: '#fca5a5', a: '#fcd34d', g: '#6ee7b7', m: 'var(--muted)' }
+  const logColor = { r: '#F2A0A3', a: '#fcd34d', g: '#6ee7b7', m: 'var(--muted)' }
 
   return (
     <div
@@ -55,7 +55,7 @@ export default function Dashboard() {
         style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--bg)' }}
       >
         <div className="flex gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#ef4444' }} />
+          <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#E5484D' }} />
           <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#f59e0b' }} />
           <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#10b981' }} />
         </div>

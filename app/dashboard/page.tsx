@@ -15,7 +15,7 @@ const T = {
   surface: '#0f0f17',
   card: '#13131f',
   border: '#1a1a2e',
-  orange: '#D97706',
+  orange: '#F97316',
   green: '#22c55e',
   blue: '#3b82f6',
   primary: '#f8f8f8',
@@ -69,8 +69,8 @@ function MetricCard({
   const val = useCountUp(target)
   const [hov, setHov] = useState(false)
   const accent = tagColor === 'green' ? T.green : T.orange
-  const tagBg = tagColor === 'green' ? 'rgba(34,197,94,0.10)' : 'rgba(217,119,6,0.10)'
-  const tagBorder = tagColor === 'green' ? 'rgba(34,197,94,0.20)' : 'rgba(217,119,6,0.20)'
+  const tagBg = tagColor === 'green' ? 'rgba(34,197,94,0.10)' : 'rgba(249,115,22,0.10)'
+  const tagBorder = tagColor === 'green' ? 'rgba(34,197,94,0.20)' : 'rgba(249,115,22,0.20)'
 
   return (
     <div
@@ -89,7 +89,7 @@ function MetricCard({
       <div style={{
         position: 'absolute', top: 18, right: 18,
         width: 30, height: 30, borderRadius: 8,
-        background: 'rgba(217,119,6,0.07)',
+        background: 'rgba(249,115,22,0.07)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <Icon size={14} color={T.orange} strokeWidth={2} style={{ opacity: 0.6 }} />
@@ -218,8 +218,8 @@ function ActionItem({ text, index, mounted }: { text: string; index: number; mou
       style={{
         display: 'flex', alignItems: 'center', gap: 11,
         padding: '11px 13px',
-        background: hov ? 'rgba(217,119,6,0.10)' : 'rgba(217,119,6,0.05)',
-        border: `1px solid ${hov ? 'rgba(217,119,6,0.25)' : 'rgba(217,119,6,0.12)'}`,
+        background: hov ? 'rgba(249,115,22,0.10)' : 'rgba(249,115,22,0.05)',
+        border: `1px solid ${hov ? 'rgba(249,115,22,0.25)' : 'rgba(249,115,22,0.12)'}`,
         borderRadius: 9, textDecoration: 'none',
         animationDelay: mounted ? `${index * 80 + 150}ms` : undefined,
         transition: 'background 0.15s, border-color 0.15s',
@@ -311,8 +311,8 @@ export default function Dashboard() {
           to   { opacity: 1; transform: translateX(0); }
         }
         @keyframes issueGlow {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(217,119,6,0); }
-          50%       { box-shadow: 0 0 10px 3px rgba(217,119,6,0.20); }
+          0%, 100% { box-shadow: 0 0 0 0 rgba(249,115,22,0); }
+          50%       { box-shadow: 0 0 10px 3px rgba(249,115,22,0.20); }
         }
         @keyframes bellDot {
           0%, 100% { transform: scale(1);    opacity: 1; }
@@ -349,7 +349,7 @@ export default function Dashboard() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: T.secondary, transition: 'border-color 0.15s, color 0.15s, background 0.15s',
             }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = T.orange; e.currentTarget.style.color = T.primary; e.currentTarget.style.background = 'rgba(217,119,6,0.06)' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = T.orange; e.currentTarget.style.color = T.primary; e.currentTarget.style.background = 'rgba(249,115,22,0.06)' }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.secondary; e.currentTarget.style.background = 'none' }}
             >
               <Bell size={17} />
@@ -375,7 +375,7 @@ export default function Dashboard() {
               <p style={{ color: '#9ca3af', fontSize: 16, marginBottom: 32 }}>
                 Add your first vendor to start verifying compliance.
               </p>
-              <a href="/vendors" style={{ background: '#D97706', color: '#ffffff', padding: '12px 24px', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>
+              <a href="/vendors" style={{ background: '#F97316', color: '#ffffff', padding: '12px 24px', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>
                 Add Your First Vendor
               </a>
             </div>
@@ -495,7 +495,7 @@ export default function Dashboard() {
                                         Compliant
                                       </span>
                                     ) : (
-                                      <span style={{ background: 'rgba(217,119,6,0.09)', color: T.orange, border: '1px solid rgba(217,119,6,0.22)', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                      <span style={{ background: 'rgba(249,115,22,0.09)', color: T.orange, border: '1px solid rgba(249,115,22,0.22)', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
                                         Issues Found
                                       </span>
                                     )}
@@ -553,10 +553,10 @@ export default function Dashboard() {
                         <span style={{ fontSize: 12, color: T.secondary }}>Total open items</span>
                       </div>
                       <span style={{
-                        background: 'rgba(217,119,6,0.12)', color: T.orange,
+                        background: 'rgba(249,115,22,0.12)', color: T.orange,
                         fontSize: 12, fontWeight: 700,
                         borderRadius: 20, padding: '2px 10px',
-                        border: '1px solid rgba(217,119,6,0.20)',
+                        border: '1px solid rgba(249,115,22,0.20)',
                       }}>
                         {actionItems.length}
                       </span>

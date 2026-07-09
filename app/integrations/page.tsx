@@ -7,7 +7,7 @@ import { UserButton } from '@clerk/nextjs'
 const T = {
   bg: '#0a0a0f',
   border: '#1a1a2e',
-  orange: '#D97706',
+  orange: '#F97316',
   primary: '#f8f8f8',
   secondary: '#8b8fa8',
 }
@@ -60,9 +60,9 @@ export default function IntegrationsPage() {
           <div className="cs-content-int" style={{ textAlign: 'center', maxWidth: 380 }}>
             <div className="cs-icon-int" style={{
               width: 76, height: 76, borderRadius: '50%',
-              background: 'rgba(217,119,6,0.08)',
-              border: '1px solid rgba(217,119,6,0.16)',
-              boxShadow: '0 0 48px rgba(217,119,6,0.07)',
+              background: 'rgba(249,115,22,0.08)',
+              border: '1px solid rgba(249,115,22,0.16)',
+              boxShadow: '0 0 48px rgba(249,115,22,0.07)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               margin: '0 auto 28px',
             }}>
