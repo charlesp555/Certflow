@@ -36,7 +36,7 @@ const HERO_SUB = 'Every vendor COI verified against your insurance requirements.
 // 0.045–0.08 is the visible whisper range (0.06 ≈ the original §12 grid's
 // contrast; below ~0.04 the 1px ink-toned hairlines composite to under a
 // 2% delta over carbon and vanish on real monitors).
-const GRID_ALPHA = 0.06
+const GRID_ALPHA = 0.07
 
 // ── Hero evidence artifact data (Design Bible §Illustration & imagery) ──────
 // Plausibility test: real-sounding trade LLC, real address format, real limit
