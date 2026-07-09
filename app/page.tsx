@@ -33,9 +33,10 @@ const HERO_SUB = 'Every vendor COI verified against your insurance requirements.
 // One continuous whisper-faint graph-paper layer behind the ENTIRE page —
 // the only texture, visible only in the page's open space (sections with
 // their own linework sit on opaque mats above it). This is the one knob:
-// 0.02–0.03 is the intended whisper range. Lines are drawn ink-toned —
-// seam-toned lines at this alpha vanish into carbon completely.
-const GRID_ALPHA = 0.025
+// 0.045–0.08 is the visible whisper range (0.06 ≈ the original §12 grid's
+// contrast; below ~0.04 the 1px ink-toned hairlines composite to under a
+// 2% delta over carbon and vanish on real monitors).
+const GRID_ALPHA = 0.06
 
 // ── Hero evidence artifact data (Design Bible §Illustration & imagery) ──────
 // Plausibility test: real-sounding trade LLC, real address format, real limit
