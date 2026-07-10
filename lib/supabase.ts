@@ -1,15 +1,38 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// Server-side client: uses service role key to bypass RLS in API routes
-export const supabaseAdmin = createClient(
-  supabaseUrl,
-  process.env.SUPABASE_SERVICE_ROLE_KEY ?? supabaseAnonKey
-)
+// Server-side client: uses the service-role key to bypass RLS in API routes.
+// Lazily constructed behind a Proxy so this module stays safe to import from
+// the browser bundle (client pages import `supabase`/`createClerkSupabaseClient`
+// from here, and the service-role key is server-only — undefined in the browser).
+// The real client is built on first property access, which only happens in the
+// server-side API routes, and throws loudly if the key is missing rather than
+// silently degrading to the anon key — which would run every "admin" query as an
+// unprivileged anon caller (the cause of the silent upload-save failure).
+let _supabaseAdmin: SupabaseClient | null = null
+
+function getSupabaseAdmin(): SupabaseClient {
+  if (!_supabaseAdmin) {
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!serviceRoleKey) {
+      throw new Error('SUPABASE_SERVICE_ROLE_KEY is required')
+    }
+    _supabaseAdmin = createClient(supabaseUrl, serviceRoleKey)
+  }
+  return _supabaseAdmin
+}
+
+export const supabaseAdmin: SupabaseClient = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    const client = getSupabaseAdmin()
+    const value = client[prop as keyof SupabaseClient]
+    return typeof value === 'function' ? (value as Function).bind(client) : value
+  },
+})
 
 // The client the browser uses for all data access — additive, does not change
 // `supabase` or `supabaseAdmin` above. Forwards a Clerk session token to

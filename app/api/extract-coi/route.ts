@@ -60,6 +60,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
     }
 
+    // L-1 — server-side upload validation; the client checks are bypassable.
+    // Accept a PDF by MIME type OR .pdf extension (drag-drop can yield an empty
+    // or generic MIME), and cap size to bound the base64 encode + upstream call.
+    const MAX_FILE_BYTES = 15 * 1024 * 1024 // 15 MB — generous; a real COI is <2 MB
+    const isPdf =
+      file.type === 'application/pdf' ||
+      file.name?.toLowerCase().endsWith('.pdf')
+    if (!isPdf) {
+      return NextResponse.json({ error: 'Please upload a PDF file.' }, { status: 400 })
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      return NextResponse.json({ error: 'File is too large. Maximum size is 15 MB.' }, { status: 400 })
+    }
+
     const { userId } = await auth()
 
     // Uploads must be authenticated. A real upload persists owner-scoped rows
@@ -180,7 +194,7 @@ ${JSON.stringify({
 
     if (!response.ok) {
       console.error('[extract-coi] Anthropic API error:', responseText.slice(0, 500))
-      return NextResponse.json({ error: `API error: ${response.status} - ${responseText}` }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to analyze COI. Please try again.' }, { status: 500 })
     }
 
     // Parse Anthropic response — wrapped separately so a malformed body produces a clear error

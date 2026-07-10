@@ -1,15 +1,23 @@
 import Stripe from 'stripe'
 import { NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
 export async function POST(request: Request) {
   try {
-    const { priceId, userId } = await request.json()
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // userId comes from the authenticated Clerk session only — never from the
+    // request body — so a caller can't attribute a checkout to another account.
+    const { priceId } = await request.json()
     console.log('Checkout API called with:', { priceId, userId })
 
-    if (!priceId || !userId) {
-      return NextResponse.json({ error: 'Missing priceId or userId' }, { status: 400 })
+    if (!priceId) {
+      return NextResponse.json({ error: 'Missing priceId' }, { status: 400 })
     }
 
     const successUrl = process.env.NEXT_PUBLIC_APP_URL + '/dashboard?upgraded=true'
@@ -31,6 +39,6 @@ export async function POST(request: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     console.error('[Stripe API] Error creating session:', message)
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'Could not start checkout. Please try again.' }, { status: 500 })
   }
 }
