@@ -246,7 +246,13 @@ ${JSON.stringify({
       console.warn('[extract-coi] expirationDate is missing or empty — leaving model values untouched.')
     }
 
-    // Save to Supabase — skipped in test mode; failure is non-fatal otherwise
+    // Save to Supabase — skipped in test mode. A save failure is NOT swallowed:
+    // saveToSupabase now throws on any Supabase write error (notably an
+    // RLS-blocked insert, which is what happens if SUPABASE_SERVICE_ROLE_KEY is
+    // missing and supabaseAdmin silently falls back to the anon key). We surface
+    // it as a real 500 with saved:false so the upload modal shows an error
+    // instead of a false "saved" state. The analysis itself may have succeeded,
+    // but an unsaved COI never appears anywhere, so it's a failure to the user.
     if (isTestRun) {
       console.log('[extract-coi] test mode — skipping DB save')
     } else {
@@ -254,7 +260,11 @@ ${JSON.stringify({
         await saveToSupabase(coiData, vendorNameFromForm, vendorIdFromForm, userId)
       } catch (dbErr) {
         const msg = dbErr instanceof Error ? dbErr.message : String(dbErr)
-        console.error('[extract-coi] DB save error:', msg)
+        console.error('[extract-coi] DB save FAILED:', msg)
+        return NextResponse.json(
+          { error: 'Your COI was analyzed but could not be saved to your account. Please try again.', saved: false },
+          { status: 500 }
+        )
       }
     }
 
@@ -334,11 +344,12 @@ async function saveToSupabase(
   let resolvedVendorId = vendorId
 
   if (resolvedVendorId) {
-    await supabaseAdmin
+    const { error: vendorUpdateErr } = await supabaseAdmin
       .from('vendors')
       .update({ status: vendorStatus, expiration_date: expirationDate })
       .eq('id', resolvedVendorId)
       .eq('clerk_user_id', userId ?? '')
+    if (vendorUpdateErr) throw new Error(`vendor update failed: ${vendorUpdateErr.message}`)
   } else if (resolvedVendorName) {
     const query = supabaseAdmin
       .from('vendors')
@@ -350,12 +361,13 @@ async function saveToSupabase(
 
     if (existing?.id) {
       resolvedVendorId = existing.id
-      await supabaseAdmin
+      const { error: vendorUpdateErr } = await supabaseAdmin
         .from('vendors')
         .update({ status: vendorStatus, expiration_date: expirationDate })
         .eq('id', existing.id)
+      if (vendorUpdateErr) throw new Error(`vendor update failed: ${vendorUpdateErr.message}`)
     } else {
-      const { data: newVendor } = await supabaseAdmin
+      const { data: newVendor, error: vendorInsertErr } = await supabaseAdmin
         .from('vendors')
         .insert({
           clerk_user_id: userId,
@@ -365,11 +377,12 @@ async function saveToSupabase(
         })
         .select('id')
         .single()
+      if (vendorInsertErr) throw new Error(`vendor insert failed: ${vendorInsertErr.message}`)
       resolvedVendorId = newVendor?.id ?? null
     }
   }
 
-  await supabaseAdmin.from('submissions').insert({
+  const { error: submissionErr } = await supabaseAdmin.from('submissions').insert({
     clerk_user_id: userId,
     vendor_id: resolvedVendorId,
     status,
@@ -396,4 +409,5 @@ async function saveToSupabase(
     certificate_holder: (coiData.certificateHolder as string | undefined) ?? null,
     insured_name: (coiData.insuredName as string | undefined) ?? null,
   })
+  if (submissionErr) throw new Error(`submissions insert failed: ${submissionErr.message}`)
 }
