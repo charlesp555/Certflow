@@ -1,14 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import {
   Bell, ChevronDown, Search, Upload,
   Download, Eye, FileText,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
-import { UserButton, useUser } from '@clerk/nextjs'
-import { supabase } from '@/lib/supabase'
+import { UserButton, useUser, useAuth } from '@clerk/nextjs'
+import { createClerkSupabaseClient } from '@/lib/supabase'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
@@ -170,6 +170,8 @@ function FilterSelect({
 
 export default function SubmissionsPage() {
   const { user, isLoaded } = useUser()
+  const { getToken } = useAuth()
+  const supabase = useMemo(() => createClerkSupabaseClient(getToken), [getToken])
   const [search, setSearch]       = useState('')
   const [statusFilter, setStatus] = useState<Status | 'All'>('All')
   const [dateFilter, setDate]     = useState('All Time')

@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Bell, User, Check, CheckCircle2 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
-import { UserButton, useUser } from '@clerk/nextjs'
-import { supabase } from '@/lib/supabase'
+import { UserButton, useUser, useAuth } from '@clerk/nextjs'
+import { createClerkSupabaseClient } from '@/lib/supabase'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
@@ -105,6 +105,8 @@ function SectionCard({ children, style }: { children: React.ReactNode; style?: R
 // ── Company Tab ───────────────────────────────────────────────────────────────
 
 function CompanyTab({ userId, showToast }: { userId: string | null; showToast: (m: string) => void }) {
+  const { getToken } = useAuth()
+  const supabase = useMemo(() => createClerkSupabaseClient(getToken), [getToken])
   const [form, setForm] = useState({ name: '', industry: '', size: '', website: '', address: '' })
   const [dataLoaded, setDataLoaded] = useState(false)
   const [saving, setSaving] = useState(false)

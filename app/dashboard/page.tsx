@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import { useUser, UserButton } from '@clerk/nextjs'
-import { supabase } from '@/lib/supabase'
+import { useUser, useAuth, UserButton } from '@clerk/nextjs'
+import { createClerkSupabaseClient } from '@/lib/supabase'
 import {
   Bell, User, ChevronDown, AlertTriangle,
   ArrowRight, Users, CheckCircle2, Clock,
@@ -239,6 +239,8 @@ function ActionItem({ text, index, mounted }: { text: string; index: number; mou
 
 export default function Dashboard() {
   const { user, isLoaded } = useUser()
+  const { getToken } = useAuth()
+  const supabase = useMemo(() => createClerkSupabaseClient(getToken), [getToken])
   const [mounted, setMounted] = useState(false)
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [submissions, setSubmissions] = useState<Submission[]>([])

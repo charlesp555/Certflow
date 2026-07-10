@@ -1,12 +1,12 @@
 'use client'
 
 import { useParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Bell, Check, X, AlertTriangle, FileText } from 'lucide-react'
 import Sidebar from '../../components/Sidebar'
-import { UserButton, useUser } from '@clerk/nextjs'
-import { supabase } from '@/lib/supabase'
+import { UserButton, useUser, useAuth } from '@clerk/nextjs'
+import { createClerkSupabaseClient } from '@/lib/supabase'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -129,6 +129,8 @@ export default function ReportDetailPage() {
   const params = useParams()
   const id = params?.id as string | undefined
   const { user, isLoaded } = useUser()
+  const { getToken } = useAuth()
+  const supabase = useMemo(() => createClerkSupabaseClient(getToken), [getToken])
 
   const [sub, setSub]       = useState<SubmissionRow | null>(null)
   const [loading, setLoading] = useState(true)

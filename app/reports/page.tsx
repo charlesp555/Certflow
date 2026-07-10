@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import {
   Bell, Download, CheckCircle2,
@@ -8,8 +8,8 @@ import {
   FileText,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
-import { UserButton, useUser } from '@clerk/nextjs'
-import { supabase } from '@/lib/supabase'
+import { UserButton, useUser, useAuth } from '@clerk/nextjs'
+import { createClerkSupabaseClient } from '@/lib/supabase'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
@@ -360,6 +360,8 @@ function TopIssuesChart({ issues }: { issues: Array<{ label: string; count: numb
 
 export default function ReportsPage() {
   const { user, isLoaded } = useUser()
+  const { getToken } = useAuth()
+  const supabase = useMemo(() => createClerkSupabaseClient(getToken), [getToken])
   const [allSubs,      setAllSubs]      = useState<SubRow[]>([])
   const [loading,      setLoading]      = useState(true)
   const [dateRange,    setDateRange]    = useState<DateRange>('This Month')

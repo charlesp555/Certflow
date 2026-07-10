@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import {
   Bell, ChevronDown, Search, Upload,
@@ -9,8 +9,8 @@ import {
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import COIUploadModal from '../components/COIUploadModal'
-import { useUser, UserButton } from '@clerk/nextjs'
-import { supabase } from '@/lib/supabase'
+import { useUser, useAuth, UserButton } from '@clerk/nextjs'
+import { createClerkSupabaseClient } from '@/lib/supabase'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -209,6 +209,8 @@ function AddVendorModal({
   onClose: () => void
   onSave: () => void
 }) {
+  const { getToken } = useAuth()
+  const supabase = useMemo(() => createClerkSupabaseClient(getToken), [getToken])
   const [form, setForm] = useState({ name: '', type: 'Plumbing', status: 'Pending Review' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -501,6 +503,8 @@ function SortableHeader({
 
 export default function VendorsPage() {
   const { user, isLoaded } = useUser()
+  const { getToken } = useAuth()
+  const supabase = useMemo(() => createClerkSupabaseClient(getToken), [getToken])
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [loading, setLoading] = useState(true)
   const [userPlan, setUserPlan] = useState<string>('free')

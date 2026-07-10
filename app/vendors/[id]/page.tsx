@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -11,8 +11,8 @@ import {
 } from 'lucide-react'
 import Sidebar from '../../components/Sidebar'
 import COIUploadModal from '../../components/COIUploadModal'
-import { UserButton, useUser } from '@clerk/nextjs'
-import { supabase } from '@/lib/supabase'
+import { UserButton, useUser, useAuth } from '@clerk/nextjs'
+import { createClerkSupabaseClient } from '@/lib/supabase'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
@@ -455,6 +455,8 @@ function CopyRequestButton({ vendorName, failedReqs, contact }: { vendorName: st
 // persisted as NULL. These two fields feed the copy-to-clipboard request
 // message; nothing here sends email.
 function VendorContactCard({ vendor, userId, onSaved, showToast }: { vendor: Vendor; userId: string; onSaved: (email: string | null, contactName: string | null) => void; showToast: (m: string) => void }) {
+  const { getToken } = useAuth()
+  const supabase = useMemo(() => createClerkSupabaseClient(getToken), [getToken])
   const [email,       setEmail]       = useState(vendor.vendor_email ?? '')
   const [contactName, setContactName] = useState(vendor.vendor_contact_name ?? '')
   const [saving,      setSaving]      = useState(false)
@@ -844,6 +846,8 @@ export default function VendorProfile() {
   const params          = useParams()
   const id              = params.id as string
   const { user, isLoaded } = useUser()
+  const { getToken } = useAuth()
+  const supabase = useMemo(() => createClerkSupabaseClient(getToken), [getToken])
 
   const [vendor,        setVendor]        = useState<Vendor | null>(null)
   const [submissions,   setSubmissions]   = useState<Submission[]>([])

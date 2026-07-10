@@ -1,14 +1,14 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import {
   Bell, ChevronDown, Search, Upload,
   Download, Eye, FileText, CheckCircle2,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
-import { UserButton, useUser } from '@clerk/nextjs'
-import { supabase } from '@/lib/supabase'
+import { UserButton, useUser, useAuth } from '@clerk/nextjs'
+import { createClerkSupabaseClient } from '@/lib/supabase'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
@@ -190,6 +190,8 @@ function Toast({ message, visible }: { message: string; visible: boolean }) {
 
 export default function DocumentsPage() {
   const { user, isLoaded } = useUser()
+  const { getToken } = useAuth()
+  const supabase = useMemo(() => createClerkSupabaseClient(getToken), [getToken])
   const [docs,         setDocs]         = useState<Doc[]>([])
   const [loading,      setLoading]      = useState(true)
   const [search,       setSearch]       = useState('')

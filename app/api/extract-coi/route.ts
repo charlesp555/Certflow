@@ -62,6 +62,17 @@ export async function POST(request: NextRequest) {
 
     const { userId } = await auth()
 
+    // Uploads must be authenticated. A real upload persists owner-scoped rows
+    // (clerk_user_id) via saveToSupabase; allowing an unauthenticated request
+    // would write clerk_user_id = null rows that RLS will later orphan. The
+    // only exception is the dev-only regression path (?test=1), which skips
+    // the DB save entirely (see the isTestRun branch below), so it can never
+    // create null-owner rows. isTestRun is structurally false in production,
+    // so every production request must carry a valid Clerk session.
+    if (!userId && !isTestRun) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     // Fetch this user's saved requirements (or defaults)
     const requirements = userId
       ? await fetchUserRequirements(userId)
