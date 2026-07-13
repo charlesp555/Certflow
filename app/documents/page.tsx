@@ -12,21 +12,43 @@ import { createClerkSupabaseClient } from '@/lib/supabase'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
+// Design Bible tokens (see app/page.tsx appendix) — carbon ground, graphite
+// surfaces, seam hairlines. Orange is EARNED: verified/active states + the
+// primary CTA only. Failures carry --attention red; expiring is a dimmed
+// attention (the Bible has no warning color). No green, no purple.
 const T = {
-  bg: '#0a0a0f',
-  surface: '#0f0f17',
-  card: '#13131f',
-  border: '#1a1a2e',
-  borderAccent: '#2a2a3e',
-  orange: '#F97316',
+  bg: '#0C0E12',           // --carbon
+  card: '#171A21',         // --graphite
+  border: '#262B35',       // --seam
+  borderAccent: '#333A47',
+  orange: '#F97316',       // --verified
   orangeHover: '#EA6A0C',
-  green: '#22c55e',
-  amber: '#fbbf24',
-  red: '#E5484D',
-  blue: '#8b8cf8',
-  primary: '#f8f8f8',
-  secondary: '#8b8fa8',
-  muted: '#4b5063',
+  red: '#E5484D',          // --attention
+  redDimText: '#D0888C',   // dimmed attention — readable text on graphite
+  primary: '#F2F4F8',      // --ink-primary
+  secondary: '#9AA3B2',    // --ink-secondary
+  muted: '#5F6774',
+  voice: 'var(--font-voice), sans-serif',      // Said
+  evidence: 'var(--font-evidence), monospace', // Recorded — every datum
+}
+
+// Clerk UserButton themed to the Bible palette — purple is banned. Function
+// untouched; this only recolors the avatar ring and the popover surfaces.
+const CLERK_APPEARANCE = {
+  variables: {
+    colorPrimary: '#F97316',
+    colorBackground: '#171A21',
+    colorText: '#F2F4F8',
+    colorTextSecondary: '#9AA3B2',
+    colorInputBackground: '#0C0E12',
+    colorInputText: '#F2F4F8',
+    colorNeutral: '#F2F4F8',
+    borderRadius: '8px',
+  },
+  elements: {
+    userButtonAvatarBox: { border: '1px solid #262B35' },
+    userButtonPopoverCard: { background: '#171A21', border: '1px solid #262B35' },
+  },
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -105,21 +127,14 @@ function mapRow(row: SubRow): Doc {
   }
 }
 
+// Status semantics (Design Bible §Color): active/valid = earned orange;
+// expired = attention red; expiring = dimmed attention; pending = neutral ink.
 function statusStyle(s: DocStatus) {
   switch (s) {
-    case 'Active':         return { bg: 'rgba(34,197,94,0.09)',   color: T.green, border: 'rgba(34,197,94,0.22)'   }
-    case 'Expiring Soon':  return { bg: 'rgba(251,191,36,0.09)',  color: T.amber, border: 'rgba(251,191,36,0.22)'  }
-    case 'Expired':        return { bg: 'rgba(229,72,77,0.09)',   color: T.red,   border: 'rgba(229,72,77,0.22)'   }
-    case 'Pending Review': return { bg: 'rgba(139,140,248,0.09)', color: T.blue,  border: 'rgba(139,140,248,0.22)' }
-  }
-}
-
-function fileIconColor(s: DocStatus) {
-  switch (s) {
-    case 'Active':         return T.green
-    case 'Expiring Soon':  return T.amber
-    case 'Expired':        return T.red
-    case 'Pending Review': return T.blue
+    case 'Active':         return { bg: 'rgba(249,115,22,0.08)', color: T.orange,     border: 'rgba(249,115,22,0.35)' }
+    case 'Expiring Soon':  return { bg: 'rgba(229,72,77,0.05)',  color: T.redDimText, border: 'rgba(229,72,77,0.22)'  }
+    case 'Expired':        return { bg: 'rgba(229,72,77,0.08)',  color: T.red,        border: 'rgba(229,72,77,0.35)'  }
+    case 'Pending Review': return { bg: 'transparent',           color: T.secondary,  border: T.border                }
   }
 }
 
@@ -129,14 +144,14 @@ function StatCard({ label, value, color }: { label: string; value: number; color
   return (
     <div style={{
       flex: 1, background: T.card, border: `1px solid ${T.border}`,
-      borderRadius: 10, padding: '16px 20px',
-      transition: 'border-color 0.2s, transform 0.2s',
+      borderRadius: 8, padding: '16px 20px',
+      transition: 'border-color 0.2s',
     }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderAccent; e.currentTarget.style.transform = 'translateY(-1px)' }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.transform = 'translateY(0)' }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderAccent }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = T.border }}
     >
       <p style={{ fontSize: 12, color: T.secondary, margin: '0 0 8px', fontWeight: 500 }}>{label}</p>
-      <p style={{ fontSize: 28, fontWeight: 800, color, margin: 0, letterSpacing: '-1px', lineHeight: 1 }}>{value}</p>
+      <p style={{ fontSize: 28, fontWeight: 500, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', color, margin: 0, lineHeight: 1 }}>{value}</p>
     </div>
   )
 }
@@ -154,7 +169,7 @@ function FilterSelect({ value, onChange, options }: { value: string; onChange: (
           appearance: 'none', outline: 'none', minWidth: 150,
           transition: 'border-color 0.15s',
         }}
-        onFocus={e => (e.target.style.borderColor = T.orange)}
+        onFocus={e => (e.target.style.borderColor = T.borderAccent)}
         onBlur={e => (e.target.style.borderColor = T.border)}
       >
         {options.map(o => <option key={o} value={o} style={{ background: T.card }}>{o}</option>)}
@@ -171,8 +186,8 @@ function Toast({ message, visible }: { message: string; visible: boolean }) {
   return (
     <div style={{
       position: 'fixed', top: 24, right: 24, zIndex: 300,
-      background: T.card, border: '1px solid rgba(34,197,94,0.30)',
-      borderRadius: 10, padding: '12px 18px',
+      background: T.card, border: `1px solid ${T.border}`,
+      borderRadius: 8, padding: '12px 18px',
       display: 'flex', alignItems: 'center', gap: 10,
       boxShadow: '0 8px 32px rgba(0,0,0,0.55)',
       transition: 'opacity 0.25s ease, transform 0.25s ease',
@@ -180,7 +195,7 @@ function Toast({ message, visible }: { message: string; visible: boolean }) {
       transform: visible ? 'translateY(0)' : 'translateY(-12px)',
       pointerEvents: 'none',
     }}>
-      <CheckCircle2 size={16} color={T.green} />
+      <CheckCircle2 size={16} color={T.orange} />
       <span style={{ fontSize: 13, fontWeight: 600, color: T.primary }}>{message}</span>
     </div>
   )
@@ -257,8 +272,8 @@ export default function DocumentsPage() {
   return (
     <div style={{
       display: 'flex', minHeight: '100vh',
-      background: T.bg, fontFamily: 'Inter, -apple-system, sans-serif',
-      color: T.primary,
+      background: T.bg, fontFamily: T.voice,
+      color: T.primary, position: 'relative', isolation: 'isolate',
     }}>
       <style>{`
         @keyframes fadeSlideUp {
@@ -268,7 +283,19 @@ export default function DocumentsPage() {
         .pre-animate { opacity: 0; }
         .row-animate { animation: fadeSlideUp 0.34s ease both; }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Page ledger-grid — same 24px hairline texture as the landing and
+           the other app pages, z -1 inside the isolated root: above the
+           carbon ground, below all content. */
+        .page-ledger-grid {
+          position: absolute; inset: 0; z-index: -1; pointer-events: none;
+          --grid-line: rgba(154,163,178, 0.06);
+          background-image:
+            repeating-linear-gradient(to bottom, var(--grid-line) 0, var(--grid-line) 1px, transparent 1px, transparent 24px),
+            repeating-linear-gradient(to right,  var(--grid-line) 0, var(--grid-line) 1px, transparent 1px, transparent 24px);
+        }
       `}</style>
+      <div className="page-ledger-grid" aria-hidden="true" />
 
       <Toast message="Download started" visible={toastVisible} />
       <Sidebar />
@@ -283,7 +310,7 @@ export default function DocumentsPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div>
-            <h1 style={{ fontSize: 16, fontWeight: 700, color: T.primary, margin: 0, lineHeight: 1.2 }}>
+            <h1 style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em', color: T.primary, margin: 0, lineHeight: 1.2 }}>
               Documents
             </h1>
             <p style={{ fontSize: 12, color: T.secondary, margin: 0 }}>
@@ -296,7 +323,6 @@ export default function DocumentsPage() {
               display: 'inline-flex', alignItems: 'center', gap: 7,
               background: T.orange, color: '#fff', textDecoration: 'none',
               borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600,
-              boxShadow: '0 2px 12px rgba(249,115,22,0.25)',
               transition: 'background 0.15s, transform 0.1s',
             }}
               onMouseEnter={e => { e.currentTarget.style.background = T.orangeHover; e.currentTarget.style.transform = 'translateY(-1px)' }}
@@ -312,7 +338,7 @@ export default function DocumentsPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: T.secondary, transition: 'border-color 0.15s, color 0.15s',
             }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = T.orange; e.currentTarget.style.color = T.primary }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderAccent; e.currentTarget.style.color = T.primary }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.secondary }}
             >
               <Bell size={17} />
@@ -323,7 +349,7 @@ export default function DocumentsPage() {
               }} />
             </button>
 
-            <UserButton />
+            <UserButton appearance={CLERK_APPEARANCE} />
           </div>
         </header>
 
@@ -332,10 +358,13 @@ export default function DocumentsPage() {
 
           {/* Stats row */}
           <div style={{ display: 'flex', gap: 14 }}>
-            <StatCard label="Total Documents" value={stats.total}    color={T.primary} />
-            <StatCard label="Active Policies"  value={stats.active}   color={T.green}   />
-            <StatCard label="Expiring Soon"    value={stats.expiring} color={T.amber}   />
-            <StatCard label="Expired"          value={stats.expired}  color={T.red}     />
+            {/* Count semantics: total = neutral fact (ink), active/valid =
+                earned orange, expiring = dimmed attention, expired = full
+                attention red. No green, no amber (§Color). */}
+            <StatCard label="Total Documents" value={stats.total}    color={T.primary}    />
+            <StatCard label="Active Policies"  value={stats.active}   color={T.orange}     />
+            <StatCard label="Expiring Soon"    value={stats.expiring} color={T.redDimText} />
+            <StatCard label="Expired"          value={stats.expired}  color={T.red}        />
           </div>
 
           {/* Filter bar */}
@@ -355,7 +384,7 @@ export default function DocumentsPage() {
                   fontSize: 13, color: T.primary, outline: 'none',
                   transition: 'border-color 0.15s', boxSizing: 'border-box',
                 }}
-                onFocus={e => (e.target.style.borderColor = T.orange)}
+                onFocus={e => (e.target.style.borderColor = T.borderAccent)}
                 onBlur={e => (e.target.style.borderColor = T.border)}
               />
             </div>
@@ -367,14 +396,14 @@ export default function DocumentsPage() {
           {/* Table */}
           <div style={{
             background: T.card, border: `1px solid ${T.border}`,
-            borderRadius: 12, overflow: 'hidden', flex: 1,
+            borderRadius: 8, overflow: 'hidden', flex: 1,
           }}>
             {loading ? (
               <div style={{ padding: '64px 24px', textAlign: 'center' }}>
                 <div style={{
                   width: 32, height: 32,
-                  border: `3px solid rgba(249,115,22,0.15)`,
-                  borderTop: `3px solid ${T.orange}`,
+                  border: `3px solid rgba(154,163,178,0.15)`,
+                  borderTop: `3px solid ${T.secondary}`,
                   borderRadius: '50%',
                   animation: 'spin 0.85s linear infinite',
                   margin: '0 auto 12px',
@@ -394,7 +423,6 @@ export default function DocumentsPage() {
                   display: 'inline-flex', alignItems: 'center', gap: 7,
                   background: T.orange, color: '#fff', textDecoration: 'none',
                   borderRadius: 8, padding: '10px 20px', fontSize: 13, fontWeight: 600,
-                  boxShadow: '0 2px 12px rgba(249,115,22,0.25)',
                 }}>
                   <Upload size={14} /> Upload your first COI
                 </Link>
@@ -430,20 +458,22 @@ export default function DocumentsPage() {
                               animationDelay: mounted ? `${i * 45}ms` : undefined,
                               transition: 'background 0.15s',
                             }}
-                            onMouseEnter={e => (e.currentTarget.style.background = '#1a1a2e')}
+                            onMouseEnter={e => (e.currentTarget.style.background = '#1C2029')}
                             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                           >
                             {/* Document */}
                             <td style={{ padding: '13px 16px', whiteSpace: 'nowrap' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                {/* Neutral icon — the STATUS chip carries the
+                                    meaning; red stays reserved for failures. */}
                                 <div style={{
-                                  width: 30, height: 30, borderRadius: 7, flexShrink: 0,
-                                  background: ss.bg, border: `1px solid ${ss.border}`,
+                                  width: 30, height: 30, borderRadius: 2, flexShrink: 0,
+                                  border: `1px solid ${T.border}`,
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 }}>
-                                  <FileText size={13} color={fileIconColor(doc.status)} />
+                                  <FileText size={13} color={T.secondary} />
                                 </div>
-                                <span style={{ fontSize: 12, fontWeight: 600, color: T.primary, fontFamily: 'monospace' }}>
+                                <span style={{ fontSize: 12, color: T.primary, fontFamily: T.evidence }}>
                                   {doc.filename}
                                 </span>
                               </div>
@@ -454,25 +484,26 @@ export default function DocumentsPage() {
                               {doc.vendorId ? (
                                 <Link
                                   href={`/vendors/${doc.vendorId}`}
-                                  style={{ fontSize: 13, fontWeight: 500, color: T.secondary, textDecoration: 'none', transition: 'color 0.15s' }}
-                                  onMouseEnter={e => (e.currentTarget.style.color = T.orange)}
-                                  onMouseLeave={e => (e.currentTarget.style.color = T.secondary)}
+                                  style={{ fontSize: 12, fontFamily: T.evidence, color: T.secondary, textDecoration: 'none', transition: 'text-decoration-color 0.15s' }}
+                                  onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                                  onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                                 >
                                   {doc.vendor}
                                 </Link>
                               ) : (
-                                <span style={{ fontSize: 13, fontWeight: 500, color: T.secondary }}>{doc.vendor}</span>
+                                <span style={{ fontSize: 12, fontFamily: T.evidence, color: T.secondary }}>{doc.vendor}</span>
                               )}
                             </td>
 
                             {/* Uploaded */}
-                            <td style={{ padding: '13px 16px', fontSize: 12, color: T.secondary, whiteSpace: 'nowrap' }}>
+                            <td style={{ padding: '13px 16px', fontSize: 12, color: T.secondary, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                               {doc.uploaded}
                             </td>
 
                             {/* Policy period */}
                             <td style={{
                               padding: '13px 16px', fontSize: 12, whiteSpace: 'nowrap',
+                              fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums',
                               color: doc.policyPeriod === 'Pending' ? T.muted : T.secondary,
                               fontStyle: doc.policyPeriod === 'Pending' ? 'italic' : 'normal',
                             }}>
@@ -483,7 +514,7 @@ export default function DocumentsPage() {
                             <td style={{ padding: '13px 16px' }}>
                               <span style={{
                                 background: ss.bg, color: ss.color, border: `1px solid ${ss.border}`,
-                                borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
+                                borderRadius: 2, padding: '3px 10px', fontSize: 11, fontFamily: T.evidence, whiteSpace: 'nowrap',
                               }}>
                                 {doc.status}
                               </span>
@@ -492,18 +523,20 @@ export default function DocumentsPage() {
                             {/* Actions */}
                             <td style={{ padding: '13px 16px' }}>
                               <div style={{ display: 'flex', gap: 8 }}>
+                                {/* Neutral row action — ghost button matching
+                                    Download; orange is not spent here. */}
                                 <Link
                                   href={`/report/${doc.id}`}
                                   style={{
                                     display: 'inline-flex', alignItems: 'center', gap: 5,
-                                    background: 'rgba(249,115,22,0.07)', color: T.orange,
-                                    border: '1px solid rgba(249,115,22,0.20)',
-                                    borderRadius: 6, padding: '5px 11px',
+                                    background: 'rgba(255,255,255,0.04)', color: T.secondary,
+                                    border: `1px solid ${T.border}`,
+                                    borderRadius: 8, padding: '5px 11px',
                                     fontSize: 12, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap',
                                     transition: 'all 0.15s',
                                   }}
-                                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.15)'; e.currentTarget.style.borderColor = 'rgba(249,115,22,0.35)' }}
-                                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.07)'; e.currentTarget.style.borderColor = 'rgba(249,115,22,0.20)' }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.09)'; e.currentTarget.style.color = T.primary; e.currentTarget.style.borderColor = T.borderAccent }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = T.secondary; e.currentTarget.style.borderColor = T.border }}
                                 >
                                   <Eye size={11} /> View
                                 </Link>
@@ -513,7 +546,7 @@ export default function DocumentsPage() {
                                     display: 'inline-flex', alignItems: 'center', gap: 5,
                                     background: 'rgba(255,255,255,0.04)', color: T.secondary,
                                     border: `1px solid ${T.border}`,
-                                    borderRadius: 6, padding: '5px 11px',
+                                    borderRadius: 8, padding: '5px 11px',
                                     fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
                                     transition: 'all 0.15s',
                                   }}
@@ -544,7 +577,7 @@ export default function DocumentsPage() {
                   padding: '11px 16px', borderTop: `1px solid ${T.border}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 }}>
-                  <span style={{ fontSize: 12, color: T.muted }}>
+                  <span style={{ fontSize: 12, color: T.muted, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums' }}>
                     Showing {displayed.length} of {docs.length} documents
                   </span>
                   <Link href="/upload" style={{

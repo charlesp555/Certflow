@@ -21,12 +21,16 @@ const NAV = [
   { icon: Settings,        label: 'Settings',     href: '/settings'                       },
 ]
 
+// Design Bible tokens — the nav is a raised graphite surface over the carbon
+// page ground, seam hairlines throughout. Orange is EARNED: here it marks
+// only the ACTIVE nav item's icon + edge hairline.
 const T = {
-  bg: '#0f0f17',
-  border: '#1a1a2e',
-  orange: '#F97316',
-  primary: '#f8f8f8',
-  secondary: '#8b8fa8',
+  bg: '#171A21',        // --graphite
+  border: '#262B35',    // --seam
+  orange: '#F97316',    // --verified
+  primary: '#F2F4F8',   // --ink-primary
+  secondary: '#9AA3B2', // --ink-secondary
+  disabled: '#5F6774',  // ink-secondary, reduced — coming-soon items
 }
 
 function isActive(href: string, pathname: string) {
@@ -48,6 +52,7 @@ export default function Sidebar() {
       display: 'flex', flexDirection: 'column',
       position: 'fixed', top: 0, bottom: 0, left: 0,
       zIndex: 50,
+      fontFamily: 'var(--font-voice), sans-serif',
     }}>
       {/* Logo — the standard Covira lockup: shield-C mark + COVIRA in the
           voice face, identical to the landing nav. */}
@@ -62,7 +67,9 @@ export default function Sidebar() {
       <nav style={{ flex: 1, padding: '10px 10px', overflowY: 'auto' }}>
         {NAV.map(({ icon: Icon, label, href, comingSoon }) => {
           const active = !comingSoon && isActive(href, pathname)
-          const color = comingSoon ? '#3d4158' : (active ? T.orange : T.secondary)
+          // Active: ink-primary label, orange ICON + edge hairline + faint
+          // tint — restrained, never a filled orange block (§Color).
+          const color = comingSoon ? T.disabled : (active ? T.primary : T.secondary)
           return (
             <Link
               key={href}
@@ -70,7 +77,7 @@ export default function Sidebar() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 padding: '9px 12px', borderRadius: 8, marginBottom: 2,
-                background: active ? 'rgba(249,115,22,0.10)' : 'transparent',
+                background: active ? 'rgba(249,115,22,0.07)' : 'transparent',
                 borderLeft: `2px solid ${active ? T.orange : 'transparent'}`,
                 color,
                 fontSize: 14, fontWeight: active ? 600 : 500,
@@ -94,15 +101,15 @@ export default function Sidebar() {
                 }
               }}
             >
-              <Icon size={16} strokeWidth={2} />
+              <Icon size={16} strokeWidth={2} color={active ? T.orange : 'currentColor'} />
               <span style={{ flex: 1 }}>{label}</span>
               {comingSoon && (
                 <span style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  color: '#3d4158',
-                  border: '1px solid rgba(255,255,255,0.07)',
-                  borderRadius: 20, padding: '1px 6px',
-                  fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
+                  background: 'transparent',
+                  color: '#5F6774',
+                  border: '1px solid #262B35',
+                  borderRadius: 2, padding: '1px 6px',
+                  fontSize: 9, fontFamily: 'var(--font-evidence), monospace', letterSpacing: '0.05em',
                   lineHeight: 1.6, flexShrink: 0,
                 }}>
                   SOON
@@ -118,12 +125,13 @@ export default function Sidebar() {
         padding: '14px 16px', borderTop: `1px solid ${T.border}`,
         display: 'flex', alignItems: 'center', gap: 10,
       }}>
+        {/* Neutral account mark — orange is not earned by merely existing. */}
         <div style={{
           width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
-          background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.28)',
+          background: '#1C2029', border: `1px solid ${T.border}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <User size={16} color={T.orange} />
+          <User size={16} color={T.primary} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: T.primary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

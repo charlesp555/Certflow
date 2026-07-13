@@ -13,20 +13,44 @@ import { createClerkSupabaseClient } from '@/lib/supabase'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
+// Design Bible tokens (see app/page.tsx appendix) — carbon ground, graphite
+// surfaces, seam hairlines. Orange is EARNED: verified/passing states + the
+// primary CTA only. Failures carry --attention red; "needs attention" is a
+// dimmed attention (the Bible has no warning color). No green, no purple.
 const T = {
-  bg: '#0a0a0f',
-  surface: '#0f0f17',
-  card: '#13131f',
-  border: '#1a1a2e',
-  borderAccent: '#2a2a3e',
-  orange: '#F97316',
+  bg: '#0C0E12',           // --carbon
+  card: '#171A21',         // --graphite
+  border: '#262B35',       // --seam
+  borderAccent: '#333A47',
+  orange: '#F97316',       // --verified
   orangeHover: '#EA6A0C',
-  green: '#22c55e',
-  amber: '#fbbf24',
-  red: '#E5484D',
-  primary: '#f8f8f8',
-  secondary: '#8b8fa8',
-  muted: '#4b5063',
+  red: '#E5484D',          // --attention
+  redDim: 'rgba(229,72,77,0.55)', // dimmed attention — fills/strokes
+  redDimText: '#D0888C',          // dimmed attention — readable text
+  primary: '#F2F4F8',      // --ink-primary
+  secondary: '#9AA3B2',    // --ink-secondary
+  muted: '#5F6774',
+  voice: 'var(--font-voice), sans-serif',      // Said
+  evidence: 'var(--font-evidence), monospace', // Recorded — every datum
+}
+
+// Clerk UserButton themed to the Bible palette — purple is banned. Function
+// untouched; this only recolors the avatar ring and the popover surfaces.
+const CLERK_APPEARANCE = {
+  variables: {
+    colorPrimary: '#F97316',
+    colorBackground: '#171A21',
+    colorText: '#F2F4F8',
+    colorTextSecondary: '#9AA3B2',
+    colorInputBackground: '#0C0E12',
+    colorInputText: '#F2F4F8',
+    colorNeutral: '#F2F4F8',
+    borderRadius: '8px',
+  },
+  elements: {
+    userButtonAvatarBox: { border: '1px solid #262B35' },
+    userButtonPopoverCard: { background: '#171A21', border: '1px solid #262B35' },
+  },
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -187,17 +211,19 @@ function requiresAction(v: VendorLatest): boolean {
   return v.status === 'Issues Found'
 }
 
+// Verified = earned orange; failures (expired, non-compliant) = attention
+// red; expiring = dimmed attention. (Design Bible §Color.)
 function vendorStatusBadge(v: VendorLatest): { label: string; color: string } {
   switch (v.overallStatus) {
-    case 'COMPLIANT':     return { label: 'Compliant',     color: T.green }
-    case 'EXPIRING':      return { label: 'Expiring',      color: T.amber }
-    case 'EXPIRED':       return { label: 'Expired',       color: T.red   }
-    case 'NON_COMPLIANT': return { label: 'Non-Compliant', color: T.orange }
+    case 'COMPLIANT':     return { label: 'Compliant',     color: T.orange     }
+    case 'EXPIRING':      return { label: 'Expiring',      color: T.redDimText }
+    case 'EXPIRED':       return { label: 'Expired',       color: T.red        }
+    case 'NON_COMPLIANT': return { label: 'Non-Compliant', color: T.red        }
     default:
       // Pre-backfill row — only the legacy binary status is real/known here.
       return v.status === 'Compliant'
-        ? { label: 'Compliant', color: T.green }
-        : { label: v.status || 'Unknown', color: T.orange }
+        ? { label: 'Compliant', color: T.orange }
+        : { label: v.status || 'Unknown', color: T.red }
   }
 }
 
@@ -218,8 +244,8 @@ function Toast({ message, visible }: { message: string; visible: boolean }) {
   return (
     <div style={{
       position: 'fixed', top: 24, right: 24, zIndex: 300,
-      background: T.card, border: '1px solid rgba(34,197,94,0.30)',
-      borderRadius: 10, padding: '12px 18px',
+      background: T.card, border: `1px solid ${T.border}`,
+      borderRadius: 8, padding: '12px 18px',
       display: 'flex', alignItems: 'center', gap: 10,
       boxShadow: '0 8px 32px rgba(0,0,0,0.55)',
       transition: 'opacity 0.25s ease, transform 0.25s ease',
@@ -227,7 +253,7 @@ function Toast({ message, visible }: { message: string; visible: boolean }) {
       transform: visible ? 'translateY(0)' : 'translateY(-12px)',
       pointerEvents: 'none',
     }}>
-      <CheckCircle2 size={16} color={T.green} />
+      <CheckCircle2 size={16} color={T.orange} />
       <span style={{ fontSize: 13, fontWeight: 600, color: T.primary }}>{message}</span>
     </div>
   )
@@ -243,30 +269,34 @@ function StatCard({
   sub: string
   trendDir?: 'positive' | 'negative' | 'neutral'
 }) {
-  const color = trendDir === 'positive' ? T.green : trendDir === 'negative' ? T.red : T.orange
+  // positive = a passing/verified state (earned orange); negative = a failure
+  // (attention red); neutral = a plain fact (ink, seam hairline). Red must
+  // mean failure, never "here's a number". Flat chips — pills are banned.
+  const isNeutral = trendDir === 'neutral' || !trendDir
+  const color = trendDir === 'positive' ? T.orange : trendDir === 'negative' ? T.red : T.secondary
   const TrendIcon = trendDir === 'negative' ? TrendingDown : TrendingUp
 
   return (
     <div style={{
       flex: 1, minWidth: 0,
       background: T.card, border: `1px solid ${T.border}`,
-      borderRadius: 12, padding: '20px 22px',
-      transition: 'border-color 0.2s, transform 0.2s, box-shadow 0.2s',
+      borderRadius: 8, padding: '20px 22px',
+      transition: 'border-color 0.2s',
     }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderAccent; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(0,0,0,0.4)' }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderAccent }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = T.border }}
     >
       <p style={{ fontSize: 12, color: T.secondary, fontWeight: 500, margin: '0 0 10px' }}>{label}</p>
-      <p style={{ fontSize: 32, fontWeight: 800, color: T.primary, margin: '0 0 10px', letterSpacing: '-1.5px', lineHeight: 1 }}>
+      <p style={{ fontSize: 32, fontWeight: 500, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', color: T.primary, margin: '0 0 10px', lineHeight: 1 }}>
         {value}
       </p>
       <div style={{
         display: 'inline-flex', alignItems: 'center', gap: 5,
-        background: `${color}18`, color,
-        border: `1px solid ${color}30`,
-        borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 600,
+        background: isNeutral ? 'transparent' : `${color}18`, color,
+        border: `1px solid ${isNeutral ? T.border : `${color}30`}`,
+        borderRadius: 2, padding: '3px 10px', fontSize: 11, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums',
       }}>
-        {trendDir && <TrendIcon size={11} strokeWidth={2.5} />}
+        {trendDir && !isNeutral && <TrendIcon size={11} strokeWidth={2.5} />}
         {sub}
       </div>
     </div>
@@ -288,15 +318,17 @@ function VerificationOutcomesBar({ compliant, needsAttention, nonCompliant }: {
   }, [])
 
   const total = compliant + needsAttention + nonCompliant
+  // Compliant = earned orange; needs-attention = dimmed attention (no warning
+  // color exists in the Bible); non-compliant/expired = full attention red.
   const segments = [
-    { label: 'Compliant',               count: compliant,      color: T.green },
-    { label: 'Needs Attention',         count: needsAttention, color: T.amber },
-    { label: 'Non-Compliant / Expired', count: nonCompliant,   color: T.red   },
+    { label: 'Compliant',               count: compliant,      color: T.orange },
+    { label: 'Needs Attention',         count: needsAttention, color: T.redDim },
+    { label: 'Non-Compliant / Expired', count: nonCompliant,   color: T.red    },
   ]
 
   return (
     <div>
-      <div style={{ display: 'flex', height: 14, borderRadius: 7, overflow: 'hidden', background: 'rgba(255,255,255,0.04)', marginBottom: 20 }}>
+      <div style={{ display: 'flex', height: 14, borderRadius: 2, overflow: 'hidden', background: T.border, marginBottom: 20 }}>
         {total > 0 && segments.map(seg => seg.count > 0 && (
           <div key={seg.label} style={{
             width: animated ? `${(seg.count / total) * 100}%` : '0%',
@@ -314,7 +346,7 @@ function VerificationOutcomesBar({ compliant, needsAttention, nonCompliant }: {
                 {seg.label}
               </span>
             </div>
-            <span style={{ fontSize: 22, fontWeight: 800, color: T.primary, letterSpacing: '-0.5px' }}>{seg.count}</span>
+            <span style={{ fontSize: 22, fontWeight: 500, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', color: T.primary }}>{seg.count}</span>
           </div>
         ))}
       </div>
@@ -335,16 +367,18 @@ function TopIssuesChart({ issues }: { issues: Array<{ label: string; count: numb
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Every finding here is a FAILURE (below minimum, missing endorsement)
+          — bars and counts carry --attention red, never orange (§Color). */}
       {issues.map((issue, i) => (
         <div key={issue.label}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
             <span style={{ fontSize: 13, color: T.secondary, fontWeight: 500 }}>{issue.label}</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: T.orange }}>{issue.count}</span>
+            <span style={{ fontSize: 13, fontWeight: 500, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', color: T.red }}>{issue.count}</span>
           </div>
-          <div style={{ height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}>
+          <div style={{ height: 6, borderRadius: 2, background: T.border, overflow: 'hidden' }}>
             <div style={{
-              height: '100%', borderRadius: 3,
-              background: T.orange,
+              height: '100%',
+              background: T.red,
               width: animated ? `${(issue.count / maxCount) * 100}%` : '0%',
               transition: 'width 0.6s ease',
               transitionDelay: `${i * 80}ms`,
@@ -454,10 +488,24 @@ export default function ReportsPage() {
   return (
     <div style={{
       display: 'flex', minHeight: '100vh',
-      background: T.bg, fontFamily: 'Inter, -apple-system, sans-serif',
-      color: T.primary,
+      background: T.bg, fontFamily: T.voice,
+      color: T.primary, position: 'relative', isolation: 'isolate',
     }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Page ledger-grid — same 24px hairline texture as the landing and
+           the other app pages, z -1 inside the isolated root: above the
+           carbon ground, below all content. */
+        .page-ledger-grid {
+          position: absolute; inset: 0; z-index: -1; pointer-events: none;
+          --grid-line: rgba(154,163,178, 0.06);
+          background-image:
+            repeating-linear-gradient(to bottom, var(--grid-line) 0, var(--grid-line) 1px, transparent 1px, transparent 24px),
+            repeating-linear-gradient(to right,  var(--grid-line) 0, var(--grid-line) 1px, transparent 1px, transparent 24px);
+        }
+      `}</style>
+      <div className="page-ledger-grid" aria-hidden="true" />
       <Toast message={toastMessage} visible={toastVisible} />
       <Sidebar />
 
@@ -471,7 +519,7 @@ export default function ReportsPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div>
-            <h1 style={{ fontSize: 16, fontWeight: 700, color: T.primary, margin: 0, lineHeight: 1.2 }}>Reports</h1>
+            <h1 style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em', color: T.primary, margin: 0, lineHeight: 1.2 }}>Reports</h1>
             <p style={{ fontSize: 12, color: T.secondary, margin: 0 }}>
               Compliance analytics and audit-ready exports
             </p>
@@ -484,7 +532,7 @@ export default function ReportsPage() {
                 display: 'inline-flex', alignItems: 'center', gap: 7,
                 background: T.orange, color: '#fff', border: 'none',
                 borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                boxShadow: '0 2px 12px rgba(249,115,22,0.25)',
+                fontFamily: 'inherit',
                 transition: 'background 0.15s, transform 0.1s',
               }}
               onMouseEnter={e => { e.currentTarget.style.background = T.orangeHover; e.currentTarget.style.transform = 'translateY(-1px)' }}
@@ -500,7 +548,7 @@ export default function ReportsPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: T.secondary, transition: 'border-color 0.15s, color 0.15s',
             }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = T.orange; e.currentTarget.style.color = T.primary }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderAccent; e.currentTarget.style.color = T.primary }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.secondary }}
             >
               <Bell size={17} />
@@ -510,7 +558,7 @@ export default function ReportsPage() {
               }} />
             </button>
 
-            <UserButton />
+            <UserButton appearance={CLERK_APPEARANCE} />
           </div>
         </header>
 
@@ -526,11 +574,14 @@ export default function ReportsPage() {
                   key={dr}
                   onClick={() => setDateRange(dr)}
                   style={{
-                    background: active ? T.orange : T.card,
-                    color: active ? '#fff' : T.secondary,
-                    border: `1px solid ${active ? T.orange : T.border}`,
+                    // Active = raised graphite + brighter hairline + primary
+                    // ink. A nav control never earns the orange fill (§Color).
+                    background: active ? '#1C2029' : T.card,
+                    color: active ? T.primary : T.secondary,
+                    border: `1px solid ${active ? T.borderAccent : T.border}`,
                     borderRadius: 8, padding: '7px 16px',
                     fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                    fontFamily: 'inherit',
                     transition: 'all 0.15s',
                   }}
                   onMouseEnter={e => { if (!active) { e.currentTarget.style.borderColor = T.borderAccent; e.currentTarget.style.color = T.primary } }}
@@ -546,8 +597,8 @@ export default function ReportsPage() {
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '64px 0' }}>
               <div style={{
                 width: 36, height: 36,
-                border: `3px solid rgba(249,115,22,0.15)`,
-                borderTop: `3px solid ${T.orange}`,
+                border: `3px solid rgba(154,163,178,0.15)`,
+                borderTop: `3px solid ${T.secondary}`,
                 borderRadius: '50%',
                 animation: 'spin 0.85s linear infinite',
               }} />
@@ -560,12 +611,12 @@ export default function ReportsPage() {
               padding: '72px 24px', textAlign: 'center',
             }}>
               <div style={{
-                width: 64, height: 64, borderRadius: 16,
-                background: 'rgba(249,115,22,0.08)', border: `1px solid rgba(249,115,22,0.18)`,
+                width: 64, height: 64, borderRadius: 8,
+                background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 marginBottom: 20,
               }}>
-                <FileText size={28} color={T.orange} />
+                <FileText size={28} color={T.secondary} />
               </div>
               <p style={{ fontSize: 18, fontWeight: 700, color: T.primary, margin: '0 0 10px' }}>
                 No reports yet
@@ -577,7 +628,6 @@ export default function ReportsPage() {
                 display: 'inline-flex', alignItems: 'center', gap: 8,
                 background: T.orange, color: '#fff', textDecoration: 'none',
                 borderRadius: 8, padding: '11px 22px', fontSize: 14, fontWeight: 600,
-                boxShadow: '0 2px 16px rgba(249,115,22,0.3)',
                 transition: 'background 0.15s',
               }}
                 onMouseEnter={e => (e.currentTarget.style.background = T.orangeHover)}
@@ -590,11 +640,14 @@ export default function ReportsPage() {
             <>
               {/* ── Stat cards ── */}
               <div style={{ display: 'flex', gap: 14 }}>
+                {/* Badge semantics: "N total all time", "N submissions with
+                    flags" and "N vendors tracked" are plain counts → neutral.
+                    Only the compliance-rate badge states a pass/fail. */}
                 <StatCard
                   label="Verifications Completed"
                   value={String(totalAnalyzed)}
                   sub={`${allSubs.length} total all time`}
-                  trendDir="positive"
+                  trendDir="neutral"
                 />
                 <StatCard
                   label="Compliance Rate"
@@ -606,13 +659,13 @@ export default function ReportsPage() {
                   label="Open Compliance Findings"
                   value={String(totalIssues)}
                   sub={`${filtered.filter(s => (s.issues_count ?? 0) > 0).length} submissions with flags`}
-                  trendDir={totalIssues === 0 ? 'positive' : 'negative'}
+                  trendDir="neutral"
                 />
                 <StatCard
                   label="Vendors Requiring Action"
                   value={String(vendorsNeedingAction)}
                   sub={`${vendorsLatest.length} vendor${vendorsLatest.length !== 1 ? 's' : ''} tracked`}
-                  trendDir={vendorsNeedingAction === 0 ? 'positive' : 'negative'}
+                  trendDir="neutral"
                 />
               </div>
 
@@ -625,7 +678,7 @@ export default function ReportsPage() {
                   {/* Verification outcomes */}
                   <div style={{
                     background: T.card, border: `1px solid ${T.border}`,
-                    borderRadius: 12, padding: 24,
+                    borderRadius: 8, padding: 24,
                     transition: 'border-color 0.2s',
                   }}
                     onMouseEnter={e => (e.currentTarget.style.borderColor = T.borderAccent)}
@@ -652,7 +705,7 @@ export default function ReportsPage() {
                   {/* Most common findings */}
                   <div style={{
                     background: T.card, border: `1px solid ${T.border}`,
-                    borderRadius: 12, padding: 24,
+                    borderRadius: 8, padding: 24,
                     transition: 'border-color 0.2s',
                   }}
                     onMouseEnter={e => (e.currentTarget.style.borderColor = T.borderAccent)}
@@ -666,8 +719,8 @@ export default function ReportsPage() {
                     </div>
                     {findingsList.length === 0 ? (
                       <div style={{ padding: '28px 0', textAlign: 'center' }}>
-                        <CheckCircle2 size={28} color={T.green} style={{ marginBottom: 10 }} />
-                        <p style={{ fontSize: 13, fontWeight: 600, color: T.green, margin: '0 0 4px' }}>No findings detected</p>
+                        <CheckCircle2 size={28} color={T.orange} style={{ marginBottom: 10 }} />
+                        <p style={{ fontSize: 13, fontWeight: 600, color: T.orange, margin: '0 0 4px' }}>No findings detected</p>
                         <p style={{ fontSize: 12, color: T.muted, margin: 0 }}>All verifications in this period are fully compliant.</p>
                       </div>
                     ) : (
@@ -682,7 +735,7 @@ export default function ReportsPage() {
                   {/* Vendor risk summary */}
                   <div style={{
                     background: T.card, border: `1px solid ${T.border}`,
-                    borderRadius: 12, padding: 24,
+                    borderRadius: 8, padding: 24,
                     transition: 'border-color 0.2s',
                   }}
                     onMouseEnter={e => (e.currentTarget.style.borderColor = T.borderAccent)}
@@ -722,26 +775,26 @@ export default function ReportsPage() {
                               borderRadius: 4, margin: '0 -4px',
                               cursor: v.vendorId ? 'pointer' : 'default',
                             }}
-                            onMouseEnter={e => (e.currentTarget.style.background = '#1a1a2e')}
+                            onMouseEnter={e => (e.currentTarget.style.background = '#1C2029')}
                             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                           >
                             <span style={{ fontSize: 12, fontWeight: 600, color: T.primary, alignSelf: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {v.vendorId ? (
                                 <Link href={`/vendors/${v.vendorId}`} style={{ color: T.primary, textDecoration: 'none' }}
-                                  onMouseEnter={e => (e.currentTarget.style.color = T.orange)}
-                                  onMouseLeave={e => (e.currentTarget.style.color = T.primary)}
+                                  onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                                  onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                                 >
                                   {v.name}
                                 </Link>
                               ) : v.name}
                             </span>
-                            <span style={{ fontSize: 11, fontWeight: 600, color: badge.color, alignSelf: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span style={{ fontSize: 11, fontFamily: T.evidence, color: badge.color, alignSelf: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {badge.label}
                             </span>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: T.primary, alignSelf: 'center' }}>
+                            <span style={{ fontSize: 12, fontWeight: 500, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', color: T.primary, alignSelf: 'center' }}>
                               {openFindings ?? '—'}
                             </span>
-                            <span style={{ fontSize: 11, color: T.muted, alignSelf: 'center', whiteSpace: 'nowrap' }}>
+                            <span style={{ fontSize: 11, color: T.muted, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', alignSelf: 'center', whiteSpace: 'nowrap' }}>
                               {v.lastVerified ? relativeTime(v.lastVerified) : '—'}
                             </span>
                           </div>
@@ -753,7 +806,7 @@ export default function ReportsPage() {
                   {/* Recent activity */}
                   <div style={{
                     background: T.card, border: `1px solid ${T.border}`,
-                    borderRadius: 12, padding: 24,
+                    borderRadius: 8, padding: 24,
                     transition: 'border-color 0.2s',
                   }}
                     onMouseEnter={e => (e.currentTarget.style.borderColor = T.borderAccent)}
@@ -769,9 +822,11 @@ export default function ReportsPage() {
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                         {recentSubs.map((s, i) => {
+                          // Verified = earned orange; a verification that
+                          // found findings is a failure signal = red (§Color).
                           const isCompliant = s.status === 'Compliant'
                           const Icon  = isCompliant ? CheckCircle2 : AlertTriangle
-                          const color = isCompliant ? T.green : T.orange
+                          const color = isCompliant ? T.orange : T.red
                           const label = isCompliant
                             ? 'Vendor verified compliant'
                             : `Verification found ${s.issues_count ?? 0} finding${(s.issues_count ?? 0) !== 1 ? 's' : ''}`
@@ -786,11 +841,11 @@ export default function ReportsPage() {
                                 transition: 'background 0.12s',
                                 borderRadius: 4, margin: '0 -4px',
                               }}
-                              onMouseEnter={e => (e.currentTarget.style.background = '#1a1a2e')}
+                              onMouseEnter={e => (e.currentTarget.style.background = '#1C2029')}
                               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                             >
                               <div style={{
-                                width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                                width: 28, height: 28, borderRadius: 2, flexShrink: 0,
                                 background: `${color}18`, border: `1px solid ${color}30`,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                               }}>
@@ -806,7 +861,7 @@ export default function ReportsPage() {
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
                                 <Clock size={10} color={T.muted} />
-                                <span style={{ fontSize: 11, color: T.muted, whiteSpace: 'nowrap' }}>
+                                <span style={{ fontSize: 11, color: T.muted, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                                   {s.created_at ? relativeTime(s.created_at) : '—'}
                                 </span>
                               </div>

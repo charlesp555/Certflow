@@ -8,18 +8,42 @@ import { createClerkSupabaseClient } from '@/lib/supabase'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
+// Design Bible tokens (see app/page.tsx appendix) — carbon ground, graphite
+// surfaces, seam hairlines. Orange is EARNED: on this page that means the
+// Save Changes CTA, the active tab underline, and input focus (an active/
+// affirmed state). No green, no purple.
 const T = {
-  bg: '#0a0a0f',
-  surface: '#0f0f17',
-  card: '#13131f',
-  border: '#1a1a2e',
-  borderAccent: '#2a2a3e',
-  orange: '#F97316',
+  bg: '#0C0E12',           // --carbon
+  surface: '#0C0E12',      // inputs sit back on carbon
+  card: '#171A21',         // --graphite
+  border: '#262B35',       // --seam
+  borderAccent: '#333A47',
+  orange: '#F97316',       // --verified
   orangeHover: '#EA6A0C',
-  green: '#22c55e',
-  primary: '#f8f8f8',
-  secondary: '#8b8fa8',
-  muted: '#4b5063',
+  primary: '#F2F4F8',      // --ink-primary
+  secondary: '#9AA3B2',    // --ink-secondary
+  muted: '#5F6774',
+  voice: 'var(--font-voice), sans-serif',      // Said
+  evidence: 'var(--font-evidence), monospace', // Recorded — entered values
+}
+
+// Clerk UserButton themed to the Bible palette — purple is banned. Function
+// untouched; this only recolors the avatar ring and the popover surfaces.
+const CLERK_APPEARANCE = {
+  variables: {
+    colorPrimary: '#F97316',
+    colorBackground: '#171A21',
+    colorText: '#F2F4F8',
+    colorTextSecondary: '#9AA3B2',
+    colorInputBackground: '#0C0E12',
+    colorInputText: '#F2F4F8',
+    colorNeutral: '#F2F4F8',
+    borderRadius: '8px',
+  },
+  elements: {
+    userButtonAvatarBox: { border: '1px solid #262B35' },
+    userButtonPopoverCard: { background: '#171A21', border: '1px solid #262B35' },
+  },
 }
 
 type TabKey = 'company' | 'notifications'
@@ -30,8 +54,8 @@ function Toast({ message, visible }: { message: string; visible: boolean }) {
   return (
     <div style={{
       position: 'fixed', top: 24, right: 24, zIndex: 300,
-      background: T.card, border: '1px solid rgba(34,197,94,0.30)',
-      borderRadius: 10, padding: '12px 18px',
+      background: T.card, border: `1px solid ${T.border}`,
+      borderRadius: 8, padding: '12px 18px',
       display: 'flex', alignItems: 'center', gap: 10,
       boxShadow: '0 8px 32px rgba(0,0,0,0.55)',
       transition: 'opacity 0.25s ease, transform 0.25s ease',
@@ -39,7 +63,7 @@ function Toast({ message, visible }: { message: string; visible: boolean }) {
       transform: visible ? 'translateY(0)' : 'translateY(-12px)',
       pointerEvents: 'none',
     }}>
-      <CheckCircle2 size={16} color={T.green} />
+      <CheckCircle2 size={16} color={T.orange} />
       <span style={{ fontSize: 13, fontWeight: 600, color: T.primary }}>{message}</span>
     </div>
   )
@@ -65,7 +89,8 @@ const inputStyle: React.CSSProperties = {
   background: T.surface, border: `1px solid ${T.border}`,
   borderRadius: 8, padding: '9px 12px',
   fontSize: 14, color: T.primary, outline: 'none',
-  fontFamily: 'Inter, sans-serif',
+  // Entered values are recorded facts about the company — evidence mono.
+  fontFamily: T.evidence,
   transition: 'border-color 0.15s',
   width: '100%', boxSizing: 'border-box',
 }
@@ -79,7 +104,6 @@ function OrangeBtn({ onClick, children }: { onClick?: () => void; children: Reac
         background: T.orange, color: '#fff', border: 'none',
         borderRadius: 8, padding: '10px 20px',
         fontSize: 13, fontWeight: 600, cursor: 'pointer',
-        boxShadow: '0 2px 12px rgba(249,115,22,0.25)',
         transition: 'background 0.15s, transform 0.1s',
       }}
       onMouseEnter={e => { e.currentTarget.style.background = T.orangeHover; e.currentTarget.style.transform = 'translateY(-1px)' }}
@@ -94,7 +118,7 @@ function SectionCard({ children, style }: { children: React.ReactNode; style?: R
   return (
     <div style={{
       background: T.card, border: `1px solid ${T.border}`,
-      borderRadius: 12, padding: 24,
+      borderRadius: 8, padding: 24,
       ...style,
     }}>
       {children}
@@ -236,12 +260,12 @@ function CompanyTab({ userId, showToast }: { userId: string | null; showToast: (
       {/* Team Members — Coming Soon */}
       <SectionCard>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <User size={15} color={T.muted} />
+          <User size={15} color={T.secondary} />
           <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: 0 }}>Team Members</h3>
           <span style={{
-            fontSize: 11, fontWeight: 600, color: T.muted,
-            background: 'rgba(255,255,255,0.05)', border: `1px solid ${T.border}`,
-            borderRadius: 20, padding: '2px 9px',
+            fontSize: 11, fontFamily: T.evidence, color: T.secondary,
+            background: 'transparent', border: `1px solid ${T.border}`,
+            borderRadius: 2, padding: '2px 9px',
           }}>Coming Soon</span>
         </div>
         <p style={{ fontSize: 13, color: T.secondary, margin: 0, lineHeight: 1.7 }}>
@@ -258,12 +282,12 @@ function NotificationsTab() {
   return (
     <SectionCard>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <Bell size={15} color={T.muted} />
+        <Bell size={15} color={T.secondary} />
         <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: 0 }}>Notification Preferences</h3>
         <span style={{
-          fontSize: 11, fontWeight: 600, color: T.muted,
-          background: 'rgba(255,255,255,0.05)', border: `1px solid ${T.border}`,
-          borderRadius: 20, padding: '2px 9px',
+          fontSize: 11, fontFamily: T.evidence, color: T.secondary,
+          background: 'transparent', border: `1px solid ${T.border}`,
+          borderRadius: 2, padding: '2px 9px',
         }}>Coming Soon</span>
       </div>
       <p style={{ fontSize: 13, color: T.secondary, margin: 0, lineHeight: 1.7 }}>
@@ -299,9 +323,30 @@ export default function SettingsPage() {
   return (
     <div style={{
       display: 'flex', minHeight: '100vh',
-      background: T.bg, fontFamily: 'Inter, -apple-system, sans-serif',
-      color: T.primary,
+      background: T.bg, fontFamily: T.voice,
+      color: T.primary, position: 'relative', isolation: 'isolate',
     }}>
+      <style>{`
+        /* Page ledger-grid — same 24px hairline texture as the landing and
+           the other app pages, z -1 inside the isolated root: above the
+           carbon ground, below all content. */
+        .page-ledger-grid {
+          position: absolute; inset: 0; z-index: -1; pointer-events: none;
+          --grid-line: rgba(154,163,178, 0.06);
+          background-image:
+            repeating-linear-gradient(to bottom, var(--grid-line) 0, var(--grid-line) 1px, transparent 1px, transparent 24px),
+            repeating-linear-gradient(to right,  var(--grid-line) 0, var(--grid-line) 1px, transparent 1px, transparent 24px);
+        }
+        /* Placeholders are prompts, not recorded values — voice face,
+           secondary ink (the inputs themselves are evidence mono). */
+        .settings-form input::placeholder,
+        .settings-form textarea::placeholder {
+          font-family: var(--font-voice), sans-serif;
+          color: #9AA3B2;
+          opacity: 1;
+        }
+      `}</style>
+      <div className="page-ledger-grid" aria-hidden="true" />
       <Toast message={toastMsg} visible={toastVisible} />
       <Sidebar />
 
@@ -315,7 +360,7 @@ export default function SettingsPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div>
-            <h1 style={{ fontSize: 16, fontWeight: 700, color: T.primary, margin: 0, lineHeight: 1.2 }}>Settings</h1>
+            <h1 style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em', color: T.primary, margin: 0, lineHeight: 1.2 }}>Settings</h1>
             <p style={{ fontSize: 12, color: T.secondary, margin: 0 }}>
               Manage your account and company preferences
             </p>
@@ -329,7 +374,7 @@ export default function SettingsPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: T.secondary, transition: 'border-color 0.15s, color 0.15s',
             }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = T.orange; e.currentTarget.style.color = T.primary }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderAccent; e.currentTarget.style.color = T.primary }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.secondary }}
             >
               <Bell size={17} />
@@ -340,12 +385,12 @@ export default function SettingsPage() {
               }} />
             </button>
 
-            <UserButton />
+            <UserButton appearance={CLERK_APPEARANCE} />
           </div>
         </header>
 
         {/* ── Content ── */}
-        <div style={{ padding: 28, flex: 1 }}>
+        <div className="settings-form" style={{ padding: 28, flex: 1 }}>
 
           {/* Tab bar */}
           <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${T.border}`, marginBottom: 24 }}>

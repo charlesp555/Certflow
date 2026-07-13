@@ -12,6 +12,30 @@ import COIUploadModal from '../components/COIUploadModal'
 import { useUser, useAuth, UserButton } from '@clerk/nextjs'
 import { createClerkSupabaseClient } from '@/lib/supabase'
 
+// ─── Design Bible voices ──────────────────────────────────────────────────────
+// Schibsted Grotesk (voice) is inherited from the page root; evidence is set
+// per-datum. Data is RECORDED, not said.
+const EVIDENCE = 'var(--font-evidence), monospace'
+
+// Clerk UserButton themed to the Bible palette — purple is banned. Function
+// untouched; this only recolors the avatar ring and the popover surfaces.
+const CLERK_APPEARANCE = {
+  variables: {
+    colorPrimary: '#F97316',
+    colorBackground: '#171A21',
+    colorText: '#F2F4F8',
+    colorTextSecondary: '#9AA3B2',
+    colorInputBackground: '#0C0E12',
+    colorInputText: '#F2F4F8',
+    colorNeutral: '#F2F4F8',
+    borderRadius: '8px',
+  },
+  elements: {
+    userButtonAvatarBox: { border: '1px solid #262B35' },
+    userButtonPopoverCard: { background: '#171A21', border: '1px solid #262B35' },
+  },
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type VendorStatus = 'Compliant' | 'Issues Found' | 'Expiring Soon' | 'Pending Review'
@@ -115,18 +139,21 @@ const STATUS_ORDER: Record<VendorStatus, number> = {
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
+// Status semantics (Design Bible §Color): verified/compliant = earned orange;
+// failures = attention red; expiring = dimmed attention (no warning color
+// exists); pending = neutral ink. Flat chips — pills are banned.
 function StatusBadge({ status }: { status: VendorStatus }) {
   const styles: Record<VendorStatus, { bg: string; color: string; border: string }> = {
-    'Compliant':      { bg: '#052e16', color: '#22c55e', border: '#166534' },
-    'Issues Found':   { bg: '#1F0E03', color: '#F97316', border: '#9A3412' },
-    'Expiring Soon':  { bg: '#1D0D02', color: '#fbbf24', border: '#7C2D12' },
-    'Pending Review': { bg: '#0f0f1a', color: '#8b8cf8', border: '#3730a3' },
+    'Compliant':      { bg: 'rgba(249,115,22,0.08)', color: '#F97316', border: 'rgba(249,115,22,0.35)' },
+    'Issues Found':   { bg: 'rgba(229,72,77,0.08)',  color: '#E5484D', border: 'rgba(229,72,77,0.35)'  },
+    'Expiring Soon':  { bg: 'rgba(229,72,77,0.05)',  color: '#D0888C', border: 'rgba(229,72,77,0.22)'  },
+    'Pending Review': { bg: 'transparent',           color: '#9AA3B2', border: '#262B35'               },
   }
   const s = styles[status]
   return (
     <span style={{
       background: s.bg, color: s.color, border: `1px solid ${s.border}`,
-      borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
+      borderRadius: 2, padding: '3px 10px', fontSize: 11, fontFamily: EVIDENCE, whiteSpace: 'nowrap',
     }}>
       {status}
     </span>
@@ -143,24 +170,24 @@ function PaywallModal({ onClose }: { onClose: () => void }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
     }} onClick={onClose}>
       <div style={{
-        background: '#111118', border: '1px solid #1e1e2e', borderRadius: 16,
+        background: '#171A21', border: '1px solid #262B35', borderRadius: 8,
         padding: 40, width: '100%', maxWidth: 440,
         boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
         textAlign: 'center',
       }} onClick={e => e.stopPropagation()}>
         <div style={{
           width: 52, height: 52, borderRadius: '50%',
-          background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.25)',
+          background: 'rgba(255,255,255,0.03)', border: '1px solid #262B35',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           margin: '0 auto 20px',
         }}>
-          <Lock size={22} color="#F97316" />
+          <Lock size={22} color="#9AA3B2" />
         </div>
 
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: '#f0ede8', margin: '0 0 10px' }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: '#F2F4F8', margin: '0 0 10px' }}>
           You&apos;ve reached the free limit
         </h2>
-        <p style={{ fontSize: 14, color: '#8a8599', margin: '0 0 28px', lineHeight: 1.6 }}>
+        <p style={{ fontSize: 14, color: '#9AA3B2', margin: '0 0 28px', lineHeight: 1.6 }}>
           Upgrade to Pro to add unlimited vendors
         </p>
 
@@ -182,13 +209,13 @@ function PaywallModal({ onClose }: { onClose: () => void }) {
           <button
             onClick={onClose}
             style={{
-              background: 'transparent', border: '1px solid #1e1e2e',
-              color: '#8a8599', fontSize: 14, fontWeight: 500,
+              background: 'transparent', border: '1px solid #262B35',
+              color: '#9AA3B2', fontSize: 14, fontWeight: 500,
               padding: '12px 24px', borderRadius: 8, cursor: 'pointer',
               transition: 'all 0.15s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#2e2e3e'; e.currentTarget.style.color = '#f0ede8' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = '#1e1e2e'; e.currentTarget.style.color = '#8a8599' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#333A47'; e.currentTarget.style.color = '#F2F4F8' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = '#262B35'; e.currentTarget.style.color = '#9AA3B2' }}
           >
             Maybe later
           </button>
@@ -239,20 +266,20 @@ function AddVendorModal({
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
     }} onClick={onClose}>
       <div style={{
-        background: '#111118', border: '1px solid #1e1e2e', borderRadius: 16,
+        background: '#171A21', border: '1px solid #262B35', borderRadius: 8,
         padding: 32, width: '100%', maxWidth: 480,
         boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
       }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#f0ede8', margin: 0 }}>Add Vendor</h2>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#8a8599', padding: 4 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#F2F4F8', margin: 0 }}>Add Vendor</h2>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#9AA3B2', padding: 4 }}>
             <X size={20} />
           </button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#8a8599', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#9AA3B2', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Vendor Name
             </label>
             <input
@@ -262,25 +289,25 @@ function AddVendorModal({
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               onKeyDown={e => e.key === 'Enter' && handleSave()}
               style={{
-                width: '100%', background: '#0a0a0f', border: '1px solid #1e1e2e',
-                borderRadius: 8, padding: '10px 14px', fontSize: 14, color: '#f0ede8',
+                width: '100%', background: '#0C0E12', border: '1px solid #262B35',
+                borderRadius: 8, padding: '10px 14px', fontSize: 14, color: '#F2F4F8',
                 outline: 'none', transition: 'border-color 0.15s',
               }}
-              onFocus={e => (e.target.style.borderColor = '#F97316')}
-              onBlur={e => (e.target.style.borderColor = '#1e1e2e')}
+              onFocus={e => (e.target.style.borderColor = '#333A47')}
+              onBlur={e => (e.target.style.borderColor = '#262B35')}
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#8a8599', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#9AA3B2', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Type
             </label>
             <select
               value={form.type}
               onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
               style={{
-                width: '100%', background: '#0a0a0f', border: '1px solid #1e1e2e',
-                borderRadius: 8, padding: '10px 14px', fontSize: 14, color: '#f0ede8',
+                width: '100%', background: '#0C0E12', border: '1px solid #262B35',
+                borderRadius: 8, padding: '10px 14px', fontSize: 14, color: '#F2F4F8',
                 outline: 'none', cursor: 'pointer',
               }}
             >
@@ -289,15 +316,15 @@ function AddVendorModal({
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#8a8599', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#9AA3B2', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Status
             </label>
             <select
               value={form.status}
               onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
               style={{
-                width: '100%', background: '#0a0a0f', border: '1px solid #1e1e2e',
-                borderRadius: 8, padding: '10px 14px', fontSize: 14, color: '#f0ede8',
+                width: '100%', background: '#0C0E12', border: '1px solid #262B35',
+                borderRadius: 8, padding: '10px 14px', fontSize: 14, color: '#F2F4F8',
                 outline: 'none', cursor: 'pointer',
               }}
             >
@@ -316,8 +343,8 @@ function AddVendorModal({
           <button
             onClick={onClose}
             style={{
-              background: 'transparent', border: '1px solid #1e1e2e',
-              color: '#8a8599', fontSize: 14, fontWeight: 500,
+              background: 'transparent', border: '1px solid #262B35',
+              color: '#9AA3B2', fontSize: 14, fontWeight: 500,
               padding: '10px 20px', borderRadius: 8, cursor: 'pointer',
             }}
           >
@@ -364,7 +391,7 @@ function DeleteConfirmModal({
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
     }} onClick={onClose}>
       <div style={{
-        background: '#111118', border: '1px solid #1e1e2e', borderRadius: 16,
+        background: '#171A21', border: '1px solid #262B35', borderRadius: 8,
         padding: 36, width: '100%', maxWidth: 440,
         boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
       }} onClick={e => e.stopPropagation()}>
@@ -379,10 +406,10 @@ function DeleteConfirmModal({
           <AlertTriangle size={22} color="#E5484D" />
         </div>
 
-        <h2 style={{ fontSize: 18, fontWeight: 700, color: '#f0ede8', margin: '0 0 10px', textAlign: 'center' }}>
+        <h2 style={{ fontSize: 18, fontWeight: 700, color: '#F2F4F8', margin: '0 0 10px', textAlign: 'center' }}>
           Delete {vendor.name}?
         </h2>
-        <p style={{ fontSize: 14, color: '#8a8599', margin: '0 0 28px', lineHeight: 1.6, textAlign: 'center' }}>
+        <p style={{ fontSize: 14, color: '#9AA3B2', margin: '0 0 28px', lineHeight: 1.6, textAlign: 'center' }}>
           This will permanently remove the vendor and all its uploaded COIs and
           analysis data. This can&apos;t be undone.
         </p>
@@ -402,13 +429,13 @@ function DeleteConfirmModal({
             onClick={onClose}
             disabled={deleting}
             style={{
-              flex: 1, background: 'transparent', border: '1px solid #1e1e2e',
-              color: '#8a8599', fontSize: 14, fontWeight: 500,
+              flex: 1, background: 'transparent', border: '1px solid #262B35',
+              color: '#9AA3B2', fontSize: 14, fontWeight: 500,
               padding: '11px 20px', borderRadius: 8, cursor: deleting ? 'not-allowed' : 'pointer',
               transition: 'all 0.15s',
             }}
-            onMouseEnter={e => { if (!deleting) { e.currentTarget.style.borderColor = '#2e2e3e'; e.currentTarget.style.color = '#f0ede8' } }}
-            onMouseLeave={e => { if (!deleting) { e.currentTarget.style.borderColor = '#1e1e2e'; e.currentTarget.style.color = '#8a8599' } }}
+            onMouseEnter={e => { if (!deleting) { e.currentTarget.style.borderColor = '#333A47'; e.currentTarget.style.color = '#F2F4F8' } }}
+            onMouseLeave={e => { if (!deleting) { e.currentTarget.style.borderColor = '#262B35'; e.currentTarget.style.color = '#9AA3B2' } }}
           >
             Cancel
           </button>
@@ -441,15 +468,15 @@ function FilterSelect({ value, onChange, options }: { value: string; onChange: (
         value={value}
         onChange={e => onChange(e.target.value)}
         style={{
-          background: '#111118', border: '1px solid #1e1e2e',
+          background: '#171A21', border: '1px solid #262B35',
           borderRadius: 8, padding: '8px 32px 8px 12px',
-          fontSize: 13, color: '#f0ede8', cursor: 'pointer',
+          fontSize: 13, color: '#F2F4F8', cursor: 'pointer',
           appearance: 'none', outline: 'none', minWidth: 140,
         }}
       >
         {options.map(o => <option key={o} value={o}>{o}</option>)}
       </select>
-      <ChevronDown size={14} color="#8a8599" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+      <ChevronDown size={14} color="#9AA3B2" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
     </div>
   )
 }
@@ -476,23 +503,23 @@ function SortableHeader({
       style={{
         textAlign: 'left', padding: '14px 16px',
         fontSize: 11, fontWeight: 600,
-        color: isActive ? '#F97316' : '#8a8599',
+        color: isActive ? '#F2F4F8' : '#9AA3B2',
         textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap',
         cursor: colKey ? 'pointer' : 'default',
         userSelect: 'none',
         transition: 'color 0.15s',
       }}
-      onMouseEnter={colKey ? e => { if (!isActive) e.currentTarget.style.color = '#c8c4bc' } : undefined}
-      onMouseLeave={colKey ? e => { e.currentTarget.style.color = isActive ? '#F97316' : '#8a8599' } : undefined}
+      onMouseEnter={colKey ? e => { if (!isActive) e.currentTarget.style.color = '#F2F4F8' } : undefined}
+      onMouseLeave={colKey ? e => { e.currentTarget.style.color = isActive ? '#F2F4F8' : '#9AA3B2' } : undefined}
     >
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
         {label}
         {colKey && (
           isActive
             ? (sortDir === 'asc'
-              ? <ArrowUp size={11} color="#F97316" />
-              : <ArrowDown size={11} color="#F97316" />)
-            : <ArrowUpDown size={11} color="#3a3a4a" />
+              ? <ArrowUp size={11} color="#F2F4F8" />
+              : <ArrowDown size={11} color="#F2F4F8" />)
+            : <ArrowUpDown size={11} color="#454D59" />
         )}
       </span>
     </th>
@@ -641,7 +668,20 @@ export default function VendorsPage() {
     })
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a0f', fontFamily: 'Inter, -apple-system, sans-serif' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#0C0E12', fontFamily: 'var(--font-voice), sans-serif', position: 'relative', isolation: 'isolate' }}>
+      <style>{`
+        /* Page ledger-grid — same 24px hairline texture as the landing and
+           dashboard, z -1 inside the isolated root: above the carbon ground,
+           below all content. */
+        .page-ledger-grid {
+          position: absolute; inset: 0; z-index: -1; pointer-events: none;
+          --grid-line: rgba(154,163,178, 0.06);
+          background-image:
+            repeating-linear-gradient(to bottom, var(--grid-line) 0, var(--grid-line) 1px, transparent 1px, transparent 24px),
+            repeating-linear-gradient(to right,  var(--grid-line) 0, var(--grid-line) 1px, transparent 1px, transparent 24px);
+        }
+      `}</style>
+      <div className="page-ledger-grid" aria-hidden="true" />
       <Sidebar />
 
       {showPaywall && (
@@ -679,11 +719,11 @@ export default function VendorsPage() {
         {/* Topbar */}
         <header style={{
           padding: '0 32px', height: 64,
-          borderBottom: '1px solid #1e1e2e',
+          borderBottom: '1px solid #262B35',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: '#0a0a0f', position: 'sticky', top: 0, zIndex: 40,
+          background: '#0C0E12', position: 'sticky', top: 0, zIndex: 40,
         }}>
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: '#f0ede8', margin: 0 }}>Vendors</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 600, letterSpacing: '-0.01em', color: '#F2F4F8', margin: 0 }}>Vendors</h1>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <button
@@ -700,12 +740,12 @@ export default function VendorsPage() {
             </button>
             <button style={{
               position: 'relative', background: 'transparent', border: 'none',
-              cursor: 'pointer', padding: 6, borderRadius: 8, color: '#8a8599',
+              cursor: 'pointer', padding: 6, borderRadius: 8, color: '#9AA3B2',
             }}>
               <Bell size={20} />
-              <span style={{ position: 'absolute', top: 5, right: 5, width: 8, height: 8, background: '#F97316', borderRadius: '50%', border: '2px solid #0a0a0f' }} />
+              <span style={{ position: 'absolute', top: 5, right: 5, width: 8, height: 8, background: '#F97316', borderRadius: '50%', border: '2px solid #0C0E12' }} />
             </button>
-            <UserButton />
+            <UserButton appearance={CLERK_APPEARANCE} />
           </div>
         </header>
 
@@ -714,16 +754,16 @@ export default function VendorsPage() {
           {/* Search + Filters */}
           <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
             <div style={{ position: 'relative', flex: '1', minWidth: 220 }}>
-              <Search size={15} color="#8a8599" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+              <Search size={15} color="#9AA3B2" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
               <input
                 type="text"
                 placeholder="Search vendors..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 style={{
-                  width: '100%', background: '#111118', border: '1px solid #1e1e2e',
+                  width: '100%', background: '#171A21', border: '1px solid #262B35',
                   borderRadius: 8, padding: '8px 12px 8px 36px',
-                  fontSize: 13, color: '#f0ede8', outline: 'none',
+                  fontSize: 13, color: '#F2F4F8', outline: 'none',
                 }}
               />
             </div>
@@ -733,19 +773,19 @@ export default function VendorsPage() {
           </div>
 
           {/* Table */}
-          <div style={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ background: '#171A21', border: '1px solid #262B35', borderRadius: 8, overflow: 'hidden' }}>
             {loading ? (
               <div style={{ padding: '64px 24px', textAlign: 'center' }}>
-                <div style={{ width: 32, height: 32, border: '3px solid rgba(249,115,22,0.15)', borderTop: '3px solid #F97316', borderRadius: '50%', animation: 'spin 0.85s linear infinite', margin: '0 auto 12px' }} />
+                <div style={{ width: 32, height: 32, border: '3px solid rgba(154,163,178,0.15)', borderTop: '3px solid #9AA3B2', borderRadius: '50%', animation: 'spin 0.85s linear infinite', margin: '0 auto 12px' }} />
                 <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-                <div style={{ fontSize: 13, color: '#8a8599' }}>Loading vendors…</div>
+                <div style={{ fontSize: 13, color: '#9AA3B2' }}>Loading vendors…</div>
               </div>
             ) : (
               <>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
-                      <tr style={{ borderBottom: '1px solid #1e1e2e' }}>
+                      <tr style={{ borderBottom: '1px solid #262B35' }}>
                         <SortableHeader label="Vendor Name"    colKey="name"       activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                         <SortableHeader label="Type"           colKey={null}        activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                         <SortableHeader label="Status"         colKey="status"     activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
@@ -759,40 +799,40 @@ export default function VendorsPage() {
                       {filtered.map((vendor, i) => (
                         <tr
                           key={vendor.id}
-                          style={{ borderBottom: i < filtered.length - 1 ? '1px solid #1e1e2e' : 'none', transition: 'background 0.12s' }}
+                          style={{ borderBottom: i < filtered.length - 1 ? '1px solid #262B35' : 'none', transition: 'background 0.12s' }}
                           onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.025)')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                         >
                           <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
                             <Link
                               href={`/vendors/${vendor.id}`}
-                              style={{ fontSize: 14, fontWeight: 600, color: '#f0ede8', textDecoration: 'none' }}
-                              onMouseEnter={e => (e.currentTarget.style.color = '#F97316')}
-                              onMouseLeave={e => (e.currentTarget.style.color = '#f0ede8')}
+                              style={{ fontSize: 14, fontWeight: 600, color: '#F2F4F8', textDecoration: 'none' }}
+                              onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                              onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                             >
                               <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <Building2 size={14} color="#8a8599" />
+                                <Building2 size={14} color="#9AA3B2" />
                                 {vendor.name}
                               </span>
                             </Link>
                           </td>
                           <td style={{ padding: '14px 16px', fontSize: 13, whiteSpace: 'nowrap' }}>
                             {vendor.type === UNTYPED ? (
-                              <span style={{ color: '#F97316', fontStyle: 'italic' }} title="Set this vendor's type from its profile page">
+                              <span style={{ color: '#9AA3B2', fontStyle: 'italic' }} title="Set this vendor's type from its profile page">
                                 Untyped
                               </span>
                             ) : (
-                              <span style={{ color: '#8a8599' }}>{vendor.type}</span>
+                              <span style={{ color: '#9AA3B2' }}>{vendor.type}</span>
                             )}
                           </td>
                           <td style={{ padding: '14px 16px' }}><StatusBadge status={vendor.status} /></td>
-                          <td style={{ padding: '14px 16px', fontSize: 13, color: '#8a8599', whiteSpace: 'nowrap' }}>{vendor.expiration}</td>
+                          <td style={{ padding: '14px 16px', fontSize: 12, color: '#9AA3B2', fontFamily: EVIDENCE, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{vendor.expiration}</td>
                           <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: vendor.issues > 0 ? '#F97316' : '#8a8599' }}>
+                            <span style={{ fontSize: 13, fontWeight: 500, fontFamily: EVIDENCE, fontVariantNumeric: 'tabular-nums', color: vendor.issues > 0 ? '#E5484D' : '#9AA3B2' }}>
                               {vendor.issues}
                             </span>
                           </td>
-                          <td style={{ padding: '14px 16px', fontSize: 13, color: '#8a8599', whiteSpace: 'nowrap' }}>{vendor.lastUploaded}</td>
+                          <td style={{ padding: '14px 16px', fontSize: 12, color: '#9AA3B2', fontFamily: EVIDENCE, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{vendor.lastUploaded}</td>
                           <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', gap: 8 }}>
                               <button
@@ -802,7 +842,7 @@ export default function VendorsPage() {
                                   background: 'rgba(249,115,22,0.10)', color: '#F97316',
                                   border: '1px solid rgba(249,115,22,0.25)',
                                   fontSize: 12, fontWeight: 600, padding: '6px 12px',
-                                  borderRadius: 6, cursor: 'pointer', transition: 'all 0.15s',
+                                  borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s',
                                 }}
                                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.20)' }}
                                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.10)' }}
@@ -814,13 +854,13 @@ export default function VendorsPage() {
                                 href={`/vendors/${vendor.id}`}
                                 style={{
                                   display: 'inline-flex', alignItems: 'center', gap: 5,
-                                  background: 'rgba(255,255,255,0.04)', color: '#8a8599',
-                                  border: '1px solid #1e1e2e',
+                                  background: 'rgba(255,255,255,0.04)', color: '#9AA3B2',
+                                  border: '1px solid #262B35',
                                   fontSize: 12, fontWeight: 600, padding: '6px 12px',
-                                  borderRadius: 6, textDecoration: 'none', transition: 'all 0.15s',
+                                  borderRadius: 8, textDecoration: 'none', transition: 'all 0.15s',
                                 }}
-                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#f0ede8' }}
-                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#8a8599' }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#F2F4F8' }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#9AA3B2' }}
                               >
                                 <Eye size={12} />
                                 View
@@ -831,13 +871,13 @@ export default function VendorsPage() {
                                 style={{
                                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                                   width: 30, height: 30,
-                                  background: 'rgba(255,255,255,0.04)', color: '#4b5063',
-                                  border: '1px solid #1e1e2e',
-                                  borderRadius: 6, cursor: 'pointer', transition: 'all 0.15s',
+                                  background: 'rgba(255,255,255,0.04)', color: '#5F6774',
+                                  border: '1px solid #262B35',
+                                  borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s',
                                   flexShrink: 0,
                                 }}
                                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(229,72,77,0.12)'; e.currentTarget.style.color = '#E5484D'; e.currentTarget.style.borderColor = 'rgba(229,72,77,0.30)' }}
-                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#4b5063'; e.currentTarget.style.borderColor = '#1e1e2e' }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#5F6774'; e.currentTarget.style.borderColor = '#262B35' }}
                               >
                                 <Trash2 size={13} />
                               </button>
@@ -852,9 +892,9 @@ export default function VendorsPage() {
                 {/* Empty states */}
                 {vendors.length === 0 && (
                   <div style={{ padding: '64px 24px', textAlign: 'center' }}>
-                    <Building2 size={40} color="#1e1e2e" style={{ marginBottom: 16 }} />
-                    <div style={{ fontSize: 16, fontWeight: 700, color: '#f0ede8', marginBottom: 8 }}>No vendors yet</div>
-                    <div style={{ fontSize: 14, color: '#8a8599', marginBottom: 24 }}>
+                    <Building2 size={40} color="#262B35" style={{ marginBottom: 16 }} />
+                    <div style={{ fontSize: 16, fontWeight: 700, color: '#F2F4F8', marginBottom: 8 }}>No vendors yet</div>
+                    <div style={{ fontSize: 14, color: '#9AA3B2', marginBottom: 24 }}>
                       Add your first vendor to get started.
                     </div>
                     <button
@@ -873,27 +913,27 @@ export default function VendorsPage() {
                 )}
 
                 {vendors.length > 0 && filtered.length === 0 && (
-                  <div style={{ padding: '48px 24px', textAlign: 'center', color: '#8a8599' }}>
-                    <Building2 size={32} color="#1e1e2e" style={{ marginBottom: 12 }} />
-                    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: '#f0ede8' }}>No vendors found</div>
+                  <div style={{ padding: '48px 24px', textAlign: 'center', color: '#9AA3B2' }}>
+                    <Building2 size={32} color="#262B35" style={{ marginBottom: 12 }} />
+                    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: '#F2F4F8' }}>No vendors found</div>
                     <div style={{ fontSize: 13 }}>Try adjusting your search or filters</div>
                   </div>
                 )}
 
                 {/* Footer */}
-                <div style={{ padding: '12px 16px', borderTop: '1px solid #1e1e2e', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 13, color: '#8a8599' }}>
+                <div style={{ padding: '12px 16px', borderTop: '1px solid #262B35', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 13, color: '#9AA3B2' }}>
                     Showing {filtered.length} of {vendors.length} vendor{vendors.length !== 1 ? 's' : ''}
                   </span>
                   {sortKey && (
                     <button
                       onClick={() => { setSortKey(null); setSortDir('asc') }}
                       style={{
-                        fontSize: 12, color: '#8a8599', background: 'transparent',
+                        fontSize: 12, color: '#9AA3B2', background: 'transparent',
                         border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.color = '#f0ede8')}
-                      onMouseLeave={e => (e.currentTarget.style.color = '#8a8599')}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#F2F4F8')}
+                      onMouseLeave={e => (e.currentTarget.style.color = '#9AA3B2')}
                     >
                       <X size={11} /> Clear sort
                     </button>

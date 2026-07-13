@@ -12,21 +12,43 @@ import { createClerkSupabaseClient } from '@/lib/supabase'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
+// Design Bible tokens (see app/page.tsx appendix) — carbon ground, graphite
+// surfaces, seam hairlines. Orange is EARNED: verified/passing states + the
+// primary CTA only. Failures carry --attention red; expiring is a dimmed
+// attention (the Bible has no warning color). No green, no purple.
 const T = {
-  bg: '#0a0a0f',
-  surface: '#0f0f17',
-  card: '#13131f',
-  border: '#1a1a2e',
-  borderAccent: '#2a2a3e',
-  orange: '#F97316',
+  bg: '#0C0E12',           // --carbon
+  card: '#171A21',         // --graphite
+  border: '#262B35',       // --seam
+  borderAccent: '#333A47',
+  orange: '#F97316',       // --verified
   orangeHover: '#EA6A0C',
-  green: '#22c55e',
-  amber: '#fbbf24',
-  blue: '#8b8cf8',
-  red: '#E5484D',
-  primary: '#f8f8f8',
-  secondary: '#8b8fa8',
-  muted: '#4b5063',
+  red: '#E5484D',          // --attention
+  redDimText: '#D0888C',   // dimmed attention — readable text on graphite
+  primary: '#F2F4F8',      // --ink-primary
+  secondary: '#9AA3B2',    // --ink-secondary
+  muted: '#5F6774',
+  voice: 'var(--font-voice), sans-serif',   // Said
+  evidence: 'var(--font-evidence), monospace', // Recorded — every datum
+}
+
+// Clerk UserButton themed to the Bible palette — purple is banned. Function
+// untouched; this only recolors the avatar ring and the popover surfaces.
+const CLERK_APPEARANCE = {
+  variables: {
+    colorPrimary: '#F97316',
+    colorBackground: '#171A21',
+    colorText: '#F2F4F8',
+    colorTextSecondary: '#9AA3B2',
+    colorInputBackground: '#0C0E12',
+    colorInputText: '#F2F4F8',
+    colorNeutral: '#F2F4F8',
+    borderRadius: '8px',
+  },
+  elements: {
+    userButtonAvatarBox: { border: '1px solid #262B35' },
+    userButtonPopoverCard: { background: '#171A21', border: '1px solid #262B35' },
+  },
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -103,20 +125,23 @@ function mapDbToSubmission(row: DbRow): Submission {
 const STATUS_OPTIONS: (Status | 'All')[] = ['All', 'Compliant', 'Issues Found', 'Expiring Soon', 'Pending Review']
 const DATE_OPTIONS = ['This Month', 'Last 3 Months', 'This Year', 'All Time']
 
+// Status semantics (Design Bible §Color): verified/compliant = earned orange;
+// failures = attention red; expiring = dimmed attention; pending = neutral ink.
 function statusStyle(status: Status): { bg: string; color: string; border: string } {
   switch (status) {
-    case 'Compliant':      return { bg: 'rgba(34,197,94,0.09)',  color: T.green,  border: 'rgba(34,197,94,0.22)'  }
-    case 'Issues Found':   return { bg: 'rgba(249,115,22,0.09)',  color: T.orange, border: 'rgba(249,115,22,0.22)'  }
-    case 'Expiring Soon':  return { bg: 'rgba(251,191,36,0.09)', color: T.amber,  border: 'rgba(251,191,36,0.22)' }
-    case 'Pending Review': return { bg: 'rgba(139,140,248,0.09)',color: T.blue,   border: 'rgba(139,140,248,0.22)'}
+    case 'Compliant':      return { bg: 'rgba(249,115,22,0.08)', color: T.orange,     border: 'rgba(249,115,22,0.35)' }
+    case 'Issues Found':   return { bg: 'rgba(229,72,77,0.08)',  color: T.red,        border: 'rgba(229,72,77,0.35)'  }
+    case 'Expiring Soon':  return { bg: 'rgba(229,72,77,0.05)',  color: T.redDimText, border: 'rgba(229,72,77,0.22)'  }
+    case 'Pending Review': return { bg: 'transparent',           color: T.secondary,  border: T.border                }
   }
 }
 
+// A passing score is a verified state (orange); a failing score is attention
+// (red); the middle stays neutral ink — the Bible has no green tiers.
 function scoreColor(score: number | null): string {
   if (score === null) return T.muted
-  if (score >= 90) return T.green
-  if (score >= 80) return '#86efac'
-  if (score >= 70) return T.orange
+  if (score >= 90) return T.orange
+  if (score >= 70) return T.secondary
   return T.red
 }
 
@@ -127,7 +152,7 @@ function StatusBadge({ status }: { status: Status }) {
   return (
     <span style={{
       background: s.bg, color: s.color, border: `1px solid ${s.border}`,
-      borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
+      borderRadius: 2, padding: '3px 10px', fontSize: 11, fontFamily: T.evidence, whiteSpace: 'nowrap',
     }}>
       {status}
     </span>
@@ -153,7 +178,7 @@ function FilterSelect({
           appearance: 'none', outline: 'none', minWidth: 148,
           transition: 'border-color 0.15s',
         }}
-        onFocus={e => (e.target.style.borderColor = T.orange)}
+        onFocus={e => (e.target.style.borderColor = T.borderAccent)}
         onBlur={e => (e.target.style.borderColor = T.border)}
       >
         {options.map(o => <option key={o} value={o}>{o}</option>)}
@@ -230,8 +255,8 @@ export default function SubmissionsPage() {
   return (
     <div style={{
       display: 'flex', minHeight: '100vh',
-      background: T.bg, fontFamily: 'Inter, -apple-system, sans-serif',
-      color: T.primary,
+      background: T.bg, fontFamily: T.voice,
+      color: T.primary, position: 'relative', isolation: 'isolate',
     }}>
       <style>{`
         @keyframes fadeSlideUp {
@@ -240,8 +265,20 @@ export default function SubmissionsPage() {
         }
         .pre-animate { opacity: 0; }
         .row-animate { animation: fadeSlideUp 0.36s ease both; }
-        select option { background: #13131f; color: #f8f8f8; }
+        select option { background: #171A21; color: #F2F4F8; }
+
+        /* Page ledger-grid — same 24px hairline texture as the landing,
+           dashboard, and vendor pages, z -1 inside the isolated root: above
+           the carbon ground, below all content. */
+        .page-ledger-grid {
+          position: absolute; inset: 0; z-index: -1; pointer-events: none;
+          --grid-line: rgba(154,163,178, 0.06);
+          background-image:
+            repeating-linear-gradient(to bottom, var(--grid-line) 0, var(--grid-line) 1px, transparent 1px, transparent 24px),
+            repeating-linear-gradient(to right,  var(--grid-line) 0, var(--grid-line) 1px, transparent 1px, transparent 24px);
+        }
       `}</style>
+      <div className="page-ledger-grid" aria-hidden="true" />
 
       <Sidebar />
 
@@ -255,7 +292,7 @@ export default function SubmissionsPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div>
-            <h1 style={{ fontSize: 16, fontWeight: 700, color: T.primary, margin: 0, lineHeight: 1.2 }}>
+            <h1 style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em', color: T.primary, margin: 0, lineHeight: 1.2 }}>
               Submissions
             </h1>
             <p style={{ fontSize: 12, color: T.secondary, margin: 0 }}>
@@ -269,7 +306,6 @@ export default function SubmissionsPage() {
               background: T.orange, color: '#fff', textDecoration: 'none',
               borderRadius: 8, padding: '8px 16px',
               fontSize: 13, fontWeight: 600,
-              boxShadow: '0 2px 12px rgba(249,115,22,0.25)',
               transition: 'background 0.15s, transform 0.1s',
             }}
               onMouseEnter={e => { e.currentTarget.style.background = T.orangeHover; e.currentTarget.style.transform = 'translateY(-1px)' }}
@@ -285,7 +321,7 @@ export default function SubmissionsPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: T.secondary, transition: 'border-color 0.15s, color 0.15s',
             }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = T.orange; e.currentTarget.style.color = T.primary }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderAccent; e.currentTarget.style.color = T.primary }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.secondary }}
             >
               <Bell size={17} />
@@ -296,7 +332,7 @@ export default function SubmissionsPage() {
               }} />
             </button>
 
-            <UserButton />
+            <UserButton appearance={CLERK_APPEARANCE} />
           </div>
         </header>
 
@@ -324,7 +360,7 @@ export default function SubmissionsPage() {
                   fontSize: 13, color: T.primary, outline: 'none',
                   transition: 'border-color 0.15s', boxSizing: 'border-box',
                 }}
-                onFocus={e => (e.target.style.borderColor = T.orange)}
+                onFocus={e => (e.target.style.borderColor = T.borderAccent)}
                 onBlur={e => (e.target.style.borderColor = T.border)}
               />
             </div>
@@ -353,11 +389,14 @@ export default function SubmissionsPage() {
           <div style={{
             display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap',
           }}>
+            {/* Count colors carry the Bible semantics: verified = earned
+                orange, failures = attention red, pending/unresolved = neutral
+                ink (it is neither good nor bad), total = primary ink. */}
             {[
-              { label: 'Total',        value: total,     pct: null,                                              color: T.secondary },
-              { label: 'Compliant',    value: compliant, pct: total > 0 ? Math.round(compliant/total*100) : 0,  color: T.green    },
-              { label: 'Issues Found', value: issues,    pct: total > 0 ? Math.round(issues/total*100)    : 0,  color: T.orange   },
-              { label: 'Pending',      value: pending,   pct: total > 0 ? Math.round(pending/total*100)   : 0,  color: T.blue     },
+              { label: 'Total',        value: total,     pct: null,                                              color: T.primary   },
+              { label: 'Compliant',    value: compliant, pct: total > 0 ? Math.round(compliant/total*100) : 0,  color: T.orange    },
+              { label: 'Issues Found', value: issues,    pct: total > 0 ? Math.round(issues/total*100)    : 0,  color: T.red       },
+              { label: 'Pending',      value: pending,   pct: total > 0 ? Math.round(pending/total*100)   : 0,  color: T.secondary },
             ].map(stat => (
               <div key={stat.label} style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8,
@@ -365,13 +404,12 @@ export default function SubmissionsPage() {
                 borderRadius: 8, padding: '7px 14px',
               }}>
                 <span style={{ fontSize: 12, color: T.secondary }}>{stat.label}</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: stat.color }}>{stat.value}</span>
+                <span style={{ fontSize: 13, fontWeight: 500, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', color: stat.color }}>{stat.value}</span>
                 {stat.pct !== null && (
                   <span style={{
-                    fontSize: 11, color: T.muted,
-                    background: 'rgba(255,255,255,0.04)',
+                    fontSize: 11, color: T.muted, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums',
                     border: `1px solid ${T.border}`,
-                    borderRadius: 4, padding: '1px 6px',
+                    borderRadius: 2, padding: '1px 6px',
                   }}>
                     {stat.pct}%
                   </span>
@@ -383,7 +421,7 @@ export default function SubmissionsPage() {
           {/* Table */}
           <div style={{
             background: T.card, border: `1px solid ${T.border}`,
-            borderRadius: 12, overflow: 'hidden',
+            borderRadius: 8, overflow: 'hidden',
           }}>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -413,29 +451,28 @@ export default function SubmissionsPage() {
                         transition: 'background 0.15s',
                       }}
                       onClick={() => { window.location.href = `/report/${row.id}` }}
-                      onMouseEnter={e => (e.currentTarget.style.background = '#1a1a2e')}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#1C2029')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
                       {/* Vendor */}
                       <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                           <div style={{
-                            width: 28, height: 28, borderRadius: 7, flexShrink: 0,
-                            background: 'rgba(249,115,22,0.08)',
-                            border: '1px solid rgba(249,115,22,0.15)',
+                            width: 28, height: 28, borderRadius: 2, flexShrink: 0,
+                            border: `1px solid ${T.border}`,
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                           }}>
-                            <FileText size={12} color={T.orange} style={{ opacity: 0.7 }} />
+                            <FileText size={12} color={T.secondary} style={{ opacity: 0.7 }} />
                           </div>
                           <Link
                             href={row.vendorId ? `/vendors/${row.vendorId}` : '#'}
                             onClick={e => e.stopPropagation()}
                             style={{
                               fontSize: 13, fontWeight: 600, color: T.primary,
-                              textDecoration: 'none', transition: 'color 0.15s',
+                              textDecoration: 'none', transition: 'text-decoration-color 0.15s',
                             }}
-                            onMouseEnter={e => (e.currentTarget.style.color = T.orange)}
-                            onMouseLeave={e => (e.currentTarget.style.color = T.primary)}
+                            onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                            onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                           >
                             {row.vendor}
                           </Link>
@@ -443,12 +480,12 @@ export default function SubmissionsPage() {
                       </td>
 
                       {/* Uploaded */}
-                      <td style={{ padding: '14px 16px', fontSize: 12, color: T.secondary, whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '14px 16px', fontSize: 12, color: T.secondary, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                         {row.uploaded}
                       </td>
 
                       {/* Policy period */}
-                      <td style={{ padding: '14px 16px', fontSize: 12, color: row.policyPeriod === 'Pending' ? T.muted : T.secondary, whiteSpace: 'nowrap', fontStyle: row.policyPeriod === 'Pending' ? 'italic' : 'normal' }}>
+                      <td style={{ padding: '14px 16px', fontSize: 12, color: row.policyPeriod === 'Pending' ? T.muted : T.secondary, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', fontStyle: row.policyPeriod === 'Pending' ? 'italic' : 'normal' }}>
                         {row.policyPeriod}
                       </td>
 
@@ -460,8 +497,8 @@ export default function SubmissionsPage() {
                       {/* Issues */}
                       <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                         <span style={{
-                          fontSize: 13, fontWeight: 700,
-                          color: row.issues > 0 ? T.orange : T.muted,
+                          fontSize: 13, fontWeight: 500, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums',
+                          color: row.issues > 0 ? T.red : T.muted,
                         }}>
                           {row.issues}
                         </span>
@@ -471,9 +508,8 @@ export default function SubmissionsPage() {
                       <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                         {row.score !== null ? (
                           <span style={{
-                            fontSize: 14, fontWeight: 800,
+                            fontSize: 14, fontWeight: 500, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums',
                             color: scoreColor(row.score),
-                            letterSpacing: '-0.3px',
                           }}>
                             {row.score}
                           </span>
@@ -490,14 +526,14 @@ export default function SubmissionsPage() {
                             display: 'inline-flex', alignItems: 'center', gap: 5,
                             background: 'rgba(255,255,255,0.04)', color: T.secondary,
                             border: `1px solid ${T.border}`,
-                            borderRadius: 6, padding: '6px 12px',
+                            borderRadius: 8, padding: '6px 12px',
                             fontSize: 12, fontWeight: 600, textDecoration: 'none',
                             whiteSpace: 'nowrap', transition: 'all 0.15s',
                           }}
                           onMouseEnter={e => {
-                            e.currentTarget.style.background = 'rgba(249,115,22,0.10)'
-                            e.currentTarget.style.color = T.orange
-                            e.currentTarget.style.borderColor = 'rgba(249,115,22,0.25)'
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.08)'
+                            e.currentTarget.style.color = T.primary
+                            e.currentTarget.style.borderColor = T.borderAccent
                           }}
                           onMouseLeave={e => {
                             e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
@@ -529,7 +565,6 @@ export default function SubmissionsPage() {
                   background: T.orange, color: '#fff', textDecoration: 'none',
                   borderRadius: 8, padding: '10px 20px',
                   fontSize: 13, fontWeight: 600,
-                  boxShadow: '0 2px 12px rgba(249,115,22,0.25)',
                 }}>
                   <Upload size={14} /> Upload COI
                 </Link>
@@ -559,7 +594,7 @@ export default function SubmissionsPage() {
               padding: '11px 16px', borderTop: `1px solid ${T.border}`,
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
-              <span style={{ fontSize: 12, color: T.muted }}>
+              <span style={{ fontSize: 12, color: T.muted, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums' }}>
                 Showing {filtered.length} of {submissions.length} submissions
               </span>
               <Link href="/upload" style={{

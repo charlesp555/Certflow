@@ -16,21 +16,45 @@ import { createClerkSupabaseClient } from '@/lib/supabase'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
+// Design Bible tokens (see app/page.tsx appendix) — carbon ground, graphite
+// surfaces, seam hairlines. Orange is EARNED: verified/passing states + the
+// primary CTA only. Failures carry --attention red; expiring is a dimmed
+// attention (the Bible has no warning color). No green, no purple.
 const T = {
-  bg:          '#0a0a0f',
-  surface:     '#0f0f17',
-  card:        '#13131f',
-  border:      '#1a1a2e',
-  borderAccent:'#2a2a3e',
-  orange:      '#F97316',
+  bg:          '#0C0E12', // --carbon
+  surface:     '#0C0E12', // inset wells sit back on carbon
+  card:        '#171A21', // --graphite
+  border:      '#262B35', // --seam
+  borderAccent:'#333A47',
+  orange:      '#F97316', // --verified
   orangeHover: '#EA6A0C',
-  green:       '#22c55e',
-  amber:       '#fbbf24',
-  red:         '#E5484D',
-  blue:        '#8b8cf8',
-  primary:     '#f8f8f8',
-  secondary:   '#8b8fa8',
-  muted:       '#4b5063',
+  red:         '#E5484D', // --attention
+  redDim:      'rgba(229,72,77,0.55)', // dimmed attention — fills/strokes
+  redDimText:  '#D0888C',              // dimmed attention — readable text
+  primary:     '#F2F4F8', // --ink-primary
+  secondary:   '#9AA3B2', // --ink-secondary
+  muted:       '#5F6774',
+  voice:       'var(--font-voice), sans-serif',      // Said
+  evidence:    'var(--font-evidence), monospace',    // Recorded — every datum
+}
+
+// Clerk UserButton themed to the Bible palette — purple is banned. Function
+// untouched; this only recolors the avatar ring and the popover surfaces.
+const CLERK_APPEARANCE = {
+  variables: {
+    colorPrimary: '#F97316',
+    colorBackground: '#171A21',
+    colorText: '#F2F4F8',
+    colorTextSecondary: '#9AA3B2',
+    colorInputBackground: '#0C0E12',
+    colorInputText: '#F2F4F8',
+    colorNeutral: '#F2F4F8',
+    borderRadius: '8px',
+  },
+  elements: {
+    userButtonAvatarBox: { border: '1px solid #262B35' },
+    userButtonPopoverCard: { background: '#171A21', border: '1px solid #262B35' },
+  },
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -107,13 +131,15 @@ const VENDOR_TYPE_OPTIONS = ['Plumbing', 'Electrical', 'HVAC', 'Roofing', 'Janit
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// Verified = earned orange; failures (expired, issues) = attention red;
+// expiring = dimmed attention; pending = neutral ink. (Design Bible §Color.)
 function vendorStatusInfo(status: string | null) {
   switch (status) {
-    case 'active':        return { label: 'Compliant',      color: T.green,  bg: 'rgba(34,197,94,0.09)',    border: 'rgba(34,197,94,0.22)'   }
-    case 'expiring':      return { label: 'Expiring Soon',  color: T.amber,  bg: 'rgba(251,191,36,0.09)',   border: 'rgba(251,191,36,0.22)'  }
-    case 'expired':       return { label: 'Expired',        color: T.red,    bg: 'rgba(229,72,77,0.09)',    border: 'rgba(229,72,77,0.22)'   }
-    case 'non_compliant': return { label: 'Issues Found',   color: T.orange, bg: 'rgba(249,115,22,0.09)',   border: 'rgba(249,115,22,0.22)'   }
-    default:              return { label: 'Pending Review', color: T.blue,   bg: 'rgba(139,140,248,0.09)', border: 'rgba(139,140,248,0.22)' }
+    case 'active':        return { label: 'Compliant',      color: T.orange,     bg: 'rgba(249,115,22,0.08)', border: 'rgba(249,115,22,0.35)' }
+    case 'expiring':      return { label: 'Expiring Soon',  color: T.redDimText, bg: 'rgba(229,72,77,0.05)',  border: 'rgba(229,72,77,0.22)'  }
+    case 'expired':       return { label: 'Expired',        color: T.red,        bg: 'rgba(229,72,77,0.08)',  border: 'rgba(229,72,77,0.35)'  }
+    case 'non_compliant': return { label: 'Issues Found',   color: T.red,        bg: 'rgba(229,72,77,0.08)',  border: 'rgba(229,72,77,0.35)'  }
+    default:              return { label: 'Pending Review', color: T.secondary,  bg: 'transparent',           border: T.border                }
   }
 }
 
@@ -122,11 +148,11 @@ function vendorStatusInfo(status: string | null) {
 // 2-value `vendor.status` handled by vendorStatusInfo above.
 function overallStatusInfo(status: string | null) {
   switch (status) {
-    case 'COMPLIANT':     return { label: 'Compliant',     color: T.green,  bg: 'rgba(34,197,94,0.09)',   border: 'rgba(34,197,94,0.22)'  }
-    case 'EXPIRING':      return { label: 'Expiring Soon',  color: T.amber,  bg: 'rgba(251,191,36,0.09)',  border: 'rgba(251,191,36,0.22)' }
-    case 'EXPIRED':       return { label: 'Expired',        color: T.red,    bg: 'rgba(229,72,77,0.09)',   border: 'rgba(229,72,77,0.22)'  }
-    case 'NON_COMPLIANT': return { label: 'Non-Compliant',  color: T.orange, bg: 'rgba(249,115,22,0.09)',   border: 'rgba(249,115,22,0.22)'  }
-    default:               return { label: 'Pending Review', color: T.blue,  bg: 'rgba(139,140,248,0.09)', border: 'rgba(139,140,248,0.22)' }
+    case 'COMPLIANT':     return { label: 'Compliant',      color: T.orange,     bg: 'rgba(249,115,22,0.08)', border: 'rgba(249,115,22,0.35)' }
+    case 'EXPIRING':      return { label: 'Expiring Soon',  color: T.redDimText, bg: 'rgba(229,72,77,0.05)',  border: 'rgba(229,72,77,0.22)'  }
+    case 'EXPIRED':       return { label: 'Expired',        color: T.red,        bg: 'rgba(229,72,77,0.08)',  border: 'rgba(229,72,77,0.35)'  }
+    case 'NON_COMPLIANT': return { label: 'Non-Compliant',  color: T.red,        bg: 'rgba(229,72,77,0.08)',  border: 'rgba(229,72,77,0.35)'  }
+    default:              return { label: 'Pending Review', color: T.secondary,  bg: 'transparent',           border: T.border                }
   }
 }
 
@@ -141,10 +167,15 @@ function findingCategory(coverage: string): 'endorsement' | 'limit' {
   return ENDORSEMENT_COVERAGES.has(coverage) ? 'endorsement' : 'limit'
 }
 
+// Every open finding is a FAILURE, so both buckets carry --attention red —
+// orange never marks a problem (Design Bible §Color). Endorsement failures
+// use the dimmed variant to read as lower severity than a hard limit failure.
+// The red lives in the finding's text and icon only; the card itself stays
+// flat graphite with a seam hairline — no tinted/glowing backgrounds.
 function findingStyle(category: 'endorsement' | 'limit') {
   return category === 'endorsement'
-    ? { color: T.orange, bg: 'rgba(249,115,22,0.06)',  border: 'rgba(249,115,22,0.22)'  }
-    : { color: T.red,    bg: 'rgba(229,72,77,0.06)',  border: 'rgba(229,72,77,0.22)'  }
+    ? { color: T.redDimText, bg: T.card, border: T.border }
+    : { color: T.red,        bg: T.card, border: T.border }
 }
 
 function findingRecommendation(category: 'endorsement' | 'limit'): string {
@@ -235,8 +266,8 @@ function Toast({ message, visible }: { message: string; visible: boolean }) {
   return (
     <div style={{
       position: 'fixed', top: 24, right: 24, zIndex: 300,
-      background: T.card, border: '1px solid rgba(34,197,94,0.30)',
-      borderRadius: 10, padding: '12px 18px',
+      background: T.card, border: `1px solid ${T.border}`,
+      borderRadius: 8, padding: '12px 18px',
       display: 'flex', alignItems: 'center', gap: 10,
       boxShadow: '0 8px 32px rgba(0,0,0,0.55)',
       transition: 'opacity 0.25s ease, transform 0.25s ease',
@@ -244,7 +275,7 @@ function Toast({ message, visible }: { message: string; visible: boolean }) {
       transform: visible ? 'translateY(0)' : 'translateY(-12px)',
       pointerEvents: 'none',
     }}>
-      <CheckCircle2 size={16} color={T.green} />
+      <CheckCircle2 size={16} color={T.orange} />
       <span style={{ fontSize: 13, fontWeight: 600, color: T.primary }}>{message}</span>
     </div>
   )
@@ -259,7 +290,7 @@ function StatTile({ label, value, valueColor }: { label: string; value: React.Re
   return (
     <div>
       <p style={{ fontSize: 10, color: T.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 8px' }}>{label}</p>
-      <p style={{ fontSize: 20, fontWeight: 700, color: valueColor ?? T.primary, margin: 0 }}>{value}</p>
+      <p style={{ fontSize: 20, fontWeight: 500, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', color: valueColor ?? T.primary, margin: 0 }}>{value}</p>
     </div>
   )
 }
@@ -272,13 +303,13 @@ function VerificationSummary({ sub }: { sub: Submission }) {
   const total  = hasCounts ? (passed as number) + (failed as number) : 0
 
   return (
-    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 24 }}>
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: 24 }}>
       <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: '0 0 20px' }}>Verification Summary</h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
         <StatTile
           label="Overall Status"
           value={
-            <span style={{ display: 'inline-block', background: info.bg, color: info.color, border: `1px solid ${info.border}`, borderRadius: 6, padding: '3px 10px', fontSize: 13, fontWeight: 600 }}>
+            <span style={{ display: 'inline-block', background: info.bg, color: info.color, border: `1px solid ${info.border}`, borderRadius: 2, padding: '3px 10px', fontSize: 12 }}>
               {info.label}
             </span>
           }
@@ -288,7 +319,7 @@ function VerificationSummary({ sub }: { sub: Submission }) {
         <StatTile
           label="Open Findings"
           value={failed !== null ? failed : '—'}
-          valueColor={failed !== null && failed > 0 ? T.red : T.green}
+          valueColor={failed !== null && failed > 0 ? T.red : T.orange}
         />
       </div>
     </div>
@@ -305,7 +336,7 @@ function VerificationSummary({ sub }: { sub: Submission }) {
 function OpenFindings({ sub }: { sub: Submission }) {
   if (sub.requirements_check === null) {
     return (
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 24 }}>
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: 24 }}>
         <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: '0 0 8px' }}>Open Findings</h3>
         <p style={{ fontSize: 13, color: T.muted, margin: 0 }}>
           Findings data isn&apos;t available for this older submission.
@@ -318,10 +349,10 @@ function OpenFindings({ sub }: { sub: Submission }) {
 
   if (failed.length === 0) {
     return (
-      <div style={{ background: 'rgba(34,197,94,0.05)', border: '1px solid rgba(34,197,94,0.20)', borderRadius: 12, padding: '24px', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <CheckCircle2 size={20} color={T.green} style={{ flexShrink: 0 }} />
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: '24px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <CheckCircle2 size={20} color={T.orange} style={{ flexShrink: 0 }} />
         <div>
-          <p style={{ fontSize: 14, fontWeight: 700, color: T.green, margin: '0 0 3px' }}>All requirements met</p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: T.orange, margin: '0 0 3px' }}>All requirements met</p>
           <p style={{ fontSize: 13, color: T.secondary, margin: 0 }}>No open findings on this verification.</p>
         </div>
       </div>
@@ -336,19 +367,19 @@ function OpenFindings({ sub }: { sub: Submission }) {
           const category = findingCategory(req.coverage)
           const style    = findingStyle(category)
           return (
-            <div key={i} style={{ background: style.bg, border: `1px solid ${style.border}`, borderRadius: 12, padding: '18px 20px' }}>
+            <div key={i} style={{ background: style.bg, border: `1px solid ${style.border}`, borderRadius: 8, padding: '18px 20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 12 }}>
                 <AlertTriangle size={15} color={style.color} style={{ flexShrink: 0 }} />
-                <span style={{ fontSize: 14, fontWeight: 700, color: T.primary }}>{req.coverage}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: T.primary }}>{req.coverage}</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                 <div>
                   <p style={{ fontSize: 10, color: T.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 4px' }}>Required</p>
-                  <p style={{ fontSize: 13, color: T.primary, margin: 0 }}>{req.minimum || '—'}</p>
+                  <p style={{ fontSize: 13, color: T.primary, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', margin: 0 }}>{req.minimum || '—'}</p>
                 </div>
                 <div>
                   <p style={{ fontSize: 10, color: T.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 4px' }}>Actual</p>
-                  <p style={{ fontSize: 13, color: style.color, fontWeight: 600, margin: 0 }}>{req.actual || '—'}</p>
+                  <p style={{ fontSize: 13, color: style.color, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', margin: 0 }}>{req.actual || '—'}</p>
                 </div>
               </div>
               <p style={{ fontSize: 13, color: T.secondary, lineHeight: 1.6, margin: '0 0 10px' }}>
@@ -378,7 +409,7 @@ function VerifiedRequirements({ sub }: { sub: Submission }) {
   if (passed.length === 0) return null
 
   return (
-    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, overflow: 'hidden' }}>
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, overflow: 'hidden' }}>
       <button
         onClick={() => setOpen(o => !o)}
         style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: 'inherit' }}
@@ -401,10 +432,10 @@ function VerifiedRequirements({ sub }: { sub: Submission }) {
               {passed.map((req, i) => (
                 <tr key={i}>
                   <td style={{ padding: '12px 20px', fontSize: 13, fontWeight: 600, color: T.primary, borderBottom: i < passed.length - 1 ? `1px solid ${T.border}` : 'none' }}>{req.coverage}</td>
-                  <td style={{ padding: '12px 20px', fontSize: 12, color: T.secondary, borderBottom: i < passed.length - 1 ? `1px solid ${T.border}` : 'none' }}>{req.minimum || '—'}</td>
-                  <td style={{ padding: '12px 20px', fontSize: 12, color: T.secondary, borderBottom: i < passed.length - 1 ? `1px solid ${T.border}` : 'none' }}>{req.actual || '—'}</td>
+                  <td style={{ padding: '12px 20px', fontSize: 12, color: T.secondary, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', borderBottom: i < passed.length - 1 ? `1px solid ${T.border}` : 'none' }}>{req.minimum || '—'}</td>
+                  <td style={{ padding: '12px 20px', fontSize: 12, color: T.secondary, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', borderBottom: i < passed.length - 1 ? `1px solid ${T.border}` : 'none' }}>{req.actual || '—'}</td>
                   <td style={{ padding: '12px 20px', textAlign: 'right', borderBottom: i < passed.length - 1 ? `1px solid ${T.border}` : 'none' }}>
-                    <Check size={14} color={T.green} strokeWidth={2.5} />
+                    <Check size={14} color={T.orange} strokeWidth={2.5} />
                   </td>
                 </tr>
               ))}
@@ -439,7 +470,7 @@ function CopyRequestButton({ vendorName, failedReqs, contact }: { vendorName: st
     <button
       type="button"
       onClick={handleCopy}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0, background: state === 'copied' ? T.green : T.orange, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 2px 12px rgba(249,115,22,0.28)', transition: 'background 0.15s, transform 0.1s' }}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0, background: T.orange, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'background 0.15s, transform 0.1s' }}
       onMouseEnter={e => { if (state === 'idle') { e.currentTarget.style.background = T.orangeHover } ; e.currentTarget.style.transform = 'translateY(-1px)' }}
       onMouseLeave={e => { if (state === 'idle') { e.currentTarget.style.background = T.orange } ; e.currentTarget.style.transform = 'translateY(0)' }}
     >
@@ -489,7 +520,7 @@ function VendorContactCard({ vendor, userId, onSaved, showToast }: { vendor: Ven
   const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: T.secondary, margin: '0 0 6px' }
 
   return (
-    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: '20px 24px' }}>
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: '20px 24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
         <MessageSquare size={15} color={T.muted} />
         <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: 0 }}>Vendor Contact</h3>
@@ -542,7 +573,7 @@ function VendorContactCard({ vendor, userId, onSaved, showToast }: { vendor: Ven
 function OverviewTab({ latestSub, vendorName, vendorEmail, vendorContactName }: { latestSub: Submission | null; vendorName: string; vendorEmail: string | null; vendorContactName: string | null }) {
   if (!latestSub) {
     return (
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 40, textAlign: 'center' }}>
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: 40, textAlign: 'center' }}>
         <FileText size={36} color={T.muted} style={{ marginBottom: 16 }} />
         <h3 style={{ fontSize: 16, fontWeight: 700, color: T.primary, margin: '0 0 10px' }}>No COI uploaded yet</h3>
         <p style={{ fontSize: 14, color: T.secondary, margin: '0 0 0', lineHeight: 1.6 }}>
@@ -569,11 +600,11 @@ function OverviewTab({ latestSub, vendorName, vendorEmail, vendorContactName }: 
           there's no vendor email on file and no email service wired up, so the
           PM pastes it into their own mail client, desktop or webmail. */}
       {failedCount !== null && failedCount > 0 && (
-        <div style={{ background: 'rgba(249,115,22,0.05)', border: '1px solid rgba(249,115,22,0.20)', borderRadius: 12, padding: '20px 24px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20 }}>
+        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: '20px 24px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-            <AlertTriangle size={18} color={T.orange} style={{ flexShrink: 0, marginTop: 2 }} />
+            <AlertTriangle size={18} color={T.red} style={{ flexShrink: 0, marginTop: 2 }} />
             <div>
-              <p style={{ fontSize: 13, fontWeight: 700, color: T.orange, margin: '0 0 5px' }}>Action Required</p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: T.red, margin: '0 0 5px' }}>Action Required</p>
               <p style={{ fontSize: 13, color: T.secondary, lineHeight: 1.65, margin: 0 }}>
                 {firstFailed ? `${firstFailed.coverage} does not meet the minimum` : 'A requirement does not meet the minimum'}
                 {failedCount > 1 ? ` and ${failedCount - 1} other issue${failedCount - 1 !== 1 ? 's' : ''}.` : '.'}
@@ -602,8 +633,8 @@ function DocumentsTab({ vendor, submissions, showToast, onUploadClick }: { vendo
         onDragLeave={() => setDragOver(false)}
         onDrop={e => { e.preventDefault(); setDragOver(false); onUploadClick() }}
       >
-        <div style={{ border: `2px dashed ${dragOver ? T.orange : 'rgba(249,115,22,0.30)'}`, borderRadius: 12, padding: '36px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, background: dragOver ? 'rgba(249,115,22,0.07)' : 'rgba(249,115,22,0.025)', cursor: 'pointer', transition: 'all 0.2s' }}>
-          <div style={{ width: 46, height: 46, borderRadius: 11, background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ border: `2px dashed ${dragOver ? T.orange : 'rgba(249,115,22,0.30)'}`, borderRadius: 8, padding: '36px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, background: dragOver ? 'rgba(249,115,22,0.07)' : 'rgba(249,115,22,0.025)', cursor: 'pointer', transition: 'all 0.2s' }}>
+          <div style={{ width: 46, height: 46, borderRadius: 8, background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Upload size={20} color={T.orange} />
           </div>
           <p style={{ fontSize: 14, fontWeight: 600, color: T.primary, margin: 0 }}>Drop new COI here or click to browse</p>
@@ -611,7 +642,7 @@ function DocumentsTab({ vendor, submissions, showToast, onUploadClick }: { vendo
         </div>
       </div>
 
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, overflow: 'hidden' }}>
         <div style={{ padding: '16px 20px', borderBottom: `1px solid ${T.border}` }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: 0 }}>Uploaded Documents</h3>
         </div>
@@ -640,38 +671,38 @@ function DocumentsTab({ vendor, submissions, showToast, onUploadClick }: { vendo
                     ? `${ar.effectiveDate} – ${ar.expirationDate}`
                     : ar?.expirationDate || 'Pending'
                   const stMap: Record<string, { c: string; bg: string; b: string }> = {
-                    'Compliant':     { c: T.green,  bg: 'rgba(34,197,94,0.09)',    b: 'rgba(34,197,94,0.22)'   },
-                    'Issues Found':  { c: T.orange, bg: 'rgba(249,115,22,0.09)',   b: 'rgba(249,115,22,0.22)'   },
-                    'Expiring Soon': { c: T.amber,  bg: 'rgba(251,191,36,0.09)',  b: 'rgba(251,191,36,0.22)'  },
+                    'Compliant':     { c: T.orange,     bg: 'rgba(249,115,22,0.08)', b: 'rgba(249,115,22,0.35)' },
+                    'Issues Found':  { c: T.red,        bg: 'rgba(229,72,77,0.08)',  b: 'rgba(229,72,77,0.35)'  },
+                    'Expiring Soon': { c: T.redDimText, bg: 'rgba(229,72,77,0.05)',  b: 'rgba(229,72,77,0.22)'  },
                   }
-                  const st = stMap[sub.status ?? ''] ?? { c: T.blue, bg: 'rgba(139,140,248,0.09)', b: 'rgba(139,140,248,0.22)' }
+                  const st = stMap[sub.status ?? ''] ?? { c: T.secondary, bg: 'transparent', b: T.border }
 
                   return (
                     <tr key={sub.id} style={{ transition: 'background 0.12s', borderBottom: i < submissions.length - 1 ? `1px solid ${T.border}` : 'none' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = '#1a1a2e')}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#1C2029')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
                       <td style={{ padding: '16px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ width: 32, height: 32, borderRadius: 7, flexShrink: 0, background: 'rgba(249,115,22,0.09)', border: '1px solid rgba(249,115,22,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <FileText size={14} color={T.orange} />
+                          <div style={{ width: 32, height: 32, borderRadius: 2, flexShrink: 0, border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <FileText size={14} color={T.secondary} />
                           </div>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: T.primary }}>COI_{slug}_{ds}.pdf</span>
+                          <span style={{ fontSize: 12, fontFamily: T.evidence, color: T.primary }}>COI_{slug}_{ds}.pdf</span>
                         </div>
                       </td>
-                      <td style={{ padding: '16px', fontSize: 12, color: T.secondary, whiteSpace: 'nowrap' }}>{fmtDate(sub.created_at)}</td>
-                      <td style={{ padding: '16px', fontSize: 12, color: T.secondary, whiteSpace: 'nowrap' }}>{period}</td>
+                      <td style={{ padding: '16px', fontSize: 12, color: T.secondary, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{fmtDate(sub.created_at)}</td>
+                      <td style={{ padding: '16px', fontSize: 12, color: T.secondary, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{period}</td>
                       <td style={{ padding: '16px' }}>
-                        <span style={{ background: st.bg, color: st.c, border: `1px solid ${st.b}`, borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}>
+                        <span style={{ background: st.bg, color: st.c, border: `1px solid ${st.b}`, borderRadius: 2, padding: '3px 10px', fontSize: 11, fontFamily: T.evidence }}>
                           {sub.status || 'Pending Review'}
                         </span>
                       </td>
                       <td style={{ padding: '16px' }}>
                         <button
                           onClick={() => showToast('Document preview coming soon')}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(249,115,22,0.08)', color: T.orange, border: '1px solid rgba(249,115,22,0.20)', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'background 0.15s' }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(249,115,22,0.16)')}
-                          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(249,115,22,0.08)')}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(255,255,255,0.04)', color: T.secondary, border: `1px solid ${T.border}`, borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'background 0.15s, color 0.15s' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = T.primary }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = T.secondary }}
                         >
                           <Eye size={12} /> View
                         </button>
@@ -699,7 +730,7 @@ function DocumentsTab({ vendor, submissions, showToast, onUploadClick }: { vendo
 function VerificationHistoryTab({ submissions }: { submissions: Submission[] }) {
   if (submissions.length === 0) {
     return (
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 40, textAlign: 'center' }}>
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: 40, textAlign: 'center' }}>
         <Clock size={32} color={T.muted} style={{ marginBottom: 12 }} />
         <p style={{ fontSize: 14, color: T.secondary, margin: 0 }}>No verifications yet.</p>
       </div>
@@ -707,7 +738,7 @@ function VerificationHistoryTab({ submissions }: { submissions: Submission[] }) 
   }
 
   return (
-    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 28 }}>
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: 28 }}>
       <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: '0 0 28px' }}>Verification History</h3>
       <div style={{ position: 'relative' }}>
         <div style={{ position: 'absolute', left: 11, top: 14, bottom: 14, width: 1, background: T.border }} />
@@ -730,26 +761,26 @@ function VerificationHistoryTab({ submissions }: { submissions: Submission[] }) 
                   {unavailable
                     ? <Clock size={10} color={T.muted} />
                     : sub.overall_status === 'COMPLIANT'
-                      ? <Check size={11} color={T.green} strokeWidth={2.5} />
+                      ? <Check size={11} color={T.orange} strokeWidth={2.5} />
                       : <AlertTriangle size={10} color={dotColor} />}
                 </div>
-                <div style={{ flex: 1, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, transition: 'border-color 0.15s' }}
+                <div style={{ flex: 1, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, transition: 'border-color 0.15s' }}
                   onMouseEnter={e => (e.currentTarget.style.borderColor = T.borderAccent)}
                   onMouseLeave={e => (e.currentTarget.style.borderColor = T.border)}
                 >
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                       {!unavailable && (
-                        <span style={{ background: info.bg, color: info.color, border: `1px solid ${info.border}`, borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}>
+                        <span style={{ background: info.bg, color: info.color, border: `1px solid ${info.border}`, borderRadius: 2, padding: '3px 10px', fontSize: 11, fontFamily: T.evidence }}>
                           {info.label}
                         </span>
                       )}
-                      <span style={{ fontSize: 13, fontWeight: 600, color: T.primary }}>{fmtDateLong(sub.created_at)}</span>
+                      <span style={{ fontSize: 12, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', color: T.primary }}>{fmtDateLong(sub.created_at)}</span>
                     </div>
                     {unavailable ? (
                       <p style={{ fontSize: 12, color: T.muted, fontStyle: 'italic', margin: 0 }}>Details unavailable for this submission</p>
                     ) : (
-                      <p style={{ fontSize: 12, color: T.secondary, margin: 0 }}>
+                      <p style={{ fontSize: 12, color: T.secondary, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', margin: 0 }}>
                         {hasCounts ? `Verified ${passed} / ${total} Requirements` : 'Requirements data unavailable'}
                         {' · '}
                         {failed !== null ? `${failed} Finding${failed !== 1 ? 's' : ''}` : '— Findings'}
@@ -758,9 +789,9 @@ function VerificationHistoryTab({ submissions }: { submissions: Submission[] }) 
                   </div>
                   <Link
                     href={`/report/${sub.id}`}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0, fontSize: 12, fontWeight: 600, color: T.orange, textDecoration: 'none', whiteSpace: 'nowrap', transition: 'color 0.15s' }}
-                    onMouseEnter={e => (e.currentTarget.style.color = T.orangeHover)}
-                    onMouseLeave={e => (e.currentTarget.style.color = T.orange)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0, fontSize: 12, fontWeight: 600, color: T.secondary, textDecoration: 'none', whiteSpace: 'nowrap', transition: 'color 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = T.primary)}
+                    onMouseLeave={e => (e.currentTarget.style.color = T.secondary)}
                   >
                     View Verification →
                   </Link>
@@ -794,7 +825,7 @@ function NotesTab() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 24 }}>
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: 24 }}>
         <h3 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: '0 0 6px' }}>Add Note</h3>
         <p style={{ fontSize: 12, color: T.muted, margin: '0 0 16px' }}>Internal notes — not visible to the vendor.</p>
         <textarea
@@ -802,8 +833,8 @@ function NotesTab() {
           onChange={e => setNoteText(e.target.value)}
           placeholder="Add notes about this vendor..."
           rows={4}
-          style={{ width: '100%', background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: '12px 14px', fontSize: 14, color: T.primary, outline: 'none', resize: 'vertical', fontFamily: 'Inter, -apple-system, sans-serif', lineHeight: 1.65, transition: 'border-color 0.15s', boxSizing: 'border-box' }}
-          onFocus={e => (e.target.style.borderColor = T.orange)}
+          style={{ width: '100%', background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: '12px 14px', fontSize: 14, color: T.primary, outline: 'none', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.65, transition: 'border-color 0.15s', boxSizing: 'border-box' }}
+          onFocus={e => (e.target.style.borderColor = T.borderAccent)}
           onBlur={e => (e.target.style.borderColor = T.border)}
         />
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
@@ -818,21 +849,21 @@ function NotesTab() {
           </button>
           {saveFeedback && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <CheckCircle2 size={14} color={T.green} />
-              <span style={{ fontSize: 13, color: T.green, fontWeight: 500 }}>Saved</span>
+              <CheckCircle2 size={14} color={T.orange} />
+              <span style={{ fontSize: 13, color: T.orange, fontWeight: 500 }}>Saved</span>
             </div>
           )}
         </div>
       </div>
       {notes.map((note, i) => (
-        <div key={i} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: '16px 18px', transition: 'border-color 0.15s' }}
+        <div key={i} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: '16px 18px', transition: 'border-color 0.15s' }}
           onMouseEnter={e => (e.currentTarget.style.borderColor = T.borderAccent)}
           onMouseLeave={e => (e.currentTarget.style.borderColor = T.border)}
         >
           <p style={{ fontSize: 14, color: T.secondary, lineHeight: 1.75, margin: '0 0 10px' }}>{note.text}</p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <Clock size={11} color={T.muted} />
-            <span style={{ fontSize: 11, color: T.muted }}>{note.timestamp}</span>
+            <span style={{ fontSize: 11, color: T.muted, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums' }}>{note.timestamp}</span>
           </div>
         </div>
       ))}
@@ -933,7 +964,7 @@ export default function VendorProfile() {
   ]
 
   const shell = (children: React.ReactNode) => (
-    <div style={{ display: 'flex', minHeight: '100vh', background: T.bg, fontFamily: 'Inter, -apple-system, sans-serif', color: T.primary }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: T.bg, fontFamily: T.voice, color: T.primary }}>
       <Sidebar />
       <main style={{ marginLeft: 240, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {children}
@@ -957,7 +988,20 @@ export default function VendorProfile() {
   const latestSub  = submissions[0] ?? null
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: T.bg, fontFamily: 'Inter, -apple-system, sans-serif', color: T.primary }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: T.bg, fontFamily: T.voice, color: T.primary, position: 'relative', isolation: 'isolate' }}>
+      <style>{`
+        /* Page ledger-grid — same 24px hairline texture as the landing and
+           dashboard, z -1 inside the isolated root: above the carbon ground,
+           below all content. */
+        .page-ledger-grid {
+          position: absolute; inset: 0; z-index: -1; pointer-events: none;
+          --grid-line: rgba(154,163,178, 0.06);
+          background-image:
+            repeating-linear-gradient(to bottom, var(--grid-line) 0, var(--grid-line) 1px, transparent 1px, transparent 24px),
+            repeating-linear-gradient(to right,  var(--grid-line) 0, var(--grid-line) 1px, transparent 1px, transparent 24px);
+        }
+      `}</style>
+      <div className="page-ledger-grid" aria-hidden="true" />
       <Toast message={toastMsg} visible={toastVisible} />
       <Sidebar />
 
@@ -974,17 +1018,17 @@ export default function VendorProfile() {
 
         <header style={{ position: 'sticky', top: 0, zIndex: 40, background: T.bg, borderBottom: `1px solid ${T.border}`, height: 64, padding: '0 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <h1 style={{ fontSize: 16, fontWeight: 700, color: T.primary, margin: 0, lineHeight: 1.2 }}>Vendor Profile</h1>
+            <h1 style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em', color: T.primary, margin: 0, lineHeight: 1.2 }}>Vendor Profile</h1>
             <p style={{ fontSize: 12, color: T.secondary, margin: 0 }}>{vendor.name}</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button style={{ position: 'relative', background: 'none', border: `1px solid ${T.border}`, borderRadius: 8, width: 38, height: 38, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.secondary, transition: 'border-color 0.15s, color 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = T.orange; e.currentTarget.style.color = T.primary }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderAccent; e.currentTarget.style.color = T.primary }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.secondary }}
             >
               <Bell size={17} />
             </button>
-            <UserButton />
+            <UserButton appearance={CLERK_APPEARANCE} />
           </div>
         </header>
 
@@ -1000,7 +1044,7 @@ export default function VendorProfile() {
           {/* Vendor hero block */}
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, marginBottom: 26 }}>
             <div>
-              <h2 style={{ fontSize: 'clamp(22px, 3vw, 30px)', fontWeight: 800, color: T.primary, margin: '0 0 12px', letterSpacing: '-0.8px' }}>
+              <h2 style={{ fontSize: 'clamp(22px, 3vw, 30px)', fontWeight: 600, color: T.primary, margin: '0 0 12px', letterSpacing: '-0.02em' }}>
                 {vendor.name}
               </h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -1012,7 +1056,7 @@ export default function VendorProfile() {
                       disabled={savingType}
                       onChange={e => e.target.value && handleSetType(e.target.value)}
                       onBlur={() => setEditingType(false)}
-                      style={{ background: T.card, color: T.primary, border: `1px solid ${T.borderAccent}`, borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 500, outline: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+                      style={{ background: T.card, color: T.primary, border: `1px solid ${T.borderAccent}`, borderRadius: 2, padding: '4px 12px', fontSize: 12, fontWeight: 500, outline: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
                     >
                       <option value="" disabled>Select type…</option>
                       {VENDOR_TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
@@ -1029,7 +1073,7 @@ export default function VendorProfile() {
                   <button
                     onClick={() => setEditingType(true)}
                     title="Change vendor type"
-                    style={{ background: 'rgba(255,255,255,0.05)', color: T.secondary, border: `1px solid ${T.border}`, borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'border-color 0.15s, color 0.15s' }}
+                    style={{ background: 'rgba(255,255,255,0.05)', color: T.secondary, border: `1px solid ${T.border}`, borderRadius: 2, padding: '4px 12px', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'border-color 0.15s, color 0.15s' }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderAccent; e.currentTarget.style.color = T.primary }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.secondary }}
                   >
@@ -1039,20 +1083,20 @@ export default function VendorProfile() {
                   <button
                     onClick={() => setEditingType(true)}
                     title="Set this vendor's type"
-                    style={{ background: 'rgba(249,115,22,0.08)', color: T.orange, border: '1px dashed rgba(249,115,22,0.35)', borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 600, fontStyle: 'italic', cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.15s' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.14)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.08)' }}
+                    style={{ background: 'rgba(255,255,255,0.03)', color: T.secondary, border: `1px dashed ${T.borderAccent}`, borderRadius: 2, padding: '4px 12px', fontSize: 12, fontWeight: 500, fontStyle: 'italic', cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.15s, color 0.15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = T.primary }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.color = T.secondary }}
                   >
                     Untyped — set type
                   </button>
                 )}
-                <span style={{ background: statusInfo.bg, color: statusInfo.color, border: `1px solid ${statusInfo.border}`, borderRadius: 6, padding: '4px 12px', fontSize: 12, fontWeight: 600 }}>
+                <span style={{ background: statusInfo.bg, color: statusInfo.color, border: `1px solid ${statusInfo.border}`, borderRadius: 2, padding: '4px 12px', fontSize: 11, fontFamily: T.evidence }}>
                   {statusInfo.label}
                 </span>
                 {vendor.expiration_date && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                     <Clock size={13} color={T.muted} />
-                    <span style={{ fontSize: 12, color: T.muted }}>Exp: {fmtDate(vendor.expiration_date)}</span>
+                    <span style={{ fontSize: 12, color: T.muted, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums' }}>Exp: {fmtDate(vendor.expiration_date)}</span>
                   </div>
                 )}
               </div>
@@ -1060,7 +1104,7 @@ export default function VendorProfile() {
 
             <button
               onClick={() => setShowUploadModal(true)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0, background: T.orange, color: '#fff', border: 'none', borderRadius: 9, padding: '11px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 2px 14px rgba(249,115,22,0.28)', transition: 'background 0.15s, transform 0.1s' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0, background: T.orange, color: '#fff', border: 'none', borderRadius: 8, padding: '11px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'background 0.15s, transform 0.1s' }}
               onMouseEnter={e => { e.currentTarget.style.background = T.orangeHover; e.currentTarget.style.transform = 'translateY(-1px)' }}
               onMouseLeave={e => { e.currentTarget.style.background = T.orange; e.currentTarget.style.transform = 'translateY(0)' }}
             >
@@ -1073,7 +1117,7 @@ export default function VendorProfile() {
             {TABS.map(tab => {
               const active = activeTab === tab.key
               return (
-                <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '11px 20px', fontSize: 14, fontWeight: active ? 600 : 500, color: active ? T.primary : T.secondary, borderBottom: `2px solid ${active ? T.orange : 'transparent'}`, marginBottom: -1, transition: 'color 0.15s, border-color 0.15s' }}
+                <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '11px 20px', fontSize: 14, fontFamily: 'inherit', fontWeight: active ? 600 : 500, color: active ? T.primary : T.secondary, borderBottom: `2px solid ${active ? T.primary : 'transparent'}`, marginBottom: -1, transition: 'color 0.15s, border-color 0.15s' }}
                   onMouseEnter={e => { if (!active) e.currentTarget.style.color = T.primary }}
                   onMouseLeave={e => { if (!active) e.currentTarget.style.color = T.secondary }}
                 >

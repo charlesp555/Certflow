@@ -7,18 +7,41 @@ import { UserButton } from '@clerk/nextjs'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
+// Design Bible tokens (see app/page.tsx appendix) — carbon ground, graphite
+// surfaces, seam hairlines. Orange is EARNED: verified/affirmed states + the
+// primary CTA only. No green, no purple.
 const T = {
-  bg: '#0a0a0f',
-  surface: '#0f0f17',
-  card: '#13131f',
-  border: '#1a1a2e',
-  borderAccent: '#2a2a3e',
-  orange: '#F97316',
+  bg: '#0C0E12',           // --carbon
+  surface: '#0C0E12',      // inputs sit back on carbon
+  card: '#171A21',         // --graphite
+  border: '#262B35',       // --seam
+  borderAccent: '#333A47',
+  orange: '#F97316',       // --verified
   orangeHover: '#EA6A0C',
-  green: '#22c55e',
-  primary: '#f8f8f8',
-  secondary: '#8b8fa8',
-  muted: '#4b5063',
+  primary: '#F2F4F8',      // --ink-primary
+  secondary: '#9AA3B2',    // --ink-secondary
+  muted: '#5F6774',
+  voice: 'var(--font-voice), sans-serif',      // Said
+  evidence: 'var(--font-evidence), monospace', // Recorded — every datum
+}
+
+// Clerk UserButton themed to the Bible palette — purple is banned. Function
+// untouched; this only recolors the avatar ring and the popover surfaces.
+const CLERK_APPEARANCE = {
+  variables: {
+    colorPrimary: '#F97316',
+    colorBackground: '#171A21',
+    colorText: '#F2F4F8',
+    colorTextSecondary: '#9AA3B2',
+    colorInputBackground: '#0C0E12',
+    colorInputText: '#F2F4F8',
+    colorNeutral: '#F2F4F8',
+    borderRadius: '8px',
+  },
+  elements: {
+    userButtonAvatarBox: { border: '1px solid #262B35' },
+    userButtonPopoverCard: { background: '#171A21', border: '1px solid #262B35' },
+  },
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -37,8 +60,8 @@ function Toast({ message, visible }: { message: string; visible: boolean }) {
   return (
     <div style={{
       position: 'fixed', top: 24, right: 24, zIndex: 300,
-      background: T.card, border: '1px solid rgba(34,197,94,0.30)',
-      borderRadius: 10, padding: '12px 18px',
+      background: T.card, border: `1px solid ${T.border}`,
+      borderRadius: 8, padding: '12px 18px',
       display: 'flex', alignItems: 'center', gap: 10,
       boxShadow: '0 8px 32px rgba(0,0,0,0.55)',
       transition: 'opacity 0.25s ease, transform 0.25s ease',
@@ -46,7 +69,7 @@ function Toast({ message, visible }: { message: string; visible: boolean }) {
       transform: visible ? 'translateY(0)' : 'translateY(-12px)',
       pointerEvents: 'none',
     }}>
-      <CheckCircle2 size={16} color={T.green} />
+      <CheckCircle2 size={16} color={T.orange} />
       <span style={{ fontSize: 13, fontWeight: 600, color: T.primary }}>{message}</span>
     </div>
   )
@@ -54,25 +77,29 @@ function Toast({ message, visible }: { message: string; visible: boolean }) {
 
 // ── Toggle switch ─────────────────────────────────────────────────────────────
 
+// ON = --verified orange: an enabled requirement is an active, affirmed
+// standard — Covira's verified state, so the orange is earned (§Color).
+// OFF = neutral seam track with an ink-secondary knob; the affordance is
+// knob position + fill, not hue.
 function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
       onClick={() => onChange(!on)}
       style={{
-        width: 40, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer',
-        background: on ? T.green : T.border,
+        width: 40, height: 22, borderRadius: 11, cursor: 'pointer',
+        background: on ? T.orange : 'transparent',
+        border: `1px solid ${on ? T.orange : T.border}`,
         position: 'relative', flexShrink: 0,
-        transition: 'background 0.2s',
+        transition: 'background 0.2s, border-color 0.2s',
         padding: 0,
       }}
     >
       <div style={{
-        position: 'absolute', top: 3,
-        left: on ? 21 : 3,
+        position: 'absolute', top: 2,
+        left: on ? 20 : 2,
         width: 16, height: 16, borderRadius: '50%',
-        background: '#fff',
-        transition: 'left 0.2s',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+        background: on ? '#fff' : T.secondary,
+        transition: 'left 0.2s, background 0.2s',
       }} />
     </button>
   )
@@ -95,12 +122,13 @@ function FieldInput({
       placeholder={placeholder}
       style={{
         background: T.surface, border: `1px solid ${T.border}`,
-        borderRadius: 7, padding: '6px 10px',
+        borderRadius: 8, padding: '6px 10px',
         fontSize: 13, color: T.primary, outline: 'none',
         width, transition: 'border-color 0.15s',
-        fontFamily: 'Inter, sans-serif',
+        // Recorded standards, not prose — values are set in the evidence mono.
+        fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums',
       }}
-      onFocus={e => (e.target.style.borderColor = T.orange)}
+      onFocus={e => (e.target.style.borderColor = T.borderAccent)}
       onBlur={e => (e.target.style.borderColor = T.border)}
     />
   )
@@ -302,9 +330,22 @@ export default function RequirementsPage() {
   return (
     <div style={{
       display: 'flex', minHeight: '100vh',
-      background: T.bg, fontFamily: 'Inter, -apple-system, sans-serif',
-      color: T.primary,
+      background: T.bg, fontFamily: T.voice,
+      color: T.primary, position: 'relative', isolation: 'isolate',
     }}>
+      <style>{`
+        /* Page ledger-grid — same 24px hairline texture as the landing and
+           the other app pages, z -1 inside the isolated root: above the
+           carbon ground, below all content. */
+        .page-ledger-grid {
+          position: absolute; inset: 0; z-index: -1; pointer-events: none;
+          --grid-line: rgba(154,163,178, 0.06);
+          background-image:
+            repeating-linear-gradient(to bottom, var(--grid-line) 0, var(--grid-line) 1px, transparent 1px, transparent 24px),
+            repeating-linear-gradient(to right,  var(--grid-line) 0, var(--grid-line) 1px, transparent 1px, transparent 24px);
+        }
+      `}</style>
+      <div className="page-ledger-grid" aria-hidden="true" />
       <Toast message={toastMsg} visible={toastVisible} />
       <Sidebar />
 
@@ -318,7 +359,7 @@ export default function RequirementsPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div>
-            <h1 style={{ fontSize: 16, fontWeight: 700, color: T.primary, margin: 0, lineHeight: 1.2 }}>
+            <h1 style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em', color: T.primary, margin: 0, lineHeight: 1.2 }}>
               Requirements
             </h1>
             <p style={{ fontSize: 12, color: T.secondary, margin: 0 }}>
@@ -338,7 +379,7 @@ export default function RequirementsPage() {
                 fontSize: 13, fontWeight: 600,
                 cursor: saving || loading ? 'not-allowed' : 'pointer',
                 opacity: saving || loading ? 0.7 : 1,
-                boxShadow: '0 2px 12px rgba(249,115,22,0.25)',
+                fontFamily: 'inherit',
                 transition: 'background 0.15s, transform 0.1s',
               }}
               onMouseEnter={e => { if (!saving && !loading) { e.currentTarget.style.background = T.orangeHover; e.currentTarget.style.transform = 'translateY(-1px)' } }}
@@ -354,7 +395,7 @@ export default function RequirementsPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: T.secondary, transition: 'border-color 0.15s, color 0.15s',
             }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = T.orange; e.currentTarget.style.color = T.primary }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderAccent; e.currentTarget.style.color = T.primary }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.secondary }}
             >
               <Bell size={17} />
@@ -365,7 +406,7 @@ export default function RequirementsPage() {
               }} />
             </button>
 
-            <UserButton />
+            <UserButton appearance={CLERK_APPEARANCE} />
           </div>
         </header>
 
@@ -389,7 +430,7 @@ export default function RequirementsPage() {
 
             <div style={{
               background: T.card, border: `1px solid ${T.border}`,
-              borderRadius: 12, overflow: 'hidden',
+              borderRadius: 8, overflow: 'hidden',
             }}>
               {/* Column headers */}
               <div style={{
@@ -420,7 +461,7 @@ export default function RequirementsPage() {
                     transition: 'background 0.15s',
                     opacity: req.enabled ? 1 : 0.45,
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#1a1a2e')}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#1C2029')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
                   <span style={{ fontSize: 14, fontWeight: 600, color: T.primary }}>
@@ -465,28 +506,24 @@ export default function RequirementsPage() {
                   key={tmpl.name}
                   style={{
                     background: T.card, border: `1px solid ${T.border}`,
-                    borderRadius: 12, padding: '18px 16px',
+                    borderRadius: 8, padding: '18px 16px',
                     display: 'flex', flexDirection: 'column', gap: 10,
-                    transition: 'border-color 0.2s, transform 0.2s, box-shadow 0.2s',
+                    transition: 'border-color 0.2s',
                   }}
                   onMouseEnter={e => {
                     e.currentTarget.style.borderColor = T.borderAccent
-                    e.currentTarget.style.transform = 'translateY(-2px)'
-                    e.currentTarget.style.boxShadow = '0 8px 28px rgba(0,0,0,0.4)'
                   }}
                   onMouseLeave={e => {
                     e.currentTarget.style.borderColor = T.border
-                    e.currentTarget.style.transform = 'translateY(0)'
-                    e.currentTarget.style.boxShadow = 'none'
                   }}
                 >
                   <div style={{
-                    width: 32, height: 32, borderRadius: 8,
-                    background: 'rgba(249,115,22,0.10)', border: '1px solid rgba(249,115,22,0.20)',
+                    width: 32, height: 32, borderRadius: 2,
+                    border: `1px solid ${T.border}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     flexShrink: 0,
                   }}>
-                    <Zap size={15} color={T.orange} />
+                    <Zap size={15} color={T.secondary} />
                   </div>
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: 13, fontWeight: 700, color: T.primary, margin: '0 0 4px' }}>
@@ -495,23 +532,29 @@ export default function RequirementsPage() {
                     <p style={{ fontSize: 11, color: T.secondary, margin: '0 0 6px', lineHeight: 1.5 }}>
                       {tmpl.desc}
                     </p>
-                    <p style={{ fontSize: 11, fontWeight: 600, color: T.orange, margin: 0, letterSpacing: '0.01em' }}>
+                    {/* Limit strings are DATA — recorded in the evidence
+                        mono, ink-primary. Not a status, so no orange. */}
+                    <p style={{ fontSize: 11, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', color: T.primary, margin: 0 }}>
                       {templateLimitsSummary(tmpl)}
                     </p>
                   </div>
+                  {/* Secondary action — ghost button, seam hairline, ink
+                      text; orange appears only on hover so nine identical
+                      buttons don't compete with the primary CTA (§Color). */}
                   <button
                     onClick={() => applyTemplate(tmpl)}
                     style={{
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                      background: 'none', color: T.orange,
-                      border: `1px solid rgba(249,115,22,0.35)`,
-                      borderRadius: 7, padding: '7px 10px',
+                      background: 'none', color: T.primary,
+                      border: `1px solid ${T.border}`,
+                      borderRadius: 8, padding: '7px 10px',
                       fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                      fontFamily: 'inherit',
                       transition: 'background 0.15s, border-color 0.15s',
                       whiteSpace: 'nowrap',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.10)'; e.currentTarget.style.borderColor = T.orange }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = 'rgba(249,115,22,0.35)' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.06)'; e.currentTarget.style.borderColor = 'rgba(249,115,22,0.45)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = T.border }}
                   >
                     <Zap size={11} /> Apply Template
                   </button>
@@ -533,7 +576,7 @@ export default function RequirementsPage() {
 
             <div style={{
               background: T.card, border: `1px solid ${T.border}`,
-              borderRadius: 12, padding: 24,
+              borderRadius: 8, padding: 24,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                 <SlidersHorizontal size={15} color={T.muted} />
@@ -541,9 +584,9 @@ export default function RequirementsPage() {
                   Per-Vendor Requirements
                 </h3>
                 <span style={{
-                  fontSize: 11, fontWeight: 600, color: T.muted,
-                  background: 'rgba(255,255,255,0.05)', border: `1px solid ${T.border}`,
-                  borderRadius: 20, padding: '2px 9px',
+                  fontSize: 11, fontFamily: T.evidence, color: T.muted,
+                  background: 'transparent', border: `1px solid ${T.border}`,
+                  borderRadius: 2, padding: '2px 9px',
                 }}>
                   Coming Soon
                 </span>

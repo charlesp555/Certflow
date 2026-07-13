@@ -10,17 +10,53 @@ import {
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 
+// Design Bible tokens (see app/page.tsx appendix) — carbon ground, graphite
+// surfaces, seam hairlines. Orange is earned: verification states + primary
+// CTA only. No green, no blue, no purple. Expiring = dimmed attention red
+// (the Bible has no warning color; a soft failure is a quieter failure).
 const T = {
-  bg: '#0a0a0f',
-  surface: '#0f0f17',
-  card: '#13131f',
-  border: '#1a1a2e',
-  orange: '#F97316',
-  green: '#22c55e',
-  blue: '#3b82f6',
-  primary: '#f8f8f8',
-  secondary: '#8b8fa8',
-  muted: '#4b5063',
+  bg: '#0C0E12',        // --carbon
+  card: '#171A21',      // --graphite
+  border: '#262B35',    // --seam
+  borderHover: '#333A47',
+  orange: '#F97316',    // --verified
+  red: '#E5484D',       // --attention
+  redDim: 'rgba(229,72,77,0.55)',  // dimmed attention — fills/strokes (expiring)
+  redDimText: '#D0888C',           // dimmed attention — readable text on graphite
+  primary: '#F2F4F8',   // --ink-primary
+  secondary: '#9AA3B2', // --ink-secondary
+  muted: '#5F6774',
+  voice: 'var(--font-voice), sans-serif',      // Said — headings, labels, UI copy
+  evidence: 'var(--font-evidence), monospace', // Recorded — every datum
+}
+
+// Clerk UserButton themed to the Bible palette — purple is banned. Function
+// untouched; this only recolors the avatar ring and the popover surfaces.
+const CLERK_APPEARANCE = {
+  variables: {
+    colorPrimary: '#F97316',
+    colorBackground: '#171A21',
+    colorText: '#F2F4F8',
+    colorTextSecondary: '#9AA3B2',
+    colorInputBackground: '#0C0E12',
+    colorInputText: '#F2F4F8',
+    colorNeutral: '#F2F4F8',
+    borderRadius: '8px',
+  },
+  elements: {
+    userButtonAvatarBox: { border: '1px solid #262B35' },
+    userButtonPopoverCard: { background: '#171A21', border: '1px solid #262B35' },
+  },
+}
+
+// Flat chip tones (the Bible bans pills — chips are near-rectangular, hairline
+// border, mono text).
+type ChipTone = 'neutral' | 'verified' | 'attention' | 'attentionDim'
+const CHIP_TONES: Record<ChipTone, { color: string; border: string; background: string }> = {
+  neutral:      { color: T.secondary,  border: T.border,                 background: 'transparent' },
+  verified:     { color: T.orange,     border: 'rgba(249,115,22,0.35)', background: 'rgba(249,115,22,0.08)' },
+  attention:    { color: T.red,        border: 'rgba(229,72,77,0.35)',  background: 'rgba(229,72,77,0.08)' },
+  attentionDim: { color: T.redDimText, border: 'rgba(229,72,77,0.22)',  background: 'rgba(229,72,77,0.05)' },
 }
 
 type Vendor = {
@@ -57,20 +93,17 @@ function useCountUp(target: number, duration = 1100): number {
 }
 
 function MetricCard({
-  label, target, tag, tagColor, icon: Icon, isIssues = false,
+  label, target, tag, tagTone, icon: Icon,
 }: {
   label: string
   target: number
   tag: string
-  tagColor: 'green' | 'orange'
+  tagTone: ChipTone
   icon: React.ElementType
-  isIssues?: boolean
 }) {
   const val = useCountUp(target)
   const [hov, setHov] = useState(false)
-  const accent = tagColor === 'green' ? T.green : T.orange
-  const tagBg = tagColor === 'green' ? 'rgba(34,197,94,0.10)' : 'rgba(249,115,22,0.10)'
-  const tagBorder = tagColor === 'green' ? 'rgba(34,197,94,0.20)' : 'rgba(249,115,22,0.20)'
+  const tone = CHIP_TONES[tagTone]
 
   return (
     <div
@@ -78,30 +111,26 @@ function MetricCard({
       onMouseLeave={() => setHov(false)}
       style={{
         flex: 1, minWidth: 0,
-        background: T.card, border: `1px solid ${T.border}`,
-        borderTop: `2px solid ${hov ? T.orange : 'transparent'}`,
-        borderRadius: 12, padding: '20px 22px', position: 'relative',
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-top-color 0.2s ease',
-        transform: hov ? 'translateY(-2px)' : 'translateY(0)',
-        boxShadow: hov ? '0 12px 40px rgba(0,0,0,0.55)' : '0 2px 8px rgba(0,0,0,0.2)',
+        background: T.card, border: `1px solid ${hov ? T.borderHover : T.border}`,
+        borderRadius: 8, padding: '20px 22px', position: 'relative',
+        transition: 'border-color 0.2s ease',
       }}
     >
       <div style={{
         position: 'absolute', top: 18, right: 18,
-        width: 30, height: 30, borderRadius: 8,
-        background: 'rgba(249,115,22,0.07)',
+        width: 30, height: 30, borderRadius: 2,
+        border: `1px solid ${T.border}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        <Icon size={14} color={T.orange} strokeWidth={2} style={{ opacity: 0.6 }} />
+        <Icon size={14} color={T.secondary} strokeWidth={2} style={{ opacity: 0.7 }} />
       </div>
-      <div style={{ fontSize: 12, color: T.secondary, fontWeight: 500, marginBottom: 10 }}>{label}</div>
-      <div style={{ fontSize: 33, fontWeight: 800, color: T.primary, lineHeight: 1, marginBottom: 12, letterSpacing: '-1px' }}>{val}</div>
+      <div style={{ fontSize: 12, color: T.secondary, fontFamily: T.voice, fontWeight: 500, marginBottom: 10 }}>{label}</div>
+      <div style={{ fontSize: 33, fontWeight: 500, color: T.primary, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', lineHeight: 1, marginBottom: 12 }}>{val}</div>
       <div
-        className={isIssues ? 'issues-badge' : ''}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 5,
-          background: tagBg, color: accent, border: `1px solid ${tagBorder}`,
-          borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 600,
+          background: tone.background, color: tone.color, border: `1px solid ${tone.border}`,
+          borderRadius: 2, padding: '3px 10px', fontSize: 11, fontFamily: T.evidence,
         }}
       >
         {tag}
@@ -138,9 +167,9 @@ function AnimatedDonut({ compliant, issues, expiring, total }: {
   const safeTotal = total || 1
 
   const segments = [
-    { pct: compliant / safeTotal, color: T.green,  label: 'Compliant',     count: compliant },
-    { pct: issues   / safeTotal, color: T.orange, label: 'Issues Found',  count: issues    },
-    { pct: expiring / safeTotal, color: T.blue,   label: 'Expiring Soon', count: expiring  },
+    { pct: compliant / safeTotal, color: T.orange, label: 'Compliant',     count: compliant },
+    { pct: issues   / safeTotal, color: T.red,    label: 'Issues Found',  count: issues    },
+    { pct: expiring / safeTotal, color: T.redDim, label: 'Expiring Soon', count: expiring  },
   ]
 
   let cum = 0
@@ -160,7 +189,7 @@ function AnimatedDonut({ compliant, issues, expiring, total }: {
     <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
       <div style={{ position: 'relative', width: 200, height: 200, flexShrink: 0 }}>
         <svg width="200" height="200" viewBox="0 0 200 200" style={{ overflow: 'visible' }}>
-          <circle cx={cx} cy={cy} r={R} fill="none" stroke="#1a1a2e" strokeWidth={24} />
+          <circle cx={cx} cy={cy} r={R} fill="none" stroke={T.border} strokeWidth={24} />
           {total > 0 && arcs.map((arc, i) => (
             <circle
               key={i} cx={cx} cy={cy} r={R}
@@ -177,10 +206,10 @@ function AnimatedDonut({ compliant, issues, expiring, total }: {
           alignItems: 'center', justifyContent: 'center',
           textAlign: 'center', pointerEvents: 'none',
         }}>
-          <div style={{ fontSize: 26, fontWeight: 800, color: T.primary, lineHeight: 1.1, letterSpacing: '-1px' }}>
+          <div style={{ fontSize: 26, fontWeight: 500, color: T.primary, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
             {centerPct}%
           </div>
-          <div style={{ fontSize: 12, color: T.secondary, marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: T.secondary, fontFamily: T.voice, marginTop: 4 }}>
             {total === 0 ? 'No data' : 'Compliant'}
           </div>
         </div>
@@ -190,14 +219,14 @@ function AnimatedDonut({ compliant, issues, expiring, total }: {
           <div key={seg.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 9, height: 9, borderRadius: '50%', background: seg.color, flexShrink: 0 }} />
-              <span style={{ fontSize: 13, color: T.secondary }}>{seg.label}</span>
+              <span style={{ fontSize: 13, color: T.secondary, fontFamily: T.voice }}>{seg.label}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: T.primary }}>{seg.count}</span>
+              <span style={{ fontSize: 14, fontWeight: 500, color: T.primary, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums' }}>{seg.count}</span>
               <span style={{
-                fontSize: 11, color: T.muted,
-                background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border}`,
-                borderRadius: 4, padding: '1px 7px',
+                fontSize: 11, color: T.secondary, fontFamily: T.evidence,
+                border: `1px solid ${T.border}`,
+                borderRadius: 2, padding: '1px 7px',
               }}>
                 {total === 0 ? '0%' : `${Math.round(seg.pct * 100)}%`}
               </span>
@@ -218,17 +247,17 @@ function ActionItem({ text, index, mounted }: { text: string; index: number; mou
       style={{
         display: 'flex', alignItems: 'center', gap: 11,
         padding: '11px 13px',
-        background: hov ? 'rgba(249,115,22,0.10)' : 'rgba(249,115,22,0.05)',
-        border: `1px solid ${hov ? 'rgba(249,115,22,0.25)' : 'rgba(249,115,22,0.12)'}`,
-        borderRadius: 9, textDecoration: 'none',
+        background: hov ? 'rgba(229,72,77,0.10)' : 'rgba(229,72,77,0.05)',
+        border: `1px solid ${hov ? 'rgba(229,72,77,0.28)' : 'rgba(229,72,77,0.14)'}`,
+        borderRadius: 8, textDecoration: 'none',
         animationDelay: mounted ? `${index * 80 + 150}ms` : undefined,
         transition: 'background 0.15s, border-color 0.15s',
       }}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
     >
-      <AlertTriangle size={15} color={T.orange} style={{ flexShrink: 0 }} />
-      <span style={{ fontSize: 13, color: T.primary, lineHeight: 1.5, fontWeight: 500, flex: 1 }}>{text}</span>
+      <AlertTriangle size={15} color={T.red} style={{ flexShrink: 0 }} />
+      <span style={{ fontSize: 13, color: T.primary, fontFamily: T.voice, lineHeight: 1.5, fontWeight: 500, flex: 1 }}>{text}</span>
       <ArrowRight
         size={13} color={T.secondary}
         style={{ flexShrink: 0, opacity: hov ? 1 : 0, transition: 'opacity 0.15s' }}
@@ -292,7 +321,7 @@ export default function Dashboard() {
 
   if (!isLoaded || loading) {
     return (
-      <div style={{ display: 'flex', minHeight: '100vh', background: T.bg, fontFamily: 'Inter, -apple-system, sans-serif', color: T.primary }}>
+      <div style={{ display: 'flex', minHeight: '100vh', background: T.bg, fontFamily: T.voice, color: T.primary }}>
         <Sidebar />
         <main style={{ marginLeft: 240, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ color: T.secondary, fontSize: 14 }}>Loading...</div>
@@ -302,7 +331,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: T.bg, fontFamily: 'Inter, -apple-system, sans-serif', color: T.primary }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: T.bg, fontFamily: T.voice, color: T.primary, position: 'relative', isolation: 'isolate' }}>
       <style>{`
         @keyframes fadeSlideUp {
           from { opacity: 0; transform: translateY(14px); }
@@ -312,10 +341,6 @@ export default function Dashboard() {
           from { opacity: 0; transform: translateX(18px); }
           to   { opacity: 1; transform: translateX(0); }
         }
-        @keyframes issueGlow {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(249,115,22,0); }
-          50%       { box-shadow: 0 0 10px 3px rgba(249,115,22,0.20); }
-        }
         @keyframes bellDot {
           0%, 100% { transform: scale(1);    opacity: 1; }
           50%       { transform: scale(0.72); opacity: 0.45; }
@@ -323,9 +348,21 @@ export default function Dashboard() {
         .pre-animate     { opacity: 0; }
         .row-animate     { animation: fadeSlideUp 0.38s ease both; }
         .action-animate  { animation: slideInRight 0.38s ease both; }
-        .issues-badge    { animation: issueGlow 3.2s ease-in-out infinite; }
         .bell-dot        { animation: bellDot 2.8s ease-in-out infinite; }
+
+        /* Page ledger-grid — same 24px hairline texture as the landing
+           (§12 sanctioned, single instance), z -1 inside the isolated root:
+           above the carbon ground, below all content. Opaque graphite cards
+           cover it; it shows only in the page's open space. */
+        .dash-grid {
+          position: absolute; inset: 0; z-index: -1; pointer-events: none;
+          --grid-line: rgba(154,163,178, 0.06);
+          background-image:
+            repeating-linear-gradient(to bottom, var(--grid-line) 0, var(--grid-line) 1px, transparent 1px, transparent 24px),
+            repeating-linear-gradient(to right,  var(--grid-line) 0, var(--grid-line) 1px, transparent 1px, transparent 24px);
+        }
       `}</style>
+      <div className="dash-grid" aria-hidden="true" />
 
       <Sidebar />
 
@@ -339,8 +376,8 @@ export default function Dashboard() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div>
-            <h1 style={{ fontSize: 16, fontWeight: 700, color: T.primary, margin: 0, lineHeight: 1.2 }}>Dashboard</h1>
-            <p style={{ fontSize: 12, color: T.secondary, margin: 0 }}>Welcome back, {firstName}</p>
+            <h1 style={{ fontSize: 16, fontWeight: 600, color: T.primary, fontFamily: T.voice, letterSpacing: '-0.01em', margin: 0, lineHeight: 1.2 }}>Dashboard</h1>
+            <p style={{ fontSize: 12, color: T.secondary, fontFamily: T.voice, margin: 0 }}>Welcome back, {firstName}</p>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -351,7 +388,7 @@ export default function Dashboard() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: T.secondary, transition: 'border-color 0.15s, color 0.15s, background 0.15s',
             }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = T.orange; e.currentTarget.style.color = T.primary; e.currentTarget.style.background = 'rgba(249,115,22,0.06)' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderHover; e.currentTarget.style.color = T.primary; e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.secondary; e.currentTarget.style.background = 'none' }}
             >
               <Bell size={17} />
@@ -362,7 +399,7 @@ export default function Dashboard() {
               }} />
             </button>
 
-            <UserButton />
+            <UserButton appearance={CLERK_APPEARANCE} />
           </div>
         </header>
 
@@ -371,13 +408,13 @@ export default function Dashboard() {
 
           {totalVendors === 0 ? (
             <div style={{ textAlign: 'center', padding: '80px 40px' }}>
-              <h2 style={{ color: '#ffffff', fontSize: 24, fontWeight: 700, marginBottom: 12 }}>
+              <h2 style={{ color: T.primary, fontFamily: T.voice, fontSize: 24, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 12 }}>
                 Welcome to Covira
               </h2>
-              <p style={{ color: '#9ca3af', fontSize: 16, marginBottom: 32 }}>
+              <p style={{ color: T.secondary, fontFamily: T.voice, fontSize: 16, marginBottom: 32 }}>
                 Add your first vendor to start verifying compliance.
               </p>
-              <a href="/vendors" style={{ background: '#F97316', color: '#ffffff', padding: '12px 24px', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>
+              <a href="/vendors" style={{ background: T.orange, color: '#ffffff', fontFamily: T.voice, padding: '12px 24px', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>
                 Add Your First Vendor
               </a>
             </div>
@@ -385,10 +422,10 @@ export default function Dashboard() {
             <>
               {/* Metric cards */}
               <div style={{ display: 'flex', gap: 14, marginBottom: 22 }}>
-                <MetricCard label="Total Vendors" target={totalVendors}     tag={`${totalVendors} total`}                        tagColor="green"  icon={Users}         />
-                <MetricCard label="Compliant"     target={compliantVendors} tag={`${compliantPct}%`}                             tagColor="green"  icon={CheckCircle2}  />
-                <MetricCard label="Issues Found"  target={issuesFound}      tag={issuesFound > 0 ? 'Review needed' : 'None'}     tagColor="orange" icon={AlertTriangle} isIssues />
-                <MetricCard label="Expiring Soon" target={expiringSoon}     tag={expiringSoon > 0 ? 'Action needed' : 'None'}    tagColor="orange" icon={Clock}         />
+                <MetricCard label="Total Vendors" target={totalVendors}     tag={`${totalVendors} total`}                        tagTone="neutral"                                          icon={Users}         />
+                <MetricCard label="Compliant"     target={compliantVendors} tag={`${compliantPct}%`}                             tagTone={compliantVendors > 0 ? 'verified' : 'neutral'}    icon={CheckCircle2}  />
+                <MetricCard label="Issues Found"  target={issuesFound}      tag={issuesFound > 0 ? 'Review needed' : 'None'}     tagTone={issuesFound > 0 ? 'attention' : 'neutral'}        icon={AlertTriangle} />
+                <MetricCard label="Expiring Soon" target={expiringSoon}     tag={expiringSoon > 0 ? 'Action needed' : 'None'}    tagTone={expiringSoon > 0 ? 'attentionDim' : 'neutral'}    icon={Clock}         />
               </div>
 
               {/* Two-column layout */}
@@ -397,20 +434,20 @@ export default function Dashboard() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
                   {/* Compliance Overview */}
-                  <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 24, transition: 'border-color 0.2s, box-shadow 0.2s' }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#2a2a3e'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.4)' }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.boxShadow = 'none' }}
+                  <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: 24, transition: 'border-color 0.2s' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderHover }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = T.border }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-                      <h2 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: 0 }}>Compliance Overview</h2>
+                      <h2 style={{ fontSize: 14, fontWeight: 600, color: T.primary, fontFamily: T.voice, letterSpacing: '-0.01em', margin: 0 }}>Compliance Overview</h2>
                       <button style={{
                         display: 'flex', alignItems: 'center', gap: 5,
-                        background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}`,
-                        borderRadius: 6, padding: '5px 10px',
-                        fontSize: 12, color: T.secondary, cursor: 'pointer',
+                        background: 'transparent', border: `1px solid ${T.border}`,
+                        borderRadius: 8, padding: '5px 10px',
+                        fontSize: 12, color: T.secondary, fontFamily: T.voice, cursor: 'pointer',
                         transition: 'border-color 0.15s',
                       }}
-                        onMouseEnter={e => (e.currentTarget.style.borderColor = '#2a2a3e')}
+                        onMouseEnter={e => (e.currentTarget.style.borderColor = T.borderHover)}
                         onMouseLeave={e => (e.currentTarget.style.borderColor = T.border)}
                       >
                         This Month <ChevronDown size={11} />
@@ -425,16 +462,16 @@ export default function Dashboard() {
                   </div>
 
                   {/* Recent Submissions */}
-                  <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 24, transition: 'border-color 0.2s, box-shadow 0.2s' }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#2a2a3e'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.4)' }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.boxShadow = 'none' }}
+                  <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: 24, transition: 'border-color 0.2s' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderHover }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = T.border }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                      <h2 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: 0 }}>Recent Submissions</h2>
+                      <h2 style={{ fontSize: 14, fontWeight: 600, color: T.primary, fontFamily: T.voice, letterSpacing: '-0.01em', margin: 0 }}>Recent Submissions</h2>
                       <Link href="/reports"
-                        style={{ fontSize: 13, color: T.orange, textDecoration: 'none', fontWeight: 500, transition: 'opacity 0.15s' }}
-                        onMouseEnter={e => (e.currentTarget.style.opacity = '0.75')}
-                        onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                        style={{ fontSize: 13, color: T.secondary, fontFamily: T.voice, textDecoration: 'none', fontWeight: 500, transition: 'color 0.15s' }}
+                        onMouseEnter={e => (e.currentTarget.style.color = T.primary)}
+                        onMouseLeave={e => (e.currentTarget.style.color = T.secondary)}
                       >
                         View all →
                       </Link>
@@ -447,7 +484,7 @@ export default function Dashboard() {
                             {['Vendor', 'COI Uploaded', 'Status', 'Issues', 'Expiration Date'].map(col => (
                               <th key={col} style={{
                                 textAlign: 'left', padding: '0 12px 12px',
-                                fontSize: 10, color: T.muted, fontWeight: 600,
+                                fontSize: 10, color: T.secondary, fontFamily: T.voice, fontWeight: 600,
                                 textTransform: 'uppercase', letterSpacing: '0.07em',
                                 borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap',
                               }}>
@@ -459,7 +496,7 @@ export default function Dashboard() {
                         <tbody>
                           {submissions.length === 0 ? (
                             <tr>
-                              <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>
+                              <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: T.secondary, fontFamily: T.voice }}>
                                 No submissions yet. Upload your first COI to get started.
                               </td>
                             </tr>
@@ -475,37 +512,37 @@ export default function Dashboard() {
                                   key={row.id}
                                   className={mounted ? 'row-animate' : 'pre-animate'}
                                   style={{ cursor: 'pointer', animationDelay: mounted ? `${i * 80}ms` : undefined, transition: 'background 0.15s' }}
-                                  onMouseEnter={e => (e.currentTarget.style.background = '#1a1a2e')}
+                                  onMouseEnter={e => (e.currentTarget.style.background = '#1C2029')}
                                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                                 >
                                   <td style={{ padding: '13px 12px', borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
                                     <Link
                                       href={row.vendor_id ? `/vendors/${row.vendor_id}` : '/vendors'}
-                                      style={{ fontSize: 13, fontWeight: 600, color: T.primary, textDecoration: 'none', transition: 'color 0.15s' }}
-                                      onMouseEnter={e => (e.currentTarget.style.color = T.orange)}
-                                      onMouseLeave={e => (e.currentTarget.style.color = T.primary)}
+                                      style={{ fontSize: 13, fontWeight: 600, color: T.primary, fontFamily: T.voice, textDecoration: 'none', transition: 'text-decoration-color 0.15s' }}
+                                      onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                                      onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                                     >
                                       {vendorName}
                                     </Link>
                                   </td>
-                                  <td style={{ padding: '13px 12px', fontSize: 12, color: T.secondary, borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                                  <td style={{ padding: '13px 12px', fontSize: 12, color: T.secondary, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
                                     {uploadedDate}
                                   </td>
                                   <td style={{ padding: '13px 12px', borderBottom: `1px solid ${T.border}` }}>
                                     {row.status === 'Compliant' ? (
-                                      <span style={{ background: 'rgba(34,197,94,0.09)', color: T.green, border: '1px solid rgba(34,197,94,0.22)', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                      <span style={{ background: 'rgba(249,115,22,0.08)', color: T.orange, border: '1px solid rgba(249,115,22,0.35)', borderRadius: 2, padding: '3px 10px', fontSize: 11, fontFamily: T.evidence, whiteSpace: 'nowrap' }}>
                                         Compliant
                                       </span>
                                     ) : (
-                                      <span style={{ background: 'rgba(249,115,22,0.09)', color: T.orange, border: '1px solid rgba(249,115,22,0.22)', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                      <span style={{ background: 'rgba(229,72,77,0.08)', color: T.red, border: '1px solid rgba(229,72,77,0.35)', borderRadius: 2, padding: '3px 10px', fontSize: 11, fontFamily: T.evidence, whiteSpace: 'nowrap' }}>
                                         Issues Found
                                       </span>
                                     )}
                                   </td>
-                                  <td style={{ padding: '13px 12px', fontSize: 13, fontWeight: 700, color: row.issues_count > 0 ? T.orange : T.muted, borderBottom: `1px solid ${T.border}`, textAlign: 'center' }}>
+                                  <td style={{ padding: '13px 12px', fontSize: 13, fontWeight: 500, color: row.issues_count > 0 ? T.red : T.muted, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', borderBottom: `1px solid ${T.border}`, textAlign: 'center' }}>
                                     {row.issues_count}
                                   </td>
-                                  <td style={{ padding: '13px 12px', fontSize: 12, color: T.secondary, borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                                  <td style={{ padding: '13px 12px', fontSize: 12, color: T.secondary, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
                                     {expDate}
                                   </td>
                                 </tr>
@@ -519,16 +556,16 @@ export default function Dashboard() {
                 </div>
 
                 {/* Action Items */}
-                <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: 22, transition: 'border-color 0.2s, box-shadow 0.2s' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#2a2a3e'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.4)' }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.boxShadow = 'none' }}
+                <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: 22, transition: 'border-color 0.2s' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderHover }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = T.border }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-                    <h2 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: 0 }}>Action Items</h2>
+                    <h2 style={{ fontSize: 14, fontWeight: 600, color: T.primary, fontFamily: T.voice, letterSpacing: '-0.01em', margin: 0 }}>Action Items</h2>
                     <Link href="/vendors"
-                      style={{ fontSize: 13, color: T.orange, textDecoration: 'none', fontWeight: 500, transition: 'opacity 0.15s' }}
-                      onMouseEnter={e => (e.currentTarget.style.opacity = '0.75')}
-                      onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                      style={{ fontSize: 13, color: T.secondary, fontFamily: T.voice, textDecoration: 'none', fontWeight: 500, transition: 'color 0.15s' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = T.primary)}
+                      onMouseLeave={e => (e.currentTarget.style.color = T.secondary)}
                     >
                       View all →
                     </Link>
@@ -536,7 +573,7 @@ export default function Dashboard() {
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                     {actionItems.length === 0 ? (
-                      <p style={{ color: '#9ca3af', fontSize: 14 }}>No action items. All vendors are compliant.</p>
+                      <p style={{ color: T.secondary, fontFamily: T.voice, fontSize: 14 }}>No action items. All vendors are compliant.</p>
                     ) : (
                       actionItems.map((text, i) => (
                         <ActionItem key={i} text={text} index={i} mounted={mounted} />
@@ -552,13 +589,13 @@ export default function Dashboard() {
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <Users size={13} color={T.secondary} />
-                        <span style={{ fontSize: 12, color: T.secondary }}>Total open items</span>
+                        <span style={{ fontSize: 12, color: T.secondary, fontFamily: T.voice }}>Total open items</span>
                       </div>
                       <span style={{
-                        background: 'rgba(249,115,22,0.12)', color: T.orange,
-                        fontSize: 12, fontWeight: 700,
-                        borderRadius: 20, padding: '2px 10px',
-                        border: '1px solid rgba(249,115,22,0.20)',
+                        color: T.primary, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums',
+                        fontSize: 12, fontWeight: 500,
+                        borderRadius: 2, padding: '2px 10px',
+                        border: `1px solid ${T.border}`,
                       }}>
                         {actionItems.length}
                       </span>
