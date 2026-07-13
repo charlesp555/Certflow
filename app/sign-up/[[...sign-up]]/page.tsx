@@ -119,6 +119,22 @@ export default function SignUpPage() {
           }}
         />
       </div>
+
+      {/* Legal consent — signing up is acceptance of the Terms and Privacy Policy */}
+      <p style={{
+        position: 'relative', zIndex: 1,
+        marginTop: 20,
+        maxWidth: 360,
+        textAlign: 'center',
+        fontSize: 12.5,
+        lineHeight: 1.6,
+        color: '#9ca3af',
+      }}>
+        By signing up, you agree to our{' '}
+        <Link href="/terms" style={{ color: '#F97316', textDecoration: 'none' }}>Terms of Service</Link>
+        {' '}and{' '}
+        <Link href="/privacy" style={{ color: '#F97316', textDecoration: 'none' }}>Privacy Policy</Link>.
+      </p>
     </div>
   )
 }

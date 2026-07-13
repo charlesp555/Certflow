@@ -1640,8 +1640,8 @@ export default function Home() {
                 { label: 'How It Works',     href: '#how-it-works' },
                 { label: 'About',            href: '#about'        },
                 { label: 'Demo',             href: '/demo'         },
-                { label: 'Privacy Policy',   href: '#'             },
-                { label: 'Terms of Service', href: '#'             },
+                { label: 'Privacy Policy',   href: '/privacy'      },
+                { label: 'Terms of Service', href: '/terms'        },
               ].map(l => (
                 <a key={l.label} href={l.href} className="footer-link">
                   {l.label}

@@ -17,14 +17,19 @@ export default function Footer() {
           </span>
         </div>
         <div className="flex flex-wrap gap-6">
-          {['privacy', 'terms', 'security', 'status'].map((item) => (
+          {[
+            { label: 'privacy',  href: '/privacy' },
+            { label: 'terms',    href: '/terms'   },
+            { label: 'security', href: '#'        },
+            { label: 'status',   href: '#'        },
+          ].map((item) => (
             <Link
-              key={item}
-              href="#"
+              key={item.label}
+              href={item.href}
               style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none', fontWeight: 500, transition: 'color 0.15s' }}
               className="nav-link"
             >
-              {item}
+              {item.label}
             </Link>
           ))}
         </div>
