@@ -8,6 +8,7 @@ import {
   FileText,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
+import { COMPLIANCE_DISCLAIMER } from '../components/ComplianceDisclaimer'
 import { UserButton, useUser, useAuth } from '@clerk/nextjs'
 import { createClerkSupabaseClient } from '@/lib/supabase'
 
@@ -25,7 +26,7 @@ const T = {
   orange: '#F97316',       // --verified
   orangeHover: '#EA6A0C',
   red: '#E5484D',          // --attention
-  redDim: 'rgba(229,72,77,0.55)', // dimmed attention — fills/strokes
+  redDim: '#B4565A',              // dimmed attention — lower-severity signals (expiring, secondary warnings)
   redDimText: '#D0888C',          // dimmed attention — readable text
   primary: '#F2F4F8',      // --ink-primary
   secondary: '#9AA3B2',    // --ink-secondary
@@ -140,37 +141,6 @@ function verificationOutcomes(subs: SubRow[]): { compliant: number; needsAttenti
   return { compliant, needsAttention, nonCompliant }
 }
 
-const ENDORSEMENT_COVERAGES = new Set(['Additional Insured', 'Waiver of Subrogation'])
-
-function isEmptyValue(v: string | null | undefined): boolean {
-  if (!v) return true
-  const n = v.toLowerCase().trim()
-  return ['', 'n/a', '$0', '0', 'none', 'not listed', 'not included', 'missing'].includes(n)
-}
-
-// Maps a failed requirement to a short, scannable category label (e.g.
-// "General Liability Below Minimum", "Waiver of Subrogation Missing"),
-// derived entirely from that requirement's own coverage name and actual
-// value — never a hardcoded/invented category.
-function findingShortLabel(req: RequirementCheck): string {
-  if (ENDORSEMENT_COVERAGES.has(req.coverage)) return `${req.coverage} Missing`
-  return isEmptyValue(req.actual) ? `${req.coverage} Missing` : `${req.coverage} Below Minimum`
-}
-
-function topFindings(subs: SubRow[]): Array<{ label: string; count: number }> {
-  const counts: Record<string, number> = {}
-  subs.forEach(s => {
-    ;(s.requirements_check ?? []).filter(r => !r.passed).forEach(r => {
-      const label = findingShortLabel(r)
-      counts[label] = (counts[label] ?? 0) + 1
-    })
-  })
-  return Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([label, count]) => ({ label, count }))
-}
-
 type VendorLatest = {
   name: string
   vendorId: string
@@ -179,6 +149,7 @@ type VendorLatest = {
   openFindings: number | null   // failed_requirements_count — null on pre-backfill rows
   issuesCount: number | null    // legacy fallback, real column, always populated
   lastVerified: string | null
+  expirationDate: string | null // from analysis_result — already fetched with the row
 }
 
 // Group by vendor, take each vendor's most recent submission — its current
@@ -200,6 +171,7 @@ function latestPerVendor(subs: SubRow[]): VendorLatest[] {
     openFindings: s.failed_requirements_count,
     issuesCount: s.issues_count,
     lastVerified: s.created_at,
+    expirationDate: s.analysis_result?.expirationDate ?? null,
   }))
 }
 
@@ -354,38 +326,170 @@ function VerificationOutcomesBar({ compliant, needsAttention, nonCompliant }: {
   )
 }
 
-// ── Top Issues bars ───────────────────────────────────────────────────────────
+// ── Expiration timeline ──────────────────────────────────────────────────────
+// Replaces the findings bar chart. Each vendor's current coverage expiration
+// plotted across the next 12 months — the point is the clusters: three COIs
+// lapsing in the same month is a renewal crunch you can see coming. Already-
+// expired vendors collect in a gutter before the axis starts. Dates come from
+// analysis_result.expirationDate on rows already fetched — no new queries.
+// Flat per the Bible: seam axis, mono labels, no gradients or glow.
 
-function TopIssuesChart({ issues }: { issues: Array<{ label: string; count: number }> }) {
-  const [animated, setAnimated] = useState(false)
-  useEffect(() => {
-    const t = setTimeout(() => setAnimated(true), 120)
-    return () => clearTimeout(t)
-  }, [])
+type MarkerState = 'expired' | 'expiring' | 'healthy'
 
-  const maxCount = Math.max(...issues.map(i => i.count), 1)
+const MARKER_COLOR: Record<MarkerState, string> = {
+  expired:  T.red,     // already lapsed — full attention
+  expiring: T.redDim,  // within 30 days — dimmed attention
+  healthy:  T.orange,  // verified, current
+}
+
+type ExpMarkerData = { vendorId: string; name: string; dateLabel: string; state: MarkerState }
+
+function ExpMarker({ m }: { m: ExpMarkerData }) {
+  const [hov, setHov] = useState(false)
+  return (
+    <Link
+      href={m.vendorId ? `/vendors/${m.vendorId}` : '/vendors'}
+      aria-label={`${m.name} — expires ${m.dateLabel}`}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      onFocus={() => setHov(true)}
+      onBlur={() => setHov(false)}
+      style={{
+        position: 'relative', display: 'block', flexShrink: 0,
+        width: 10, height: 10, borderRadius: 2,
+        background: MARKER_COLOR[m.state],
+        outline: hov ? `1px solid ${T.primary}` : 'none', outlineOffset: 1,
+      }}
+    >
+      {hov && (
+        <span style={{
+          position: 'absolute', bottom: 'calc(100% + 7px)', left: '50%', transform: 'translateX(-50%)',
+          background: '#1C2029', border: `1px solid ${T.borderAccent}`, borderRadius: 4,
+          padding: '5px 9px', whiteSpace: 'nowrap', zIndex: 20, pointerEvents: 'none',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: T.primary, fontFamily: T.voice }}>{m.name}</span>
+          <span style={{ fontSize: 10, color: T.secondary, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums' }}>{m.dateLabel}</span>
+        </span>
+      )}
+    </Link>
+  )
+}
+
+const TIMELINE_LEGEND: { color: string; label: string }[] = [
+  { color: T.red,    label: 'expired' },
+  { color: T.redDim, label: 'expiring ≤30d' },
+  { color: T.orange, label: 'verified' },
+]
+
+function ExpirationTimeline({ vendors }: { vendors: VendorLatest[] }) {
+  const { expired, months, undated, beyond } = useMemo(() => {
+    const now = new Date()
+    const startYear = now.getFullYear(), startMonth = now.getMonth()
+    const expired: ExpMarkerData[] = []
+    const months = Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(startYear, startMonth + i, 1)
+      return {
+        label: d.getMonth() === 0
+          ? `Jan ’${String(d.getFullYear()).slice(2)}`
+          : d.toLocaleDateString('en-US', { month: 'short' }),
+        markers: [] as ExpMarkerData[],
+      }
+    })
+    let undated = 0, beyond = 0
+
+    vendors.forEach(v => {
+      const d = v.expirationDate ? new Date(v.expirationDate) : null
+      if (!d || isNaN(d.getTime())) { undated++; return }
+      const days = Math.ceil((d.getTime() - now.getTime()) / 86_400_000)
+      const base = {
+        vendorId: v.vendorId,
+        name: v.name,
+        dateLabel: d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
+      }
+      if (days < 0) { expired.push({ ...base, state: 'expired' }); return }
+      const idx = (d.getFullYear() - startYear) * 12 + (d.getMonth() - startMonth)
+      if (idx > 11) { beyond++; return }
+      months[Math.max(idx, 0)].markers.push({ ...base, state: days <= 30 ? 'expiring' : 'healthy' })
+    })
+
+    return { expired, months, undated, beyond }
+  }, [vendors])
+
+  const plotted = expired.length + months.reduce((n, m) => n + m.markers.length, 0)
+  if (plotted === 0) {
+    return (
+      <p style={{ fontSize: 13, color: T.muted, textAlign: 'center', padding: '18px 0', margin: 0 }}>
+        No coverage expiration dates on file yet.
+      </p>
+    )
+  }
+
+  const notShown = [
+    beyond > 0  ? `${beyond} beyond 12 months` : null,
+    undated > 0 ? `${undated} without a date`  : null,
+  ].filter(Boolean).join(' · ')
+
+  const columnStyle: React.CSSProperties = {
+    flex: 1, minWidth: 0, minHeight: 110,
+    display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+    alignItems: 'center', gap: 4, paddingBottom: 10,
+  }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* Every finding here is a FAILURE (below minimum, missing endorsement)
-          — bars and counts carry --attention red, never orange (§Color). */}
-      {issues.map((issue, i) => (
-        <div key={issue.label}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ fontSize: 13, color: T.secondary, fontWeight: 500 }}>{issue.label}</span>
-            <span style={{ fontSize: 13, fontWeight: 500, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', color: T.red }}>{issue.count}</span>
+    <div>
+      <div style={{ display: 'flex', gap: 14 }}>
+
+        {/* Expired gutter — before the axis starts. Its baseline is
+            deliberately unconnected to the month axis: these are off the
+            timeline, not early on it. */}
+        <div style={{ width: 52, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ ...columnStyle, flex: 1 }}>
+            {expired.map(m => <ExpMarker key={m.vendorId || m.name} m={m} />)}
           </div>
-          <div style={{ height: 6, borderRadius: 2, background: T.border, overflow: 'hidden' }}>
-            <div style={{
-              height: '100%',
-              background: T.red,
-              width: animated ? `${(issue.count / maxCount) * 100}%` : '0%',
-              transition: 'width 0.6s ease',
-              transitionDelay: `${i * 80}ms`,
-            }} />
+          <div style={{ height: 1 }} />
+          <div style={{ paddingTop: 8, textAlign: 'center' }}>
+            <span style={{ fontSize: 10, fontFamily: T.evidence, color: expired.length > 0 ? T.red : T.muted }}>
+              Expired
+            </span>
           </div>
         </div>
-      ))}
+
+        <div style={{ width: 1, background: T.border, flexShrink: 0 }} />
+
+        {/* 12-month axis */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', flex: 1 }}>
+            {months.map(col => (
+              <div key={col.label} style={columnStyle}>
+                {col.markers.map(m => <ExpMarker key={m.vendorId || m.name} m={m} />)}
+              </div>
+            ))}
+          </div>
+          <div style={{ height: 1, background: T.border }} />
+          <div style={{ display: 'flex', paddingTop: 8 }}>
+            {months.map(col => (
+              <div key={col.label} style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
+                <span style={{ fontSize: 10, fontFamily: T.evidence, color: T.secondary, whiteSpace: 'nowrap' }}>{col.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginTop: 18 }}>
+        {TIMELINE_LEGEND.map(item => (
+          <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: item.color, flexShrink: 0 }} />
+            <span style={{ fontSize: 11, color: T.secondary }}>{item.label}</span>
+          </div>
+        ))}
+        {notShown && (
+          <span style={{ marginLeft: 'auto', fontSize: 10, color: T.muted, fontFamily: T.evidence }}>
+            Not shown: {notShown}
+          </span>
+        )}
+      </div>
     </div>
   )
 }
@@ -452,7 +556,9 @@ export default function ReportsPage() {
         ar?.expirationDate ?? '',
       ].join(',')
     })
-    const csv = [header.join(','), ...lines].join('\n')
+    // Legal requirement: the disclaimer ships with every exported compliance
+    // report. Quoted so its commas stay inside one cell.
+    const csv = [header.join(','), ...lines, '', `"${COMPLIANCE_DISCLAIMER}"`].join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -475,7 +581,6 @@ export default function ReportsPage() {
   const totalIssues    = filtered.reduce((acc, s) => acc + (s.issues_count ?? 0), 0)
 
   const outcomes       = verificationOutcomes(filtered)
-  const findingsList   = topFindings(filtered)
   const vendorsLatest  = latestPerVendor(allSubs)
   const vendorsNeedingAction = vendorsLatest.filter(requiresAction).length
   const vendorSummary  = [...vendorsLatest]
@@ -702,7 +807,8 @@ export default function ReportsPage() {
                     )}
                   </div>
 
-                  {/* Most common findings */}
+                  {/* Expiration timeline — forward-looking 12-month window,
+                      so the date-range filter above doesn't apply here. */}
                   <div style={{
                     background: T.card, border: `1px solid ${T.border}`,
                     borderRadius: 8, padding: 24,
@@ -711,21 +817,13 @@ export default function ReportsPage() {
                     onMouseEnter={e => (e.currentTarget.style.borderColor = T.borderAccent)}
                     onMouseLeave={e => (e.currentTarget.style.borderColor = T.border)}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                      <h2 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: 0 }}>
-                        Most Common Findings
-                      </h2>
-                      <span style={{ fontSize: 11, color: T.muted }}>{dateRange}</span>
-                    </div>
-                    {findingsList.length === 0 ? (
-                      <div style={{ padding: '28px 0', textAlign: 'center' }}>
-                        <CheckCircle2 size={28} color={T.orange} style={{ marginBottom: 10 }} />
-                        <p style={{ fontSize: 13, fontWeight: 600, color: T.orange, margin: '0 0 4px' }}>No findings detected</p>
-                        <p style={{ fontSize: 12, color: T.muted, margin: 0 }}>All verifications in this period are fully compliant.</p>
-                      </div>
-                    ) : (
-                      <TopIssuesChart issues={findingsList} />
-                    )}
+                    <h2 style={{ fontSize: 14, fontWeight: 700, color: T.primary, margin: '0 0 4px' }}>
+                      Expiration timeline
+                    </h2>
+                    <p style={{ fontSize: 12, color: T.muted, margin: '0 0 20px' }}>
+                      When coverage lapses across your vendors
+                    </p>
+                    <ExpirationTimeline vendors={vendorsLatest} />
                   </div>
                 </div>
 

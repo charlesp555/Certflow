@@ -4,8 +4,9 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { useUser, useAuth, UserButton } from '@clerk/nextjs'
 import { createClerkSupabaseClient } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 import {
-  Bell, User, ChevronDown, AlertTriangle,
+  Bell, User, AlertTriangle,
   ArrowRight, Users, CheckCircle2, Clock,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
@@ -21,7 +22,7 @@ const T = {
   borderHover: '#333A47',
   orange: '#F97316',    // --verified
   red: '#E5484D',       // --attention
-  redDim: 'rgba(229,72,77,0.55)',  // dimmed attention — fills/strokes (expiring)
+  redDim: '#B4565A',               // dimmed attention — lower-severity signals (expiring, secondary warnings)
   redDimText: '#D0888C',           // dimmed attention — readable text on graphite
   primary: '#F2F4F8',   // --ink-primary
   secondary: '#9AA3B2', // --ink-secondary
@@ -66,13 +67,26 @@ type Vendor = {
   expiration_date: string | null
 }
 
+type RequirementCheck = {
+  coverage: string
+  minimum: string
+  actual: string
+  passed: boolean
+  reason: string
+}
+
 type Submission = {
   id: string
   vendor_id: string | null
   status: string
   issues_count: number
   created_at: string
-  analysis_result: { expirationDate?: string } | null
+  analysis_result: { expirationDate?: string; requirementsCheck?: RequirementCheck[] } | null
+  // Migration 004 structured columns — already in the select('*') payload.
+  // NULL on pre-backfill rows; the matrix falls back to analysis_result.
+  requirements_check: RequirementCheck[] | null
+  is_expired: boolean | null
+  expiration_date: string | null
 }
 
 function useCountUp(target: number, duration = 1100): number {
@@ -139,107 +153,228 @@ function MetricCard({
   )
 }
 
-function AnimatedDonut({ compliant, issues, expiring, total }: {
-  compliant: number
-  issues: number
-  expiring: number
-  total: number
+// ── Needs attention (exceptions matrix) ─────────────────────────────────────
+// One row per vendor that needs action — expired, failing a requirement,
+// expiring within 30 days, or never verified — one column per requirement
+// check, read from the latest submission's structured requirements_check
+// column (already fetched, no new queries). Only verified-AND-passing vendors
+// are excluded: they need nothing, and past ~10 vendors a complete matrix
+// stops being scannable. Capped at 6 rows with a "View all" overflow link.
+// The "All N vendors verified" state is therefore literally true: it can only
+// render when every vendor has a verification and every one passes.
+
+type CellState = 'pass' | 'fail' | 'na'
+
+const MATRIX_COLUMNS: { label: string; match: RegExp }[] = [
+  { label: 'GL',   match: /general liability/i },
+  { label: 'Auto', match: /\bauto/i },
+  { label: 'WC',   match: /workers?\s*comp/i },
+  { label: 'A/I',  match: /additional insured/i },
+  { label: 'WOS',  match: /waiver|subrogation/i },
+]
+
+const CELL_GLYPH: Record<CellState, { glyph: string; color: string }> = {
+  pass: { glyph: '✓', color: T.orange },
+  fail: { glyph: '✕', color: T.red },
+  na:   { glyph: '—', color: T.secondary },
+}
+
+const MATRIX_LEGEND = [
+  { glyph: '✓',      color: T.orange,    label: 'verified' },
+  { glyph: '✕',      color: T.red,       label: 'failed' },
+  { glyph: '≤30d',   color: T.redDim,    label: 'expiring' },
+  { glyph: 'No COI', color: T.secondary, label: 'unverified' },
+  { glyph: '—',      color: T.secondary, label: 'not required' },
+]
+
+// Statuses only a completed verification can set (see saveToSupabase in
+// api/extract-coi). A vendor whose status is anything else has never had a
+// COI checked.
+const VERIFIED_STATUSES = ['active', 'expiring', 'expired', 'non_compliant']
+
+const MATRIX_HEADER_STYLE: React.CSSProperties = {
+  padding: '0 10px 10px',
+  fontSize: 12, color: T.secondary, fontFamily: T.voice, fontWeight: 600,
+  fontVariantCaps: 'all-small-caps', letterSpacing: '0.08em',
+  borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap',
+}
+
+function CoverageMatrix({ vendors, submissions, mounted }: {
+  vendors: Vendor[]
+  submissions: Submission[]
+  mounted: boolean
 }) {
-  const [progress, setProgress] = useState(0)
+  const router = useRouter()
 
-  useEffect(() => {
-    setProgress(0)
-    let raf: number
-    const duration = 1050
-    const t0 = performance.now()
-    const tick = (now: number) => {
-      const p = Math.min((now - t0) / duration, 1)
-      const eased = 1 - Math.pow(1 - p, 3)
-      setProgress(eased)
-      if (p < 1) raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [compliant, issues, expiring])
+  const rows = useMemo(() => {
+    const now = Date.now()
+    return vendors.map(v => {
+      // submissions arrive newest-first; the first match is the latest verification
+      const latest = submissions.find(s => s.vendor_id === v.id) ?? null
+      const checks = latest?.requirements_check ?? latest?.analysis_result?.requirementsCheck ?? []
 
-  const R = 70, cx = 100, cy = 100
-  const C = 2 * Math.PI * R
-  const safeTotal = total || 1
+      // A vendor's status is only ever set to one of these by a completed
+      // verification (saveToSupabase). Anything else ("Pending Review") means
+      // no COI has ever been checked — that vendor is UNVERIFIED, not healthy.
+      // No data is not a passing grade.
+      const unverified = !latest && !VERIFIED_STATUSES.includes(v.status)
 
-  const segments = [
-    { pct: compliant / safeTotal, color: T.orange, label: 'Compliant',     count: compliant },
-    { pct: issues   / safeTotal, color: T.red,    label: 'Issues Found',  count: issues    },
-    { pct: expiring / safeTotal, color: T.redDim, label: 'Expiring Soon', count: expiring  },
-  ]
+      const cells: CellState[] = MATRIX_COLUMNS.map(col => {
+        const check = checks.find(c => col.match.test(c.coverage))
+        if (!check) return 'na'
+        return check.passed ? 'pass' : 'fail'
+      })
 
-  let cum = 0
-  const arcs = segments.map(seg => {
-    const start = cum
-    const end = cum + seg.pct
-    let drawn = 0
-    if (progress >= end)       drawn = seg.pct * C
-    else if (progress > start) drawn = (progress - start) * C
-    cum += seg.pct
-    return { ...seg, dash: drawn, gap: C - drawn, rotation: start * 360 - 90 }
-  })
+      const expRaw = v.expiration_date ?? latest?.expiration_date ?? latest?.analysis_result?.expirationDate ?? null
+      const expDate = expRaw ? new Date(expRaw) : null
+      const days = expDate && !isNaN(expDate.getTime())
+        ? Math.ceil((expDate.getTime() - now) / 86_400_000)
+        : null
 
-  const centerPct = total === 0 ? 0 : Math.round((compliant / total) * 100 * progress)
+      const expired  = !unverified && ((days !== null && days < 0) || v.status === 'expired' || latest?.is_expired === true)
+      const failing  = cells.includes('fail')
+      const expiring = !unverified && !expired && days !== null && days <= 30
+
+      let expLabel: string, expColor: string
+      if (unverified) {
+        expLabel = 'No COI'
+        expColor = T.secondary
+      } else if (expired) {
+        expLabel = days !== null && days < 0 ? `expired ${-days}d` : 'expired'
+        expColor = T.red
+      } else if (expiring) {
+        expLabel = days === 0 ? 'today' : `${days} day${days === 1 ? '' : 's'}`
+        expColor = T.redDim
+      } else if (expDate && days !== null) {
+        expLabel = expDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+        expColor = T.primary
+      } else {
+        expLabel = '—'
+        expColor = T.muted
+      }
+
+      const urgency = unverified ? 3 : expired ? 0 : failing ? 1 : expiring ? 2 : 4
+      return { vendor: v, cells, expLabel, expColor, urgency, days }
+    })
+      .filter(r => r.urgency < 4) // exceptions only — verified-and-passing vendors need no attention
+      .sort((a, b) => a.urgency - b.urgency || (a.days ?? Infinity) - (b.days ?? Infinity))
+  }, [vendors, submissions])
+
+  const visible = rows.slice(0, 6)
+  const overflow = rows.length - visible.length
+
+  // The earned state: every vendor checked, nothing outstanding. Stated as a
+  // recorded fact — mono count, one verified check — not a celebration.
+  if (rows.length === 0) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '38px 0' }}>
+        <div style={{
+          width: 32, height: 32, borderRadius: 2, flexShrink: 0,
+          background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.35)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <span style={{ fontSize: 14, fontFamily: T.evidence, color: T.orange }}>✓</span>
+        </div>
+        <span style={{ fontSize: 13, fontWeight: 500, color: T.primary, fontFamily: T.voice }}>
+          All <span style={{ fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums' }}>{vendors.length}</span> vendor{vendors.length === 1 ? '' : 's'} verified
+        </span>
+      </div>
+    )
+  }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
-      <div style={{ position: 'relative', width: 200, height: 200, flexShrink: 0 }}>
-        <svg width="200" height="200" viewBox="0 0 200 200" style={{ overflow: 'visible' }}>
-          <circle cx={cx} cy={cy} r={R} fill="none" stroke={T.border} strokeWidth={24} />
-          {total > 0 && arcs.map((arc, i) => (
-            <circle
-              key={i} cx={cx} cy={cy} r={R}
-              fill="none" stroke={arc.color} strokeWidth={24}
-              strokeDasharray={`${arc.dash} ${arc.gap}`}
-              strokeLinecap="butt"
-              style={{ transform: `rotate(${arc.rotation}deg)`, transformOrigin: `${cx}px ${cy}px` }}
-            />
+    <>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th style={{ ...MATRIX_HEADER_STYLE, textAlign: 'left' }}>Vendor</th>
+              {MATRIX_COLUMNS.map(col => (
+                <th key={col.label} style={{ ...MATRIX_HEADER_STYLE, textAlign: 'center' }}>{col.label}</th>
+              ))}
+              <th style={{ ...MATRIX_HEADER_STYLE, textAlign: 'right' }}>Expires</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((row, i) => (
+              <tr
+                key={row.vendor.id}
+                className={mounted ? 'row-animate' : 'pre-animate'}
+                style={{ cursor: 'pointer', animationDelay: mounted ? `${i * 60}ms` : undefined, transition: 'background 0.15s' }}
+                onClick={() => router.push(`/vendors/${row.vendor.id}`)}
+                onMouseEnter={e => (e.currentTarget.style.background = '#1C2029')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <td style={{ padding: '12px 10px', borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                  <Link
+                    href={`/vendors/${row.vendor.id}`}
+                    style={{ fontSize: 13, fontWeight: 600, color: T.primary, fontFamily: T.voice, textDecoration: 'none' }}
+                    onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                    onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                  >
+                    {row.vendor.name}
+                  </Link>
+                </td>
+                {row.cells.map((cell, j) => (
+                  <td key={j} style={{
+                    padding: '12px 10px', borderBottom: `1px solid ${T.border}`,
+                    textAlign: 'center', fontSize: 13, fontFamily: T.evidence,
+                    color: CELL_GLYPH[cell].color,
+                  }}>
+                    {CELL_GLYPH[cell].glyph}
+                  </td>
+                ))}
+                <td style={{
+                  padding: '12px 10px', borderBottom: `1px solid ${T.border}`,
+                  textAlign: 'right', fontSize: 12, fontFamily: T.evidence,
+                  fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
+                  color: row.expColor,
+                }}>
+                  {row.expLabel}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, paddingTop: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          {MATRIX_LEGEND.map(item => (
+            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, fontFamily: T.evidence, color: item.color }}>{item.glyph}</span>
+              <span style={{ fontSize: 11, fontFamily: T.voice, color: T.secondary }}>{item.label}</span>
+            </div>
           ))}
-        </svg>
-        <div style={{
-          position: 'absolute', inset: 0,
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          textAlign: 'center', pointerEvents: 'none',
-        }}>
-          <div style={{ fontSize: 26, fontWeight: 500, color: T.primary, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
-            {centerPct}%
-          </div>
-          <div style={{ fontSize: 12, color: T.secondary, fontFamily: T.voice, marginTop: 4 }}>
-            {total === 0 ? 'No data' : 'Compliant'}
-          </div>
         </div>
+        {overflow > 0 && (
+          <Link
+            href="/reports"
+            style={{ fontSize: 12, fontWeight: 500, color: T.secondary, fontFamily: T.voice, textDecoration: 'none', whiteSpace: 'nowrap', transition: 'color 0.15s' }}
+            onMouseEnter={e => (e.currentTarget.style.color = T.primary)}
+            onMouseLeave={e => (e.currentTarget.style.color = T.secondary)}
+          >
+            View all {rows.length} →
+          </Link>
+        )}
       </div>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {segments.map(seg => (
-          <div key={seg.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 9, height: 9, borderRadius: '50%', background: seg.color, flexShrink: 0 }} />
-              <span style={{ fontSize: 13, color: T.secondary, fontFamily: T.voice }}>{seg.label}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 14, fontWeight: 500, color: T.primary, fontFamily: T.evidence, fontVariantNumeric: 'tabular-nums' }}>{seg.count}</span>
-              <span style={{
-                fontSize: 11, color: T.secondary, fontFamily: T.evidence,
-                border: `1px solid ${T.border}`,
-                borderRadius: 2, padding: '1px 7px',
-              }}>
-                {total === 0 ? '0%' : `${Math.round(seg.pct * 100)}%`}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+    </>
   )
 }
 
-function ActionItem({ text, index, mounted }: { text: string; index: number; mounted: boolean }) {
+// Severity gradient: full --attention red is reserved for expired/critical;
+// lower-severity items (compliance issues, expiring soon) carry the dimmed
+// red so the one truly urgent item reads first.
+type Severity = 'critical' | 'dim'
+
+const SEVERITY_TONES: Record<Severity, { icon: string; bg: string; bgHov: string; border: string; borderHov: string }> = {
+  critical: { icon: T.red,    bg: 'rgba(229,72,77,0.05)', bgHov: 'rgba(229,72,77,0.10)', border: 'rgba(229,72,77,0.14)', borderHov: 'rgba(229,72,77,0.28)' },
+  dim:      { icon: T.redDim, bg: 'rgba(180,86,90,0.05)', bgHov: 'rgba(180,86,90,0.10)', border: 'rgba(180,86,90,0.16)', borderHov: 'rgba(180,86,90,0.32)' },
+}
+
+function ActionItem({ text, severity, index, mounted }: { text: string; severity: Severity; index: number; mounted: boolean }) {
   const [hov, setHov] = useState(false)
+  const tone = SEVERITY_TONES[severity]
   return (
     <Link
       href="/vendors"
@@ -247,8 +382,8 @@ function ActionItem({ text, index, mounted }: { text: string; index: number; mou
       style={{
         display: 'flex', alignItems: 'center', gap: 11,
         padding: '11px 13px',
-        background: hov ? 'rgba(229,72,77,0.10)' : 'rgba(229,72,77,0.05)',
-        border: `1px solid ${hov ? 'rgba(229,72,77,0.28)' : 'rgba(229,72,77,0.14)'}`,
+        background: hov ? tone.bgHov : tone.bg,
+        border: `1px solid ${hov ? tone.borderHov : tone.border}`,
         borderRadius: 8, textDecoration: 'none',
         animationDelay: mounted ? `${index * 80 + 150}ms` : undefined,
         transition: 'background 0.15s, border-color 0.15s',
@@ -256,7 +391,7 @@ function ActionItem({ text, index, mounted }: { text: string; index: number; mou
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
     >
-      <AlertTriangle size={15} color={T.red} style={{ flexShrink: 0 }} />
+      <AlertTriangle size={15} color={tone.icon} style={{ flexShrink: 0 }} />
       <span style={{ fontSize: 13, color: T.primary, fontFamily: T.voice, lineHeight: 1.5, fontWeight: 500, flex: 1 }}>{text}</span>
       <ArrowRight
         size={13} color={T.secondary}
@@ -308,11 +443,15 @@ export default function Dashboard() {
   const issuesFound     = vendors.filter(v => v.status === 'non_compliant' || v.status === 'expired').length
   const compliantPct    = totalVendors === 0 ? 0 : Math.round((compliantVendors / totalVendors) * 100)
 
-  const actionItems: string[] = []
-  if (issuesFound > 0)   actionItems.push(`${issuesFound} vendor${issuesFound > 1 ? 's have' : ' has'} compliance issues`)
-  if (expiringSoon > 0)  actionItems.push(`${expiringSoon} COI${expiringSoon > 1 ? 's' : ''} expiring soon`)
+  // Critical first, then dimmed — hierarchy through intensity and position.
+  // Unverified vendors are an action item too: no data is not a passing grade.
+  const actionItems: { text: string; severity: Severity }[] = []
   const expired = vendors.filter(v => v.status === 'expired').length
-  if (expired > 0)       actionItems.push(`${expired} COI${expired > 1 ? 's' : ''} already expired`)
+  const unverifiedCount = vendors.filter(v => !VERIFIED_STATUSES.includes(v.status)).length
+  if (expired > 0)          actionItems.push({ text: `${expired} COI${expired > 1 ? 's' : ''} already expired`, severity: 'critical' })
+  if (issuesFound > 0)      actionItems.push({ text: `${issuesFound} vendor${issuesFound > 1 ? 's have' : ' has'} compliance issues`, severity: 'dim' })
+  if (expiringSoon > 0)     actionItems.push({ text: `${expiringSoon} COI${expiringSoon > 1 ? 's' : ''} expiring soon`, severity: 'dim' })
+  if (unverifiedCount > 0)  actionItems.push({ text: `${unverifiedCount} vendor${unverifiedCount > 1 ? 's have' : ' has'} no COI on file`, severity: 'dim' })
 
   const vendorMap = Object.fromEntries(vendors.map(v => [v.id, v.name]))
 
@@ -433,32 +572,15 @@ export default function Dashboard() {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
-                  {/* Compliance Overview */}
+                  {/* Needs attention — exceptions-only coverage matrix */}
                   <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: 24, transition: 'border-color 0.2s' }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderHover }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = T.border }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-                      <h2 style={{ fontSize: 14, fontWeight: 600, color: T.primary, fontFamily: T.voice, letterSpacing: '-0.01em', margin: 0 }}>Compliance Overview</h2>
-                      <button style={{
-                        display: 'flex', alignItems: 'center', gap: 5,
-                        background: 'transparent', border: `1px solid ${T.border}`,
-                        borderRadius: 8, padding: '5px 10px',
-                        fontSize: 12, color: T.secondary, fontFamily: T.voice, cursor: 'pointer',
-                        transition: 'border-color 0.15s',
-                      }}
-                        onMouseEnter={e => (e.currentTarget.style.borderColor = T.borderHover)}
-                        onMouseLeave={e => (e.currentTarget.style.borderColor = T.border)}
-                      >
-                        This Month <ChevronDown size={11} />
-                      </button>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                      <h2 style={{ fontSize: 14, fontWeight: 600, color: T.primary, fontFamily: T.voice, letterSpacing: '-0.01em', margin: 0 }}>Needs attention</h2>
                     </div>
-                    <AnimatedDonut
-                      compliant={compliantVendors}
-                      issues={issuesFound}
-                      expiring={expiringSoon}
-                      total={totalVendors}
-                    />
+                    <CoverageMatrix vendors={vendors} submissions={submissions} mounted={mounted} />
                   </div>
 
                   {/* Recent Submissions */}
@@ -497,7 +619,11 @@ export default function Dashboard() {
                           {submissions.length === 0 ? (
                             <tr>
                               <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: T.secondary, fontFamily: T.voice }}>
-                                No submissions yet. Upload your first COI to get started.
+                                No submissions yet.{' '}
+                                <Link href="/upload" style={{ color: T.primary, fontWeight: 500, textDecorationColor: T.border }}>
+                                  Upload your first COI
+                                </Link>
+                                {' '}to get started.
                               </td>
                             </tr>
                           ) : (
@@ -575,8 +701,8 @@ export default function Dashboard() {
                     {actionItems.length === 0 ? (
                       <p style={{ color: T.secondary, fontFamily: T.voice, fontSize: 14 }}>No action items. All vendors are compliant.</p>
                     ) : (
-                      actionItems.map((text, i) => (
-                        <ActionItem key={i} text={text} index={i} mounted={mounted} />
+                      actionItems.map((item, i) => (
+                        <ActionItem key={i} text={item.text} severity={item.severity} index={i} mounted={mounted} />
                       ))
                     )}
                   </div>

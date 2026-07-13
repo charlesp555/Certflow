@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import Sidebar from '../../components/Sidebar'
 import COIUploadModal from '../../components/COIUploadModal'
+import ComplianceDisclaimer from '../../components/ComplianceDisclaimer'
 import { UserButton, useUser, useAuth } from '@clerk/nextjs'
 import { createClerkSupabaseClient } from '@/lib/supabase'
 
@@ -570,15 +571,27 @@ function VendorContactCard({ vendor, userId, onSaved, showToast }: { vendor: Ven
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
 
-function OverviewTab({ latestSub, vendorName, vendorEmail, vendorContactName }: { latestSub: Submission | null; vendorName: string; vendorEmail: string | null; vendorContactName: string | null }) {
+function OverviewTab({ latestSub, vendorName, vendorEmail, vendorContactName, onUploadClick }: { latestSub: Submission | null; vendorName: string; vendorEmail: string | null; vendorContactName: string | null; onUploadClick: () => void }) {
   if (!latestSub) {
     return (
       <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: 40, textAlign: 'center' }}>
-        <FileText size={36} color={T.muted} style={{ marginBottom: 16 }} />
-        <h3 style={{ fontSize: 16, fontWeight: 700, color: T.primary, margin: '0 0 10px' }}>No COI uploaded yet</h3>
-        <p style={{ fontSize: 14, color: T.secondary, margin: '0 0 0', lineHeight: 1.6 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 700, color: T.primary, margin: '0 0 10px' }}>No certificate uploaded yet.</h3>
+        <p style={{ fontSize: 14, color: T.secondary, margin: '0 0 24px', lineHeight: 1.6 }}>
           Upload a Certificate of Insurance to see compliance details for this vendor.
         </p>
+        <button
+          onClick={onUploadClick}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: T.orange, color: '#fff', border: 'none',
+            borderRadius: 8, padding: '10px 20px', fontSize: 13, fontWeight: 600,
+            cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = T.orangeHover)}
+          onMouseLeave={e => (e.currentTarget.style.background = T.orange)}
+        >
+          <Upload size={14} /> Upload COI
+        </button>
       </div>
     )
   }
@@ -616,6 +629,8 @@ function OverviewTab({ latestSub, vendorName, vendorEmail, vendorContactName }: 
       )}
 
       <VerifiedRequirements sub={latestSub} />
+
+      <ComplianceDisclaimer />
     </div>
   )
 }
@@ -1129,7 +1144,7 @@ export default function VendorProfile() {
 
           {activeTab === 'overview'  && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              <OverviewTab latestSub={latestSub} vendorName={vendor.name} vendorEmail={vendor.vendor_email} vendorContactName={vendor.vendor_contact_name} />
+              <OverviewTab latestSub={latestSub} vendorName={vendor.name} vendorEmail={vendor.vendor_email} vendorContactName={vendor.vendor_contact_name} onUploadClick={() => setShowUploadModal(true)} />
               <VendorContactCard
                 vendor={vendor}
                 userId={user!.id}

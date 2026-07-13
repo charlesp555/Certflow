@@ -37,6 +37,9 @@ export default function COIUploadModal({
 
   const handleFile = (f: File) => {
     if (f.type !== 'application/pdf') { setError('Please upload a PDF file.'); return }
+    // Mirrors the server cap — rejecting here saves uploading 15 MB+ just to
+    // hear the same message back.
+    if (f.size > 15 * 1024 * 1024) { setError('File is too large. Maximum size is 15 MB.'); return }
     setFile(f)
     setError('')
     setResult(null)
@@ -139,14 +142,13 @@ export default function COIUploadModal({
               )}
             </div>
 
+            {/* Errors are stated plainly in --attention red — no tinted box,
+                no icon. The message says what happened and what to do; the
+                form stays usable so the user can retry or pick another file. */}
             {error && (
-              <div style={{
-                background: 'rgba(229,72,77,0.08)', border: '1px solid rgba(229,72,77,0.22)',
-                borderRadius: 8, padding: '11px 14px', marginBottom: 14,
-                fontSize: 13, color: '#F2A0A3',
-              }}>
+              <p style={{ fontSize: 13, color: '#E5484D', lineHeight: 1.6, margin: '0 0 14px' }}>
                 {error}
-              </div>
+              </p>
             )}
 
             <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>

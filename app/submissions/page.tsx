@@ -7,6 +7,7 @@ import {
   Download, Eye, FileText,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
+import ComplianceDisclaimer from '../components/ComplianceDisclaimer'
 import { UserButton, useUser, useAuth } from '@clerk/nextjs'
 import { createClerkSupabaseClient } from '@/lib/supabase'
 
@@ -608,6 +609,8 @@ export default function SubmissionsPage() {
                 <Upload size={12} /> Upload new COI
               </Link>
             </div>
+
+            <ComplianceDisclaimer style={{ padding: '14px 16px 16px' }} />
           </div>
         </div>
       </main>

@@ -5,6 +5,7 @@ import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Bell, Check, X, AlertTriangle, FileText } from 'lucide-react'
 import Sidebar from '../../components/Sidebar'
+import ComplianceDisclaimer from '../../components/ComplianceDisclaimer'
 import { UserButton, useUser, useAuth } from '@clerk/nextjs'
 import { createClerkSupabaseClient } from '@/lib/supabase'
 
@@ -386,6 +387,8 @@ export default function ReportDetailPage() {
                   </div>
                 </div>
               </div>
+
+              <ComplianceDisclaimer style={{ marginTop: 24 }} />
             </>
           )}
         </div>

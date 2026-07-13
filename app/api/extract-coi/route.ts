@@ -113,7 +113,17 @@ export async function POST(request: NextRequest) {
       reason: 'explain pass or fail',
     }))
 
-    const prompt = `You are a certificate of insurance compliance expert. Extract all information from this COI and check it against the user's specific requirements. Return ONLY a JSON object with no other text.${requirementsSection}
+    const prompt = `You are a certificate of insurance compliance expert. Return ONLY a JSON object with no other text.
+
+STEP 0 — DOCUMENT IDENTIFICATION. Before extracting anything, determine what this document is. Set "documentType" to exactly one of:
+- "acord25" — an ACORD 25 Certificate of Liability Insurance. Accept ANY ACORD 25 revision year (2016/03, 2014/01, etc.), scanned or photographed copies, skewed or low-quality scans, unusual layouts, and partially redacted certificates — if the document is recognizably an ACORD 25 certificate of liability insurance, it qualifies.
+- "other_insurance" — an insurance document that is NOT an ACORD 25: a different ACORD form (e.g. ACORD 24, 27, 28), a policy declarations page, a carrier letter, a binder, an endorsement on its own.
+- "not_insurance" — anything else: a lease, an invoice, a blank page, any non-insurance document.
+If documentType is NOT "acord25", return ONLY this and skip everything below:
+{"documentType": "other_insurance or not_insurance", "documentDescription": "one short phrase saying what the document appears to be"}
+If you are genuinely uncertain whether the document is an ACORD 25, do NOT guess — use "other_insurance". Never produce a compliance verdict for a document you could not identify as an ACORD 25.
+
+If and only if documentType is "acord25": extract all information from this COI and check it against the user's specific requirements.${requirementsSection}
 
 For each requirement:
 - Extract the actual coverage amount/status from the COI
@@ -121,6 +131,9 @@ For each requirement:
 - For "Required" items: check if present anywhere on the COI
 - Set passed: true only if the COI meets or exceeds the requirement
 - Write a concise reason explaining the result
+
+CRITICAL — expirationDate:
+- If the policies on the certificate carry DIFFERENT expiration dates, set the top-level expirationDate to the EARLIEST of them — coverage begins lapsing at the first expiry, so the earliest date is the certificate's effective expiration
 
 CRITICAL — Additional Insured and Waiver of Subrogation detection:
 - Search the ENTIRE document: checkboxes, endorsements, AND the Description of Operations / Special Conditions section
@@ -140,6 +153,7 @@ Set overallStatus to:
 
 Return this exact JSON structure:
 ${JSON.stringify({
+  documentType: 'acord25',
   insuredName: 'company name',
   insuredAddress: 'address',
   effectiveDate: 'date',
@@ -156,8 +170,14 @@ ${JSON.stringify({
   overallStatus: 'COMPLIANT',
 })}`
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // 90s upstream timeout — without it a hung Anthropic call pins the modal
+    // spinner until the 300s platform kill. Timeout and network failures both
+    // read as "busy, retry" to the user, which is the honest instruction.
+    let response: Response
+    try {
+      response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
+      signal: AbortSignal.timeout(90_000),
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
@@ -187,13 +207,36 @@ ${JSON.stringify({
           },
         ],
       }),
-    })
+      })
+    } catch (fetchErr) {
+      const name = fetchErr instanceof Error ? fetchErr.name : ''
+      console.error(`[extract-coi] Anthropic fetch failed after ${Date.now() - t0}ms: ${name}`)
+      return NextResponse.json(
+        { error: 'Analysis service is busy. Please try again in a moment.' },
+        { status: 503 }
+      )
+    }
 
     console.log(`[extract-coi] Anthropic responded ${response.status} after ${Date.now() - t0}ms`)
     const responseText = await response.text()
 
     if (!response.ok) {
       console.error('[extract-coi] Anthropic API error:', responseText.slice(0, 500))
+      // Overload/rate-limit is transient — tell the user to retry. A 400 means
+      // the API couldn't process the document itself (corrupt, encrypted) —
+      // retrying can never fix that, so say what's actually wrong.
+      if (response.status === 429 || response.status === 529) {
+        return NextResponse.json(
+          { error: 'Analysis service is busy. Please try again in a moment.' },
+          { status: 503 }
+        )
+      }
+      if (response.status === 400) {
+        return NextResponse.json(
+          { error: "This PDF couldn't be read. It may be corrupt or password-protected." },
+          { status: 422 }
+        )
+      }
       return NextResponse.json({ error: 'Failed to analyze COI. Please try again.' }, { status: 500 })
     }
 
@@ -213,6 +256,36 @@ ${JSON.stringify({
       console.error('[extract-coi] PARSE FAILED:', msg)
       console.error('[extract-coi] raw response (first 600 chars):', responseText.slice(0, 600))
       throw parseErr
+    }
+
+    // ── Document-type gate ────────────────────────────────────────────────────
+    // Covira is verified against ACORD 25 only. This gate runs BEFORE the
+    // expiry override and BEFORE saveToSupabase — the only place this route
+    // writes to the DB — so a refused document changes nothing: no submission
+    // row, no vendor status change, no document record. Grading an unidentified
+    // document would produce a confident-but-wrong verdict, which is worse
+    // than no verdict.
+    const documentType = coiData.documentType as string | undefined
+    if (documentType !== 'acord25') {
+      if (documentType === undefined) {
+        // The model didn't return the identification field at all. That's a
+        // model-compliance failure, not a judgment that the document isn't an
+        // ACORD 25 — refuse to grade, but as a retryable error, not a
+        // misdocument verdict.
+        console.error('[extract-coi] documentType missing from model output — refusing to grade')
+        return NextResponse.json(
+          { error: 'Analysis could not be completed. Please try again.' },
+          { status: 500 }
+        )
+      }
+      console.log(`[extract-coi] document-type gate refused: ${documentType} (${String(coiData.documentDescription ?? 'no description')})`)
+      return NextResponse.json(
+        {
+          error: "This doesn't appear to be an ACORD 25 certificate of liability insurance. Covira currently verifies ACORD 25 certificates only.",
+          documentType,
+        },
+        { status: 422 }
+      )
     }
 
     // Server-side expiration check — the model cannot know today's date, so we
