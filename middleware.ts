@@ -10,6 +10,8 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/report(.*)",
   "/demo(.*)",
+  "/terms(.*)",
+  "/privacy(.*)",
 ]);
 
 // auth.protect()'s default unauthenticated handling picks a response based on
