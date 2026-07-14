@@ -30,3 +30,6 @@ next-env.d.ts
 npm-debug.log*
 
 .vercel
+
+# claude code local state (machine-specific settings, absolute paths)
+.claude/
