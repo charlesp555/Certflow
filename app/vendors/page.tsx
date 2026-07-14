@@ -11,6 +11,7 @@ import Sidebar from '../components/Sidebar'
 import COIUploadModal from '../components/COIUploadModal'
 import { useUser, useAuth, UserButton } from '@clerk/nextjs'
 import { createClerkSupabaseClient } from '@/lib/supabase'
+import { FREE_VENDOR_LIMIT } from '@/lib/plans'
 
 // ─── Design Bible voices ──────────────────────────────────────────────────────
 // Schibsted Grotesk (voice) is inherited from the page root; evidence is set
@@ -128,8 +129,6 @@ const EXPIRATION_OPTIONS = ['All', 'This Month', 'Next 30 Days', 'Next 90 Days',
 const MODAL_TYPES = ['Plumbing', 'Electrical', 'HVAC', 'Roofing', 'Janitorial', 'General Contractor', 'Flooring']
 const MODAL_STATUSES = ['Pending Review', 'Compliant', 'Issues Found', 'Expiring Soon']
 
-const FREE_VENDOR_LIMIT = 3
-
 const STATUS_ORDER: Record<VendorStatus, number> = {
   'Issues Found':   0,
   'Expiring Soon':  1,
@@ -228,33 +227,41 @@ function PaywallModal({ onClose }: { onClose: () => void }) {
 // ─── Add Vendor Modal ─────────────────────────────────────────────────────────
 
 function AddVendorModal({
-  clerkUserId,
   onClose,
   onSave,
 }: {
-  clerkUserId: string
   onClose: () => void
   onSave: () => void
 }) {
-  const { getToken } = useAuth()
-  const supabase = useMemo(() => createClerkSupabaseClient(getToken), [getToken])
   const [form, setForm] = useState({ name: '', type: 'Plumbing', status: 'Pending Review' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  // Insert via the server route, not the browser Supabase client: the route is
+  // where the free-tier cap is actually enforced (RLS can't count rows or read
+  // the plan). The client-side check in handleAddVendorClick is only UX.
   const handleSave = async () => {
     if (!form.name.trim()) { setError('Vendor name is required.'); return }
     setSaving(true)
     setError('')
-    const { error: dbErr } = await supabase.from('vendors').insert({
-      clerk_user_id: clerkUserId,
-      name: form.name.trim(),
-      type: form.type,
-      status: 'Pending Review',
-      created_at: new Date().toISOString(),
-    })
+    try {
+      const res = await fetch('/api/vendors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: form.name.trim(), type: form.type }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({} as { error?: string }))
+        setError(body.error || 'Failed to add vendor. Please try again.')
+        setSaving(false)
+        return
+      }
+    } catch {
+      setError('Failed to add vendor. Please try again.')
+      setSaving(false)
+      return
+    }
     setSaving(false)
-    if (dbErr) { setError('Failed to add vendor. Please try again.'); return }
     onSave()
     onClose()
   }
@@ -690,7 +697,6 @@ export default function VendorsPage() {
 
       {showModal && user && (
         <AddVendorModal
-          clerkUserId={user.id}
           onClose={() => setShowModal(false)}
           onSave={fetchVendors}
         />

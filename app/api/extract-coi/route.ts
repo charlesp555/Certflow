@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { checkVendorCapacity, VendorLimitError } from '@/lib/vendor-cap'
 
 export const runtime = 'nodejs'
 
@@ -346,6 +347,13 @@ ${JSON.stringify({
       try {
         await saveToSupabase(coiData, vendorNameFromForm, vendorIdFromForm, userId)
       } catch (dbErr) {
+        // A free user at the vendor cap uploading a COI for a NEW vendor name is
+        // a paywall, not a server error — surface it as a clear 403 so the modal
+        // can tell them to upgrade rather than showing a generic save failure.
+        if (dbErr instanceof VendorLimitError) {
+          console.log('[extract-coi] vendor cap hit on name-match create — refusing')
+          return NextResponse.json({ error: dbErr.message, saved: false }, { status: 403 })
+        }
         const msg = dbErr instanceof Error ? dbErr.message : String(dbErr)
         console.error('[extract-coi] DB save FAILED:', msg)
         return NextResponse.json(
@@ -454,6 +462,15 @@ async function saveToSupabase(
         .eq('id', existing.id)
       if (vendorUpdateErr) throw new Error(`vendor update failed: ${vendorUpdateErr.message}`)
     } else {
+      // This is the only extract-coi path that CREATES a vendor (upload of a COI
+      // for a brand-new vendor name). It must respect the same free-tier cap as
+      // the Add Vendor route — otherwise a free user at the limit could create a
+      // 4th vendor just by uploading. The vendor_id and existing-name paths above
+      // only update, so they don't need this check.
+      if (userId) {
+        const { allowed, limit } = await checkVendorCapacity(userId)
+        if (!allowed) throw new VendorLimitError(limit)
+      }
       const { data: newVendor, error: vendorInsertErr } = await supabaseAdmin
         .from('vendors')
         .insert({

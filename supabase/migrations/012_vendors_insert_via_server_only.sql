@@ -1,0 +1,55 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 012_vendors_insert_via_server_only.sql
+--
+-- H-1 (final step) — CLOSE the client-side vendor-cap bypass AT THE DATABASE.
+--
+-- Background: the free-tier vendor limit is now enforced server-side in the
+-- service-role route app/api/vendors (POST) and in the extract-coi name-match
+-- create path (lib/vendor-cap.ts). But migration 007 also granted the browser
+-- (anon key + Clerk token, role `authenticated`) a direct INSERT policy on
+-- vendors — `vendors_insert_own` — which RLS happily allows because it only
+-- checks row ownership, not row COUNT or the user's plan. So a free user at the
+-- limit could still open the console and INSERT a 4th vendor directly, bypassing
+-- the cap entirely.
+--
+-- Fix: DROP the INSERT policy. Vendor creation now goes exclusively through the
+-- service-role /api/vendors route (and the extract-coi upload path), both of
+-- which bypass RLS by design and enforce the cap before inserting. The browser
+-- no longer needs — and must no longer have — direct INSERT on vendors.
+--
+-- SCOPE — this migration drops ONE policy and nothing else:
+--   • vendors_select_own  — KEPT. Browser still reads vendors (dashboard,
+--                           vendors list, vendor detail).
+--   • vendors_update_own  — KEPT. Browser still edits vendors (detail page:
+--                           email / contact / type).
+--   • vendors_delete_own  — KEPT. Browser still deletes vendors (vendors list).
+--   • vendors_insert_own  — DROPPED. Direct client inserts now default-deny.
+--
+-- WHY THE SERVER ROUTES ARE UNAFFECTED:
+--   RLS is NOT forced on vendors (no FORCE ROW LEVEL SECURITY), so the
+--   `service_role` key used by supabaseAdmin bypasses RLS entirely. Dropping an
+--   `authenticated` policy changes nothing for service-role writes.
+--
+-- WHY THE BYPASS CLOSES:
+--   With RLS still enabled and no INSERT policy for `authenticated`, INSERT
+--   default-denies (no matching policy = deny). The browser client — anon key +
+--   Clerk token — can no longer insert into vendors under any condition.
+--
+-- RLS STAYS ENABLED on vendors (this file does NOT disable it).
+--
+-- IDEMPOTENT / RE-RUNNABLE:
+--   DROP POLICY IF EXISTS is a no-op if the policy is already gone.
+--
+-- ROLLBACK (re-grant direct client INSERT if this ever needs reverting) — run
+-- manually; intentionally NOT executed here:
+--   create policy "vendors_insert_own" on vendors
+--     for insert
+--     to authenticated
+--     with check ( clerk_user_id = (select auth.jwt() ->> 'sub') );
+--
+-- Please review before running. Nothing in this file has been executed.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- Remove the browser's direct INSERT capability on vendors. SELECT / UPDATE /
+-- DELETE policies from migration 007 are left in place.
+drop policy if exists "vendors_insert_own" on vendors;
